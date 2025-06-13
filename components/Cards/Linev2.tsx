@@ -101,8 +101,7 @@ export default function CardWithLineSwitcher() {
           <CardTitle>This week</CardTitle>
           <CardDescription>These are the results of this week.</CardDescription>
         </div>
-        <CardContent>
-        </CardContent>
+
         <div className="flex gap-4">
           <KnowbySearchDropdown
             options={knowbyOptions}

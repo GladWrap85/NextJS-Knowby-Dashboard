@@ -1,5 +1,5 @@
 'use client';
-import { Bell, ChartArea, ChartBar, ChartLineIcon, Cookie, CreditCard, Frame, Home, Inbox, LayoutDashboard, Logs, Settings, User } from "lucide-react";
+import { Bell, ChartArea, ChartBar, ChartLineIcon, Cookie, CreditCard, Frame, Home, Inbox, LayoutDashboard, Link2, LogIn, LogOut, Logs, RefreshCcw, Settings, User } from "lucide-react";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator } from "./ui/command";
 import UserItem from "./UserItem";
 import Link from "next/link";
@@ -7,6 +7,31 @@ import Link from "next/link";
 export default function Sidebar() {
   const menuList = [
     {
+      group: "Connection",
+      items: [
+        {
+          link: "/",
+          icon: <RefreshCcw />,
+          text: "Refresh"
+        }
+      ]
+    },
+    {
+      group: "Account",
+      items: [
+        {
+          link: "/",
+          icon: <LogIn />,
+          text: "Login"
+        },
+        {
+          link: "/",
+          icon: <LogOut />,
+          text: "Logout"
+        }
+      ]
+    },
+    /*{
       group: "General",
       items: [
         {
@@ -20,7 +45,7 @@ export default function Sidebar() {
           text: "Charts"
         }
       ]
-    },
+    },*/
     {
       group: "Settings",
       items: [
@@ -35,14 +60,27 @@ export default function Sidebar() {
 
   return <div className="fixed flex flex-col gap-4 w-[260px] min-w-[260px] p-4 min-h-screen">
     <div className="flex items-center gap-4">
-      <img src="./ffs_logo_full.png" alt="firststepsolutions_logo" />
+      {/* Light mode logo */}
+      <img
+        src="./ffs_logo_full.png"
+        alt="First Step Solutions"
+        className="block dark:hidden"
+      />
+
+      {/* Dark mode logo */}
+      <img
+        src="./ffs_logo_full_dark.png"
+        alt="First Step Solutions (Dark)"
+        className="hidden dark:block"
+      />
     </div>
+
     <div>
         <UserItem />
     </div>
-    <div className="grow">
-      <Command style={{ overflow: 'visible'}} className="shadow-md">
-        <CommandList>
+    <div className="flex-1">
+      <Command style={{ overflow: 'visible'}} className="shadow-md bg-background">
+        <CommandList className="max-h-[calc(100vh-200px)]">
           {menuList.map((menu: any, key: number) => (
             <CommandGroup key={key} heading={menu.group}>
             {menu.items.map((option: any, optionKey: number) => 
@@ -59,7 +97,7 @@ export default function Sidebar() {
     <div>
       <Link href="/team" className="flex items-center gap-2">
       <Frame />
-      <span>Dev Branch</span>
+      <span>Alternate</span>
       </Link>
     </div>
   </div>

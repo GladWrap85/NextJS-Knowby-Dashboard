@@ -11,6 +11,7 @@ import { useState } from "react";
 import { CommandDemo } from "./Command";
 import { Button } from "./ui/button";
 import { DatePickerWithRange } from "./DateRangePicker";
+import { ModeToggle } from "./ThemeSwitch";
 
 
 export default function Header() {
@@ -42,6 +43,7 @@ export default function Header() {
             <BellIcon className="h-4 w-4" />
           </Button>
         </DropdownMenuTrigger>
+        <ModeToggle />
         <DropdownMenuContent align="end">
           {notifications.map((item: any, key: number) => <DropdownMenuItem key={key} className="py-2 px-3 cursor-pointer hover:bg-neutral-50 transition flex items-start gap-2">
             <div className={`h-3 w-3 rounded-full my-1 ${!item.read ? 'bg-green-500' : 'bg-neutral-200'}`}></div>
