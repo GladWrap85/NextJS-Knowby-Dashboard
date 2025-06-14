@@ -34,11 +34,11 @@ export default function Header() {
     <div className="flex items-center">
       <span className="text-2xl font-bold pl-4">Dashboard</span>
     </div>
-    <div className="flex items-center justify-end gap-[32px]">
+    <div className="flex items-center justify-end gap-[32px] pr-4">
       <DropdownMenu>
-        <DatePickerWithRange />
+        <DatePickerWithRange/>
         <DropdownMenuTrigger asChild>
-          <Button className="relative" variant="outline" size="icon">
+          <Button className="relative hover:!bg-accent" variant="outline" size="icon">
             <div className={`absolute -top-2 -right-1 h-3 w-3 rounded-full my-1 ${notifications.find((x: any) => x.read === true) ? 'bg-green-500' : 'bg-neutral-200'}`}></div>
             <BellIcon className="h-4 w-4" />
           </Button>

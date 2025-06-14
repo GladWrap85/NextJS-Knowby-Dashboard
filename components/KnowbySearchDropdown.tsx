@@ -23,7 +23,7 @@ export function KnowbySearchDropdown({ options, selected, onChange }: Props) {
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button variant="outline" className="w-[250px] justify-between">
+        <Button variant="outline" className="w-[250px] justify-between hover:!bg-accent">
           <span className="truncate overflow-hidden text-ellipsis whitespace-nowrap max-w-[200px]">
             {selected || "Select Knowby"}
           </span>

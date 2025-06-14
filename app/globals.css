@@ -183,6 +183,9 @@
   .bg-sidebar {
     background-color: var(--sidebar);
   }
+  .bg-accent {
+    background-color: var(--accent);
+  }
   .text-sidebar-foreground {
     color: var(--sidebar-foreground);
   }
