@@ -46,6 +46,9 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+  --c-custom-scrollbar-size: 14px;
+  --c-custom-scrollbar-padding: 4px;
+  --c-custom-scrollbar-border-radius: 8px;
 }
 
 .dark {
@@ -189,4 +192,18 @@
   .text-sidebar-foreground {
     color: var(--sidebar-foreground);
   }
+}
+
+
+
+::-webkit-scrollbar, ::-webkit-scrollbar-corner, ::-webkit-scrollbar-track, ::-webkit-scrollbar-track:active, ::-webkit-scrollbar-track:hover {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb{
+  border: var(--c-custom-scrollbar-padding) solid transparent;
+  background-clip: padding-box !important;
+  border-radius: 8px;
+  border-radius: var(--c-custom-scrollbar-border-radius);
+  background-color: #a3acb2;
 }
