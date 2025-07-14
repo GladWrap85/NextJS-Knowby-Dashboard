@@ -1,0 +1,16 @@
+knowby_id,organisation,title,description,created_at,created_by_member_id,member_name,status,visibility,views,last_viewed
+1a1a1a1a-1111-1111-1111-111111111111,Test Org,Recent Knowby 1,A knowby created recently,10/07/2025,user001,John Smith,Published,Public,25,12/07/2025
+2b2b2b2b-2222-2222-2222-222222222222,Test Org,Recent Knowby 2,Another recent knowby,05/07/2025,user002,Jane Doe,Published,Public,15,11/07/2025
+3c3c3c3c-3333-3333-3333-333333333333,Test Org,Old Knowby 1,An old knowby,15/05/2025,user003,Bob Johnson,Published,Public,100,20/05/2025
+4d4d4d4d-4444-4444-4444-444444444444,Test Org,Old Knowby 2,Another old knowby,10/04/2025,user004,Alice Wilson,Published,Public,0,
+5e5e5e5e-5555-5555-5555-555555555555,Test Org,Recent Active,Recently active knowby,20/06/2025,user001,John Smith,Published,Public,50,13/07/2025
+6f6f6f6f-6666-6666-6666-666666666666,Test Org,Draft Knowby,A draft knowby,08/07/2025,user002,Jane Doe,Draft,Private,5,09/07/2025
+7g7g7g7g-7777-7777-7777-777777777777,Test Org,Unused Knowby,Never viewed,01/06/2025,user005,Charlie Brown,Published,Public,0,
+8h8h8h8h-8888-8888-8888-888888888888,Test Org,Popular Knowby,Very popular,25/06/2025,user003,Bob Johnson,Published,Public,200,14/07/2025
+9i9i9i9i-9999-9999-9999-999999999999,Test Org,Recent by New User,New user creation,12/07/2025,user006,Diana Prince,Published,Public,3,12/07/2025
+0j0j0j0j-0000-0000-0000-000000000000,Test Org,Another Old One,Very old knowby,01/01/2025,user007,Clark Kent,Published,Public,75,15/01/2025
+1k1k1k1k-1111-1111-1111-111111111112,Test Org,Recent No Views,Recent but no views,11/07/2025,user001,John Smith,Published,Public,0,
+2l2l2l2l-2222-2222-2222-222222222223,Test Org,Medium Age,Medium age knowby,15/06/2025,user002,Jane Doe,Published,Public,30,10/07/2025
+3m3m3m3m-3333-3333-3333-333333333334,Test Org,Old but Recent View,Old creation recent view,10/03/2025,user008,Peter Parker,Published,Public,45,13/07/2025
+4n4n4n4n-4444-4444-4444-444444444445,Test Org,Today's Knowby,Created today,14/07/2025,user009,Bruce Wayne,Published,Public,1,14/07/2025
+5o5o5o5o-5555-5555-5555-555555555556,Test Org,Yesterday's Knowby,Created yesterday,13/07/2025,user010,Tony Stark,Published,Public,8,13/07/2025
