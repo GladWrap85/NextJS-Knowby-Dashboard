@@ -7,6 +7,7 @@ import MonthlyViews from "@/components/Cards/MonthlyViews"
 import { TableDemo } from "@/components/Cards/Table"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import LineWithDropdown from "@/components/Cards/Linev2"
+import KnowbyStats from "@/components/Cards/KnowbyStats"
 
 export default function Home() {
     return <div className="grid gap-[32px]">
@@ -38,14 +39,14 @@ export default function Home() {
       </div>
       <div className="grid lg:grid-cols-3 gap-[32px] lg:h-[300px] mb-[32px]">
         <Lines />
-        <Card className="overflow-y-scroll">
+        <Card>
           <CardHeader>
-            <CardTitle>Highest Performing Employees</CardTitle>
-            <CardDescription>These are the employees with the greatest completions.</CardDescription>
+            <CardTitle>Knowby Stats</CardTitle>
+            <CardDescription>Overview of knowby activity and usage.</CardDescription>
           </CardHeader>
-          <div className="px-4 max-h-[350px]">
-            <TableDemo />
-          </div>
+          <CardContent>
+            <KnowbyStats />
+          </CardContent>
         </Card>
         <Card className="overflow-y-scroll">
           <CardHeader>

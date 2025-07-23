@@ -15,6 +15,8 @@ import LineWithDropdown from "@/components/Cards/Linev2"
 import { CheckCircle, Eye, Settings, TrendingUp } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { useDateRange } from "@/lib/DateRangeContext"; // Import the custom hook
+import KnowbyStats from "@/components/Cards/KnowbyStats"
+
 //new imports for popups
 import {
   Dialog,
@@ -41,8 +43,17 @@ export default function TeamSettings() {
             {/* BEST PERFORMING KNOWBY STAT CARD */}
             <TopKnowbyCard selectedDateRange={dateRange} />
 
-            <ModularGraphCard />
-            <Card>Test</Card>
+            <ModularGraphCard />            
+            <Card>
+              <CardHeader>
+                <CardTitle>Knowby Stats</CardTitle>
+                <CardDescription>Overview of knowby activity and usage.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <KnowbyStats />
+              </CardContent>
+            </Card>
+        </div>
           </div>
         </div>
       </div>
