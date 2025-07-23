@@ -25,9 +25,9 @@
   --primary-foreground: oklch(0.985 0 0);
   --secondary: oklch(0.97 0 0);
   --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
+  --muted: oklch(0.90 0 0);
   --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
+  --accent: oklch(0.90 0 0);
   --accent-foreground: oklch(0.205 0 0);
   --destructive: oklch(0.577 0.245 27.325);
   --border: oklch(0.922 0 0);
@@ -128,7 +128,6 @@
   --sidebar-border: oklch(0.3 0.02 50 / 20%);
 }
 
-
 @theme inline {
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
@@ -175,7 +174,6 @@
   body {
     @apply bg-background text-foreground;
   }
-
 
   .bg_card {
     overflow:hidden!important;
@@ -261,4 +259,8 @@
   border-radius: 8px;
   border-radius: var(--c-custom-scrollbar-border-radius);
   background-color: #a3acb2;
+
+[data-selected="true"]:not(:hover) {
+  background: none !important;
+  color: inherit !important;
 }

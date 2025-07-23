@@ -15,6 +15,14 @@ import LineWithDropdown from "@/components/Cards/Linev2"
 import { CheckCircle, Eye, Settings, TrendingUp } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { useDateRange } from "@/lib/DateRangeContext"; // Import the custom hook
+//new imports for popups
+import {
+  Dialog,
+  DialogTrigger,
+  DialogContent,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { ChevronRight } from "lucide-react";
 
 export default function TeamSettings() {
   const { dateRange } = useDateRange(); // Get the dateRange from the context
@@ -48,15 +56,40 @@ export default function TeamSettings() {
             <DataTableDemo />
           </div>
         </Card>
-        <Card className="overflow-y-scroll">
-          <CardHeader>
-            <CardTitle>Highest Performing Employees</CardTitle>
-            <CardDescription>These are the employees with the greatest completions.</CardDescription>
-          </CardHeader>
-          <div className="px-4 max-h-[350px]">
-            <TableDemo />
-          </div>
-        </Card>
+
+        {/* 
+        New Code for testing clickable popups
+        Card wrapped within dialogTriggers to make it clickable.
+        */}
+        <Dialog>
+          <DialogTrigger asChild>
+            <Card className="relative cursor-pointer hover:shadow-lg transition">
+              <CardHeader>
+                <CardTitle>Highest Performing Employees</CardTitle>
+                <CardDescription>
+                  These are the employees with the greatest completions.
+                </CardDescription>
+                <ChevronRight
+                  size={16}
+                  className="absolute top-2 right-2 text-muted-foreground rotate-90"
+                />
+              </CardHeader>
+              <div className="px-6 py-1 text-sm text-muted-foreground">
+                Click to view full table →
+              </div>
+            </Card>
+          </DialogTrigger>
+
+          {/* 
+          Modal dialog box shown when card is clicked
+          */}
+          <DialogContent className="max-w-3xl p-6 bg-background">
+            <DialogTitle>Highest Performing Employees</DialogTitle>
+            <div className="max-h-[500px] overflow-y-auto mt-4">
+              <TableDemo />
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );
