@@ -1,4 +1,4 @@
-"use client";
+'use client';
 import ActiveKnowbys from "@/components/Cards/ActiveKnowbys";
 import Calendar from "@/components/Cards/Calendar";
 import { DataTableDemo } from "@/components/Cards/DataTable";
@@ -98,6 +98,7 @@ export default function TeamSettings() {
                   <div className="flex items-center justify-center w-20 h-20 rounded-2xl text-white bg-linear-to-b from-purple-500 to-purple-700">
                     <TrendingUp className="h-10 w-10" />
                   </div>
+
 
                   <div className="flex flex-col gap-1">
                     <h3 className="text-xl font-semibold">Today's Usage</h3>
