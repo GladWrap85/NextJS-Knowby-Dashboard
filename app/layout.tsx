@@ -1,10 +1,11 @@
 import type { Metadata } from "next"
 import { Inter } from "next/font/google"
 import "./globals.css"
+import { ThemeProvider } from "next-themes"
 import Sidebar from "@/components/Sidebar"
 import Header from "@/components/Header"
-import { ThemeProvider } from "next-themes"
 import { DateRangeProvider } from "@/lib/DateRangeContext"; // Import the DateRangeProvider
+import { SidebarProvider } from "@/components/Sidebar-Context" // Your global context
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -12,6 +13,7 @@ export const metadata: Metadata = {
   title: "Knowby Dashboard",
   description: "Dashboard for Knowby Analytics",
 }
+
 
 export default function RootLayout({
   children,

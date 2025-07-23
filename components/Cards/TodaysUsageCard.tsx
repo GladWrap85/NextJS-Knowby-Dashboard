@@ -183,7 +183,7 @@ export default function TodaysUsageCard({ selectedDateRange }: TodaysUsageCardPr
             <h3 className="text-xl font-semibold">Today's Usage</h3>
             <div className="flex items-baseline gap-2">
               <div className="text-5xl font-bold leading-none">
-                {completionRate !== null ? `${Math.round(completionRate)}%` : "--"}
+                {completionRate !== null ? `${Math.round(completionRate)}%` : "--%"}
               </div>
               <p className="text-sm text-muted-foreground">completion rate</p>
             </div>
@@ -313,7 +313,7 @@ export default function TodaysUsageCard({ selectedDateRange }: TodaysUsageCardPr
                     <TrendingUp className="h-4 w-4" />
                     <span>
                       {/* Now using sevenDayCompletionRate for the footer */}
-                      {sevenDayCompletionRate !== null ? `${sevenDayCompletionRate.toFixed(2)}%` : "--"}
+                      {sevenDayCompletionRate !== null ? `${sevenDayCompletionRate.toFixed(2)}%` : "--%"}
                     </span>
                   </div>
                 </TooltipTrigger>

@@ -15,12 +15,15 @@ import { ModeToggle } from "./ThemeSwitch";
 // No need to import DateRange or addDays here directly if only DatePickerWithRange uses them
 // but we will import useDateRange hook
 import { useDateRange } from "@/lib/DateRangeContext"; // Import the custom hook
+import { useSidebar } from "./Sidebar-Context";
+import { ChevronFirst, ChevronLast } from "lucide-react";
 
 // No longer needs HeaderProps interface as it will consume context
 export default function Header() {
   // Use the useDateRange hook to get the global date state and setter
   const { dateRange, setDateRange } = useDateRange();
 
+  const { expanded, toggle } = useSidebar()
   const [notifications, setNotifications] = useState<any>([
     {
       text: "This is a notification",
@@ -37,6 +40,9 @@ export default function Header() {
   return (
     <div className="grid grid-cols-2 gap-4 p-4 border-b">
       <div className="flex items-center">
+        <Button onClick={toggle} variant="outline" size="icon">
+          {expanded ? <ChevronFirst /> : <ChevronLast />}
+        </Button>
         <span className="text-2xl font-bold pl-4">Dashboard</span>
       </div>
       <div className="flex items-center justify-end gap-[32px] pr-4">
