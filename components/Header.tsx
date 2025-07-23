@@ -12,9 +12,12 @@ import { CommandDemo } from "./Command";
 import { Button } from "./ui/button";
 import { DatePickerWithRange } from "./DateRangePicker";
 import { ModeToggle } from "./ThemeSwitch";
+import { useSidebar } from "./Sidebar-Context";
+import { ChevronFirst, ChevronLast } from "lucide-react";
 
 
 export default function Header() {
+  const { expanded, toggle } = useSidebar()
   const [notifications, setNotifications] = useState<any>([
     {
       text: "This is a notification",
@@ -32,6 +35,9 @@ export default function Header() {
 
   return <div className="grid grid-cols-2 gap-4 p-4 border-b">
     <div className="flex items-center">
+      <Button onClick={toggle} variant="outline" size="icon">
+        {expanded ? <ChevronFirst /> : <ChevronLast />}
+      </Button>
       <span className="text-2xl font-bold pl-4">Dashboard</span>
     </div>
     <div className="flex items-center justify-end gap-[32px] pr-4">

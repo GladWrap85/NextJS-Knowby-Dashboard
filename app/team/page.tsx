@@ -8,7 +8,7 @@ import MonthlyViews from "@/components/Cards/MonthlyViews"
 import { TableDemo } from "@/components/Cards/Table"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import LineWithDropdown from "@/components/Cards/Linev2"
-import { CheckCircle, Eye, Settings, TrendingUp } from "lucide-react";
+import { Briefcase, BriefcaseBusiness, CalendarDays, CheckCircle, Database, Eye, PuzzleIcon, Settings, TrendingUp } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 
 
@@ -17,11 +17,13 @@ export default function TeamSettings() {
     <div className="grid">
       <div className="grid gap-[32px]">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-[32px]">
+
+          {/* TOTAL USAGE STAT CARD */}
           <TooltipProvider>
             <Card className="flex flex-col p-6 rounded-xl h-fit gap-3">
               <div className="flex items-center gap-4">
                 <div className="flex items-center justify-center w-20 h-20 rounded-2xl text-white bg-linear-to-b from-green-500 to-green-700">
-                  <TrendingUp className="h-10 w-10" />
+                  <Database className="h-10 w-10" />
                 </div>
 
                 <div className="flex flex-col gap-1">
@@ -76,7 +78,7 @@ export default function TeamSettings() {
             <Card className="flex flex-col p-6 rounded-xl h-fit gap-3">
               <div className="flex items-center gap-4">
                 <div className="flex items-center justify-center w-20 h-20 rounded-2xl text-white bg-linear-to-b from-purple-500 to-purple-700">
-                  <TrendingUp className="h-10 w-10" />
+                  <CalendarDays className="h-10 w-10" />
                 </div>
 
                 <div className="flex flex-col gap-1">
@@ -177,9 +179,9 @@ export default function TeamSettings() {
             </Card>
           </TooltipProvider>
           
+          {/*<Card>Test</Card>
           <Card>Test</Card>
-          <Card>Test</Card>
-          <Card></Card>
+          <Card></Card>*/}
         </div>
       </div>
     </div>
