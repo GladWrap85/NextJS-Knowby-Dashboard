@@ -39,14 +39,14 @@ export default function Home() {
       </div>
       <div className="grid lg:grid-cols-3 gap-[32px] lg:h-[300px] mb-[32px]">
         <Lines />
-                <Card>
+        <Card>
           <CardHeader>
             <CardTitle>Knowby Stats</CardTitle>
             <CardDescription>Overview of knowby activity and usage.</CardDescription>
           </CardHeader>
-        <CardContent>
-          <KnowbyStats />
-        </CardContent>
+          <CardContent>
+            <KnowbyStats />
+          </CardContent>
         </Card>
         <Card className="overflow-y-scroll">
           <CardHeader>

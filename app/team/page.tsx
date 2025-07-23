@@ -13,6 +13,8 @@ import LineWithDropdown from "@/components/Cards/Linev2"
 import { CheckCircle, Eye, Settings, TrendingUp } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { useDateRange } from "@/lib/DateRangeContext"; // Import the custom hook
+import KnowbyStats from "@/components/Cards/KnowbyStats"
+
 
 export default function TeamSettings() {
   const { dateRange } = useDateRange(); // Get the dateRange from the context
@@ -83,8 +85,17 @@ export default function TeamSettings() {
 
             <Card>Test</Card>
             <Card>Test</Card>
-            <Card></Card>
-          </div>
+            
+            <Card>
+              <CardHeader>
+                <CardTitle>Knowby Stats</CardTitle>
+                <CardDescription>Overview of knowby activity and usage.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <KnowbyStats />
+              </CardContent>
+            </Card>
+        </div>
         </div>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-[32px] lg:h-[300px] mb-[32px]">
