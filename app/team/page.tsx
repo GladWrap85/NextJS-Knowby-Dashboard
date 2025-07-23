@@ -1,6 +1,8 @@
 'use client';
 import TotalUsageCard from "@/components/Cards/TotalUsageCard";
 import TodaysUsageCard from "@/components/Cards/TodaysUsageCard";
+import TopKnowbyCard from "@/components/Cards/TopKnowbyCard";
+import ModularGraphCard from "@/components/Cards/InsightsCard";
 import ActiveKnowbys from "@/components/Cards/ActiveKnowbys"
 import Calendar from "@/components/Cards/Calendar"
 import { DataTableDemo } from "@/components/Cards/DataTable"
@@ -29,61 +31,10 @@ export default function TeamSettings() {
             <TodaysUsageCard selectedDateRange={dateRange} />
 
             {/* BEST PERFORMING KNOWBY STAT CARD */}
-            <TooltipProvider>
-              <Card className="flex flex-col p-6 rounded-xl h-fit gap-3">
-                <div className="flex items-center gap-4">
-                  <div className="flex items-center justify-center w-20 h-20 rounded-2xl text-white bg-linear-to-b from-blue-500 to-blue-700">
-                    <TrendingUp className="h-10 w-10" />
-                  </div>
+            <TopKnowbyCard selectedDateRange={dateRange} />
 
-                  <div className="flex flex-col gap-1">
-                    <h3 className="text-xl font-semibold">Top Performing Knowby</h3>
-                    <div className="flex items-baseline gap-2">
-                      <div className="text-4xl font-bold leading-none">Forklift Safety 101</div>
-                      <p className="text-sm text-muted-foreground"></p>
-                    </div>
-                  </div>
-                </div>
-
-                <hr className="border-border" />
-
-                <CardFooter className="flex items-center justify-between text-muted-foreground text-sm">
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <div className="flex items-center gap-1.5">
-                        <Eye className="h-4 w-4" />
-                        <span>127</span>
-                      </div>
-                    </TooltipTrigger>
-                    <TooltipContent>Total Views</TooltipContent>
-                  </Tooltip>
-
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <div className="flex items-center gap-1.5">
-                        <CheckCircle className="h-4 w-4" />
-                        <span>115</span>
-                      </div>
-                    </TooltipTrigger>
-                    <TooltipContent>Total Completions</TooltipContent>
-                  </Tooltip>
-
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <div className="flex items-center gap-1.5">
-                        <TrendingUp className="h-4 w-4" />
-                        <span>89.91%</span>
-                      </div>
-                    </TooltipTrigger>
-                    <TooltipContent>Completion Rate</TooltipContent>
-                  </Tooltip>
-                </CardFooter>
-              </Card>
-            </TooltipProvider>
-
+            <ModularGraphCard />
             <Card>Test</Card>
-            <Card>Test</Card>
-            <Card></Card>
           </div>
         </div>
       </div>
