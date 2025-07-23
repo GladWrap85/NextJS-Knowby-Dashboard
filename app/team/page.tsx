@@ -53,7 +53,6 @@ export default function TeamSettings() {
                 <KnowbyStats />
               </CardContent>
             </Card>
-        </div>
           </div>
         </div>
       </div>
