@@ -1,7 +1,7 @@
 // components/Cards/TopKnowbyCard.tsx
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import Papa from "papaparse";
 import { subDays, format, parse, isWithinInterval, eachDayOfInterval, startOfMonth, addMonths, subMonths } from "date-fns";
 import { DateRange } from "react-day-picker";
@@ -62,16 +62,34 @@ export default function TopKnowbyCard({ selectedDateRange }: TopKnowbyCardProps)
   const animationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Effective end date from the calendar or today
-  const effectiveEndDate = selectedDateRange?.to || new Date();
-  // 10-day range for daily chart and footer totals
-  const dailyChartStartDate = subDays(effectiveEndDate, 9);
-  const datesForDailyChart = eachDayOfInterval({
-    start: dailyChartStartDate,
-    end: effectiveEndDate
-  }).map(date => format(date, "dd/MM/yyyy"));
+  const effectiveEndDate = useMemo(
+    () => selectedDateRange?.to || new Date(),
+    [selectedDateRange]
+  );
 
-  // 12-month range for monthly chart
-  const monthsForMonthlyChart = Array.from({ length: 12 }, (_, i) => format(subMonths(effectiveEndDate, i), "MMM yyyy")).reverse();
+  const dailyChartStartDate = useMemo(
+    () => subDays(effectiveEndDate, 9),
+    [effectiveEndDate]
+  );
+
+
+  const datesForDailyChart = useMemo(
+    () =>
+      eachDayOfInterval({
+        start: dailyChartStartDate,
+        end: effectiveEndDate,
+      }).map((date) => format(date, "dd/MM/yyyy")),
+    [dailyChartStartDate, effectiveEndDate]
+  );
+
+  const monthsForMonthlyChart = useMemo(
+    () =>
+      Array.from({ length: 12 }, (_, i) =>
+        format(subMonths(effectiveEndDate, i), "MMM yyyy")
+      ).reverse(),
+    [effectiveEndDate]
+  );
+
 
   // State to hold calculated footer stats for each selected knowby
   const [footerStats, setFooterStats] = useState<{
