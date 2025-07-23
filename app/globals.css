@@ -259,6 +259,7 @@
   border-radius: 8px;
   border-radius: var(--c-custom-scrollbar-border-radius);
   background-color: #a3acb2;
+}
 
 [data-selected="true"]:not(:hover) {
   background: none !important;

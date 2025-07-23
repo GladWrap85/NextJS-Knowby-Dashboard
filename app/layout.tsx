@@ -4,7 +4,6 @@ import "./globals.css"
 import { ThemeProvider } from "next-themes"
 import Sidebar from "@/components/Sidebar"
 import Header from "@/components/Header"
-import { ThemeProvider } from "next-themes"
 import { DateRangeProvider } from "@/lib/DateRangeContext"; // Import the DateRangeProvider
 import { SidebarProvider } from "@/components/Sidebar-Context" // Your global context
 
