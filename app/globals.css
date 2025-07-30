@@ -96,7 +96,7 @@
 }
 
 .orange {
-  --background: #1e1409;
+  --background: #fcfbf9;
   --foreground: oklch(0.98 0 0); /* light text */
   --card: #2a1a0c;
   --card-foreground: oklch(0.98 0 0);
@@ -264,4 +264,14 @@
 [data-selected="true"]:not(:hover) {
   background: none !important;
   color: inherit !important;
+}
+
+/*Calendar Heatmap text syling*/
+.ch-subdomain-text {
+  font-size: 0.65rem !important;
+}
+
+.ch-domain-text {
+  font-size: 1rem !important; /* try 24px or larger */
+  font-weight: bold;
 }

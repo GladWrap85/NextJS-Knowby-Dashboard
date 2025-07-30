@@ -25,6 +25,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { ChevronRight } from "lucide-react";
+import ViewsCalendarHeatmap from "@/components/cal-heatmap";
 
 export default function TeamSettings() {
   const { dateRange } = useDateRange(); // Get the dateRange from the context
@@ -33,14 +34,9 @@ export default function TeamSettings() {
     <div className="grid gap-[32px]">
       <div className="grid">
         <div className="grid gap-[32px]">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-[32px]">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-[32px] w-full min-w-0">
             <TotalUsageCard />
-
-            {/* TODAYS USAGE STAT CARD */}
-            {/* Pass the dateRange prop to TodaysUsageCard */}
             <TodaysUsageCard selectedDateRange={dateRange} />
-
-            {/* BEST PERFORMING KNOWBY STAT CARD */}
             <TopKnowbyCard selectedDateRange={dateRange} />
 
             <ModularGraphCard />            
@@ -63,7 +59,7 @@ export default function TeamSettings() {
             <CardDescription>These are the users of the month.</CardDescription>
           </CardHeader>
           <div className="px-4">
-            <DataTableDemo />
+            <ViewsCalendarHeatmap />
           </div>
         </Card>
 

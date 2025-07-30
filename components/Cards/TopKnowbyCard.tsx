@@ -500,18 +500,16 @@ export default function TopKnowbyCard({ selectedDateRange }: TopKnowbyCardProps)
 
 
         <hr className="border-border" />
-
+        <CardContent className="pt-0">
         {/* Filters (unchanged from your original) */}
-        <div className="flex flex-row gap-2">
+        <div className="flex flex-row gap-2 items-center w-1/2">
           {/* Chart Type Dropdown */}
-          <div className="w-1/2">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="outline"
                   className={cn(
-                    "shadow-md w-full truncate relative flex justify-between items-center",
-                    isDark ? "hover:bg-muted/50" : "hover:bg-accent"
+                    "shadow-md w-full truncate relative flex justify-between items-center"
                   )}
                   title={chartType === "daily" ? "Views/Completions (10 days)" : "Completion Rate (12 Months)"}
                 >
@@ -527,10 +525,6 @@ export default function TopKnowbyCard({ selectedDateRange }: TopKnowbyCardProps)
                 <DropdownMenuItem onSelect={() => setChartType("monthly")}>Completion Rate (12 Months)</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-          </div>
-                
-          {/* Knowby Selector Dropdown */}
-          <div className="w-1/2">
             <DropdownMenu onOpenChange={setDropdownOpen} open={dropdownOpen}>
               <DropdownMenuTrigger asChild>
                 <Button
@@ -583,76 +577,49 @@ export default function TopKnowbyCard({ selectedDateRange }: TopKnowbyCardProps)
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
-        </div>
 
 
         {/* Graph Section (unchanged from your original) */}
-        <CardContent className="pt-4">
           <div className="flex justify-between">
             <div className="h-[250px] flex-grow">
-              {chartType === "daily" && selectedKnowbys.length === 1 && dailyChartData.length > 0 ? (
+              {(chartType === "daily" && selectedKnowbys.length === 1 && dailyChartData.length > 0) ||
+                (chartType === "monthly" && selectedKnowbys.length > 0 && monthlyChartData.length > 0) ? (
                 <ResponsiveBar
-                  data={dailyChartData}
-                  keys={["Completions", "Views"]}
-                  indexBy="date"
+                  data={
+                    chartType === "daily"
+                      ? dailyChartData
+                      : monthsForMonthlyChart.map((month, index) => {
+                        const entry: Record<string, any> = { month };
+                        selectedKnowbys.forEach((knowby, idx) => {
+                          const completionRate = monthlyChartData[idx]?.data[index]?.y ?? 0;
+                          entry[knowby] = completionRate;
+                        });
+                        return entry;
+                      })
+                  }
+                  keys={
+                    chartType === "daily" ? ["Completions", "Views"] : selectedKnowbys
+                  }
+                  indexBy={chartType === "daily" ? "date" : "month"}
                   margin={{ top: 10, right: 30, bottom: 60, left: 50 }}
                   padding={0.4}
                   groupMode="grouped"
                   theme={nivoTheme}
                   colors={({ id }) => {
-                    if (id === 'Completions') return nivoColorSchemes.category10[0]; // Blue
-                    if (id === 'Views') return nivoColorSchemes.category10[1]; // Orange
-                    return '#cccccc';
-                  }}
-                  axisBottom={{
-                    tickSize: 5,
-                    tickPadding: 5,
-                    tickRotation: -45,
-                    legendPosition: "middle",
-                    legendOffset: 45,
-                  }}
-                  axisLeft={{
-                    tickSize: 5,
-                    tickPadding: 5,
-                    tickRotation: 0,
-                    legend: "Count",
-                    legendPosition: "middle",
-                    legendOffset: -40,
-                  }}
-                  tooltip={({ id, value, indexValue }) => (
-                    <div className="p-2 bg-background border rounded shadow-md">
-                      <strong>{id}</strong> on <strong>{indexValue}</strong>: {value}
-                    </div>
-                  )}
-                  borderRadius={4}
-                  enableLabel={false}
-                />
-              ) : chartType === "monthly" && selectedKnowbys.length > 0 && monthlyChartData.length > 0 ? (
-                <ResponsiveBar
-                  data={monthsForMonthlyChart.map((month, index) => {
-                    const entry: Record<string, any> = { month };
-                    selectedKnowbys.forEach((knowby, idx) => {
-                      const completionRate = monthlyChartData[idx]?.data[index]?.y ?? 0;
-                      entry[knowby] = completionRate;
-                    });
-                    return entry;
-                  })}
-                  keys={selectedKnowbys}
-                  indexBy="month"
-                  margin={{ top: 10, right: 30, bottom: 60, left: 50 }}
-                  padding={0.4}
-                  groupMode="grouped"
-                  theme={nivoTheme}
-                  colors={({ id }) => {
-                    if (id === selectedKnowbys[0]) return knowby1Color;
-                    if (id === selectedKnowbys[1]) return knowby2Color;
-                    return '#cccccc';
+                    if (chartType === "daily") {
+                      if (id === "Completions") return nivoColorSchemes.category10[0];
+                      if (id === "Views") return nivoColorSchemes.category10[1];
+                    } else {
+                      if (id === selectedKnowbys[0]) return knowby1Color;
+                      if (id === selectedKnowbys[1]) return knowby2Color;
+                    }
+                    return "#cccccc";
                   }}
                   axisBottom={{
                     tickSize: 5,
                     tickPadding: 5,
                     tickRotation: -35,
-                    legend: "Month",
+                    legend: chartType === "monthly" ? "Month" : undefined,
                     legendPosition: "middle",
                     legendOffset: 45,
                   }}
@@ -660,13 +627,15 @@ export default function TopKnowbyCard({ selectedDateRange }: TopKnowbyCardProps)
                     tickSize: 5,
                     tickPadding: 5,
                     tickRotation: 0,
-                    legend: "Completion Rate (%)",
+                    legend: chartType === "daily" ? "Count" : "Completion Rate (%)",
                     legendPosition: "middle",
                     legendOffset: -40,
                   }}
                   tooltip={({ id, value, indexValue }) => (
                     <div className="p-2 bg-background border rounded shadow-md">
-                      <strong>{id}</strong> in <strong>{indexValue}</strong>: {value}%
+                      <strong>{id}</strong>{" "}
+                      {chartType === "daily" ? "on" : "in"} <strong>{indexValue}</strong>: {value}
+                      {chartType === "monthly" ? "%" : ""}
                     </div>
                   )}
                   borderRadius={4}

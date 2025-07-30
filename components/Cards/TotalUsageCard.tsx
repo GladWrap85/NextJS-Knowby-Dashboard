@@ -226,7 +226,7 @@ export default function TotalUsageCard() {
             </DropdownMenu>
           </div>
 
-          <div style={{ height: 250 }}>
+          <div className="h-[200px]">
             <ResponsiveBar
               data={monthlyData}
               keys={["Completions", "Views"]}

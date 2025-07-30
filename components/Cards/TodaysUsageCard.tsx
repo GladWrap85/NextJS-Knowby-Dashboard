@@ -254,7 +254,7 @@ export default function TodaysUsageCard({ selectedDateRange }: TodaysUsageCardPr
             </DropdownMenu>
           </div>
 
-          <div style={{ height: 250 }}>
+          <div className="h-[200px] w-full">
             <ResponsiveBar
               data={dailyData.map((d) => ({ ...d, date: d.date }))}
               keys={["Completions", "Views"]}
@@ -282,7 +282,6 @@ export default function TodaysUsageCard({ selectedDateRange }: TodaysUsageCardPr
               enableLabel={false}
             />
           </div>
-
           <div className="pt-4">
             {/* Subtitle updated to reflect 7-day range */}
             <p className="text-sm font-semibold">Completions vs Views over the Past 7 Days</p>
