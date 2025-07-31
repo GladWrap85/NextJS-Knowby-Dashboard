@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Papa from "papaparse";
-import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog"; // Import ShadCN dialog
+import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/ui/dialog"; // Import ShadCN dialog
 import { TableDemo } from "@/components/Cards/Table"; // temporary table import for example purposes
 
 interface KnowbyData {
@@ -140,6 +140,7 @@ export default function KnowbyStats() {
       {/* DialogContent is the popup that appears when this tile is clicked */}
       <DialogContent>
         <h2 className="text-xl font-bold mb-2">{label}</h2>
+        <DialogTitle>{label}</DialogTitle>
         <p className="text-sm text-muted-foreground mb-4">{description}</p>
         {popupContent} {/* inserted JSX content */}
       </DialogContent>
