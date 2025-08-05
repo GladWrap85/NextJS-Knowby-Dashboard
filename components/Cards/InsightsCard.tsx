@@ -361,7 +361,7 @@ export default function InsightsCard() {
   }, [chartType, quarterlyTrendMetric]);
 
   return (
-    <Card className="flex flex-col p-6 rounded-xl h-fit gap-3 col-span-2">
+    <Card className={`flex flex-col p-6 rounded-xl gap-3 col-span-2 ${ chartType === "overall" ? "h-fit" : "" }`}>
       <div className="flex items-center justify-between">
         <h3 className="text-xl font-semibold">{getGraphTitle()}</h3>
 

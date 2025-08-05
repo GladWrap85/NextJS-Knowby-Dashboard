@@ -10,7 +10,7 @@ const SidebarContext = createContext<{
 })
 
 export const SidebarProvider = ({ children }: { children: ReactNode }) => {
-  const [expanded, setExpanded] = useState(true)
+  const [expanded, setExpanded] = useState(false)
 
   const toggle = () => setExpanded((prev) => !prev)
 

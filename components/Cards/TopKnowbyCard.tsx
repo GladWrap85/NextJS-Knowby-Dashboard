@@ -60,6 +60,7 @@ export default function TopKnowbyCard({ selectedDateRange }: TopKnowbyCardProps)
   const [animationPlayState, setAnimationPlayState] = useState<'running' | 'paused'>('paused');
   const [animationKey, setAnimationKey] = useState(0); // Key to restart animation
   const animationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const accentColor = "#3b82f6";
 
   // Effective end date from the calendar or today
   const effectiveEndDate = useMemo(
@@ -97,7 +98,6 @@ export default function TopKnowbyCard({ selectedDateRange }: TopKnowbyCardProps)
   }>({});
 
   // Memoize Nivo theme for performance
-  const nivoTheme = getNivoTheme(isDark);
 
   // --- Initial Load & Top Knowby Calculation ---
   useEffect(() => {
@@ -500,286 +500,189 @@ export default function TopKnowbyCard({ selectedDateRange }: TopKnowbyCardProps)
 
 
         <hr className="border-border" />
-        <CardContent className="pt-0">
-        {/* Filters (unchanged from your original) */}
-        <div className="flex flex-row gap-2 items-center w-1/2">
-          {/* Chart Type Dropdown */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={cn(
-                    "shadow-md w-full truncate relative flex justify-between items-center"
-                  )}
-                  title={chartType === "daily" ? "Views/Completions (10 days)" : "Completion Rate (12 Months)"}
-                >
-                  <span className="overflow-hidden text-ellipsis whitespace-nowrap pr-4">
-                    {chartType === "daily" ? "Views/Completions (10 days)" : "Completion Rate (12 Months)"}
-                  </span>
-                  <ChevronDown className="ml-2 transition-transform duration-200 h-4 w-4" />
-                  <span className="absolute right-0 top-0 h-full w-6 bg-gradient-to-l from-background to-transparent" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent>
-                <DropdownMenuItem onSelect={() => setChartType("daily")}>Views/Completions (10 days)</DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => setChartType("monthly")}>Completion Rate (12 Months)</DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-            <DropdownMenu onOpenChange={setDropdownOpen} open={dropdownOpen}>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={cn(
-                    "shadow-md w-full truncate relative flex justify-between items-center",
-                    isDark ? "hover:bg-muted/50" : "hover:bg-accent"
-                  )}
-                  title={selectedKnowbys.length > 0 ? selectedKnowbys.join(", ") : "Select Knowby"}
-                >
-                  <span className="overflow-hidden text-ellipsis whitespace-nowrap pr-4">
-                    {selectedKnowbys.length > 0 ? selectedKnowbys.join(", ") : "Select Knowby"}
-                  </span>
-                  <ChevronDown
-                    className={cn(
-                      "ml-2 transition-transform duration-200 h-4 w-4",
-                      dropdownOpen && "rotate-90"
-                    )}
-                  />
-                  <span className="absolute right-0 top-0 h-full w-6 bg-gradient-to-l from-background to-transparent" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-64 max-h-60 overflow-y-auto p-2">
-                <Input
-                  placeholder="Search Knowby..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="mb-2"
-                  onClick={(e) => e.stopPropagation()}
-                  onKeyDown={(e) => e.stopPropagation()}
-                />
-                {filteredKnowbys.map((name) => (
-                  <DropdownMenuItem
-                    key={name}
-                    onSelect={(e) => {
-                      e.preventDefault();
-                      handleKnowbyClick(name);
-                    }}
-                    className={cn(
-                      "cursor-pointer",
-                      selectedKnowbys.includes(name) && "bg-accent/50 font-semibold"
-                    )}
-                  >
-                    <span className="flex justify-between w-full">
-                      <span className="truncate">{name}</span>
-                      {selectedKnowbys.includes(name) && <CheckCircle className="h-4 w-4 text-green-500" />}
-                    </span>
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
 
+        <CardContent className="pt-0">
 
         {/* Graph Section (unchanged from your original) */}
-          <div className="flex justify-between">
-            <div className="h-[250px] flex-grow">
-              {(chartType === "daily" && selectedKnowbys.length === 1 && dailyChartData.length > 0) ||
-                (chartType === "monthly" && selectedKnowbys.length > 0 && monthlyChartData.length > 0) ? (
-                <ResponsiveBar
-                  data={
-                    chartType === "daily"
-                      ? dailyChartData
-                      : monthsForMonthlyChart.map((month, index) => {
-                        const entry: Record<string, any> = { month };
-                        selectedKnowbys.forEach((knowby, idx) => {
-                          const completionRate = monthlyChartData[idx]?.data[index]?.y ?? 0;
-                          entry[knowby] = completionRate;
-                        });
-                        return entry;
-                      })
-                  }
-                  keys={
-                    chartType === "daily" ? ["Completions", "Views"] : selectedKnowbys
-                  }
-                  indexBy={chartType === "daily" ? "date" : "month"}
-                  margin={{ top: 10, right: 30, bottom: 60, left: 50 }}
-                  padding={0.4}
-                  groupMode="grouped"
-                  theme={nivoTheme}
-                  colors={({ id }) => {
-                    if (chartType === "daily") {
-                      if (id === "Completions") return nivoColorSchemes.category10[0];
-                      if (id === "Views") return nivoColorSchemes.category10[1];
-                    } else {
-                      if (id === selectedKnowbys[0]) return knowby1Color;
-                      if (id === selectedKnowbys[1]) return knowby2Color;
-                    }
-                    return "#cccccc";
-                  }}
-                  axisBottom={{
-                    tickSize: 5,
-                    tickPadding: 5,
-                    tickRotation: -35,
-                    legend: chartType === "monthly" ? "Month" : undefined,
-                    legendPosition: "middle",
-                    legendOffset: 45,
-                  }}
-                  axisLeft={{
-                    tickSize: 5,
-                    tickPadding: 5,
-                    tickRotation: 0,
-                    legend: chartType === "daily" ? "Count" : "Completion Rate (%)",
-                    legendPosition: "middle",
-                    legendOffset: -40,
-                  }}
-                  tooltip={({ id, value, indexValue }) => (
-                    <div className="p-2 bg-background border rounded shadow-md">
-                      <strong>{id}</strong>{" "}
-                      {chartType === "daily" ? "on" : "in"} <strong>{indexValue}</strong>: {value}
-                      {chartType === "monthly" ? "%" : ""}
-                    </div>
-                  )}
-                  borderRadius={4}
-                  enableLabel={false}
-                />
-              ) : (
-                <div className="h-full flex items-center justify-center text-muted-foreground text-center">
-                  {selectedKnowbys.length === 0
-                    ? "Select a Knowby to view data"
-                    : chartType === "daily" && selectedKnowbys.length > 1
-                      ? "Please select only one Knowby for Daily Views/Completions chart."
-                      : "No data available for the selected period or knowby(s)."}
-                </div>
-              )}
-            </div>
-          {selectedKnowbys.length > 0 && (
-            <div className="flex flex-col justify-center items-start ml-4">
-              {selectedKnowbys.map((knowby, idx) => {
-                const color = idx === 0 ? knowby1Color : knowby2Color;
-                return (
-                  <Tooltip key={knowby}>
-                    <TooltipTrigger asChild>
-                      <div
-                        className="w-4 h-4 rounded-sm cursor-default"
-                        style={{ backgroundColor: color }}
-                      />
-                    </TooltipTrigger>
-                    <TooltipContent side="left">{knowby}</TooltipContent>
-                  </Tooltip>
-                );
-              })}
-            </div>
-          )}
+          <div className="h-[200px] w-full">
+            {(chartType === "daily" && selectedKnowbys.length === 1 && dailyChartData.length > 0) ||
+              (chartType === "monthly" && selectedKnowbys.length > 0 && monthlyChartData.length > 0) ? (
+              <ResponsiveBar
+                data={
+                  chartType === "daily"
+                    ? dailyChartData
+                    : monthsForMonthlyChart.map((month, index) => {
+                      const entry: Record<string, any> = { month };
+                      selectedKnowbys.forEach((knowby, idx) => {
+                        const completionRate = monthlyChartData[idx]?.data[index]?.y ?? 0;
+                        entry[knowby] = completionRate;
+                      });
+                      return entry;
+                    })
+                }
+                keys={
+                  chartType === "daily" ? ["Completions", "Views"] : selectedKnowbys
+                }
+                indexBy={chartType === "daily" ? "date" : "month"}
+                margin={{ top: 10, right: 30, bottom: 40, left: 50 }}
+                padding={0.4}
+                groupMode="grouped"
+                theme={getNivoTheme(isDark)}
+                colors={({ id }) => {
+                  if (id === "Completions") return "#3b82f6"; // blue
+                  if (id === "Views") return "#93c5fd";       // lighter blue
+                  return "#e5e7eb";
+                }}
+                axisBottom={{
+                  tickSize: 5,
+                  tickPadding: 5,
+                  tickRotation: -30,
+                  legend: chartType === "monthly" ? "Month" : undefined,
+                  legendPosition: "middle",
+                  legendOffset: 45,
+                }}
+                axisLeft={{
+                  tickSize: 5,
+                  tickPadding: 5,
+                  tickRotation: 0,
+                  legend: chartType === "daily" ? "Count" : "Completion Rate (%)",
+                  legendPosition: "middle",
+                  legendOffset: -40,
+                }}
+                tooltip={({ id, value, indexValue }) => (
+                  <div className="p-2 bg-background border rounded shadow-md">
+                    <strong>{id}</strong>{" "}
+                    {chartType === "daily" ? "on" : "in"} <strong>{indexValue}</strong>: {value}
+                    {chartType === "monthly" ? "%" : ""}
+                  </div>
+                )}
+                borderRadius={4}
+                enableLabel={false}
+              />
+            ) : (
+              <div className="h-full flex items-center justify-center text-muted-foreground text-center">
+                {selectedKnowbys.length === 0
+                  ? "Select a Knowby to view data"
+                  : chartType === "daily" && selectedKnowbys.length > 1
+                    ? "Please select only one Knowby for Daily Views/Completions chart."
+                    : "No data available for the selected period or knowby(s)."}
+              </div>
+            )}
           </div>
-          <p className="text-sm font-semibold mb-2">
-            {chartType === "daily"
-              ? "Views/Completions over the Past 10 Days"
-              : selectedKnowbys.length === 2
-                ? "Completion Rate Comparison over the Past 12 Months"
-                : "Completion Rate over the Past 12 Months"}
-          </p>
-        </CardContent>
 
-        {/* Footer Stats (unchanged from your original) */}
-        <CardFooter className="flex items-center justify-between text-muted-foreground text-sm">
-          {/* Views */}
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <div className="flex items-center gap-1.5">
-                <Eye className="h-4 w-4" />
-                {selectedKnowbys.length === 2 && chartType === "monthly" ? (
-                  <>
-                    <span style={{ color: knowby1Color }}>
-                      {footerStats[selectedKnowbys[0]]?.totalViews ?? "--"}
-                    </span>
-                    <span>-</span>
-                    <span style={{ color: knowby2Color }}>
-                      {footerStats[selectedKnowbys[1]]?.totalViews ?? "--"}
-                    </span>
-                  </>
-                ) : selectedKnowbys.length >= 1 ? (
-                  <span style={{ color: "inherit" /* default text color, no color */ }}>
-                    {footerStats[selectedKnowbys[0]]?.totalViews ?? "--"}
-                  </span>
-                ) : (
-                  <span>--</span>
-                )}
-              </div>
-            </TooltipTrigger>
-            <TooltipContent>
-              {chartType === "monthly"
-                ? "Total Views for selected Knowby(s) over the past 12 months"
-                : "Total Views for selected Knowby(s) over the past 10 days"}
-            </TooltipContent>
-          </Tooltip>
-              
-          {/* Completions */}
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <div className="flex items-center gap-1.5">
-                <CheckCircle className="h-4 w-4" />
-                {selectedKnowbys.length === 2 && chartType === "monthly" ? (
-                  <>
-                    <span style={{ color: knowby1Color }}>
-                      {footerStats[selectedKnowbys[0]]?.totalCompletions ?? "--"}
-                    </span>
-                    <span>-</span>
-                    <span style={{ color: knowby2Color }}>
-                      {footerStats[selectedKnowbys[1]]?.totalCompletions ?? "--"}
-                    </span>
-                  </>
-                ) : selectedKnowbys.length >= 1 ? (
-                  <span style={{ color: "inherit" }}>
-                    {footerStats[selectedKnowbys[0]]?.totalCompletions ?? "--"}
-                  </span>
-                ) : (
-                  <span>--</span>
-                )}
-              </div>
-            </TooltipTrigger>
-            <TooltipContent>
-              {chartType === "monthly"
-                ? "Total Completions for selected Knowby(s) over the past 12 months"
-                : "Total Completions for selected Knowby(s) over the past 10 days"}
-            </TooltipContent>
-          </Tooltip>
-              
-          {/* Completion Rate */}
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <div className="flex items-center gap-1.5">
-                <TrendingUp className="h-4 w-4" />
-                {selectedKnowbys.length === 2 && chartType === "monthly" ? (
-                  <>
-                    <span style={{ color: knowby1Color }}>
-                      {footerStats[selectedKnowbys[0]]?.completionRate !== null
-                        ? `${footerStats[selectedKnowbys[0]]?.completionRate}%`
-                        : "--%"}
-                    </span>
-                    <span>-</span>
-                    <span style={{ color: knowby2Color }}>
-                      {footerStats[selectedKnowbys[1]]?.completionRate !== null
-                        ? `${footerStats[selectedKnowbys[1]]?.completionRate}%`
-                        : "--%"}
-                    </span>
-                  </>
-                ) : selectedKnowbys.length >= 1 ? (
-                  <span style={{ color: "inherit" }}>
-                    {footerStats[selectedKnowbys[0]]?.completionRate !== null
-                      ? `${footerStats[selectedKnowbys[0]]?.completionRate}%`
-                      : "--%"}
-                  </span>
-                ) : (
-                  <span>--%</span>
-                )}
-              </div>
-            </TooltipTrigger>
-            <TooltipContent>
-              {chartType === "monthly"
-                ? "Completion Rate for selected Knowby(s) over the past 12 months"
-                : "Completion Rate for selected Knowby(s) over the past 10 days"}
-            </TooltipContent>
-          </Tooltip>
-        </CardFooter>
+
+          <div className="pt-4">
+            <p className="text-sm font-semibold mb-2">
+              {chartType === "daily"
+                ? "Views/Completions over the Past 10 Days"
+                : selectedKnowbys.length === 2
+                  ? "Completion Rate Comparison over the Past 12 Months"
+                  : "Completion Rate over the Past 12 Months"}
+            </p>
+
+            {/* Footer Stats (unchanged from your original) */}
+            <CardFooter className="flex items-center justify-between text-muted-foreground text-sm">
+              {/* Views */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="flex items-center gap-1.5">
+                    <Eye className="h-4 w-4" />
+                    {selectedKnowbys.length === 2 && chartType === "monthly" ? (
+                      <>
+                        <span style={{ color: knowby1Color }}>
+                          {footerStats[selectedKnowbys[0]]?.totalViews ?? "--"}
+                        </span>
+                        <span>-</span>
+                        <span style={{ color: knowby2Color }}>
+                          {footerStats[selectedKnowbys[1]]?.totalViews ?? "--"}
+                        </span>
+                      </>
+                    ) : selectedKnowbys.length >= 1 ? (
+                      <span style={{ color: "inherit" /* default text color, no color */ }}>
+                        {footerStats[selectedKnowbys[0]]?.totalViews ?? "--"}
+                      </span>
+                    ) : (
+                      <span>--</span>
+                    )}
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {chartType === "monthly"
+                    ? "Total Views for selected Knowby(s) over the past 12 months"
+                    : "Total Views for selected Knowby(s) over the past 10 days"}
+                </TooltipContent>
+              </Tooltip>
+
+              {/* Completions */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="flex items-center gap-1.5">
+                    <CheckCircle className="h-4 w-4" />
+                    {selectedKnowbys.length === 2 && chartType === "monthly" ? (
+                      <>
+                        <span style={{ color: knowby1Color }}>
+                          {footerStats[selectedKnowbys[0]]?.totalCompletions ?? "--"}
+                        </span>
+                        <span>-</span>
+                        <span style={{ color: knowby2Color }}>
+                          {footerStats[selectedKnowbys[1]]?.totalCompletions ?? "--"}
+                        </span>
+                      </>
+                    ) : selectedKnowbys.length >= 1 ? (
+                      <span style={{ color: "inherit" }}>
+                        {footerStats[selectedKnowbys[0]]?.totalCompletions ?? "--"}
+                      </span>
+                    ) : (
+                      <span>--</span>
+                    )}
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {chartType === "monthly"
+                    ? "Total Completions for selected Knowby(s) over the past 12 months"
+                    : "Total Completions for selected Knowby(s) over the past 10 days"}
+                </TooltipContent>
+              </Tooltip>
+
+              {/* Completion Rate */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="flex items-center gap-1.5">
+                    <TrendingUp className="h-4 w-4" />
+                    {selectedKnowbys.length === 2 && chartType === "monthly" ? (
+                      <>
+                        <span style={{ color: knowby1Color }}>
+                          {footerStats[selectedKnowbys[0]]?.completionRate !== null
+                            ? `${footerStats[selectedKnowbys[0]]?.completionRate}%`
+                            : "--%"}
+                        </span>
+                        <span>-</span>
+                        <span style={{ color: knowby2Color }}>
+                          {footerStats[selectedKnowbys[1]]?.completionRate !== null
+                            ? `${footerStats[selectedKnowbys[1]]?.completionRate}%`
+                            : "--%"}
+                        </span>
+                      </>
+                    ) : selectedKnowbys.length >= 1 ? (
+                      <span style={{ color: "inherit" }}>
+                        {footerStats[selectedKnowbys[0]]?.completionRate !== null
+                          ? `${footerStats[selectedKnowbys[0]]?.completionRate}%`
+                          : "--%"}
+                      </span>
+                    ) : (
+                      <span>--%</span>
+                    )}
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {chartType === "monthly"
+                    ? "Completion Rate for selected Knowby(s) over the past 12 months"
+                    : "Completion Rate for selected Knowby(s) over the past 10 days"}
+                </TooltipContent>
+              </Tooltip>
+            </CardFooter>
+          </div>
+        </CardContent>
       </Card>
     </TooltipProvider>
   );

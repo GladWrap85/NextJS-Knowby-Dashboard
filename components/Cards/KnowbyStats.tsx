@@ -109,7 +109,7 @@ export default function KnowbyStats() {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
       {/* Active Members */}
-      <div className="bg-muted/50 p-6 rounded-lg">
+      <div className="bg-muted/50 p-6 rounded-lg border">
         <div className="text-3xl font-bold mb-2">
           {stats.activeMembers}
         </div>
@@ -122,7 +122,7 @@ export default function KnowbyStats() {
       </div>
 
       {/* New Knowbys Created */}
-      <div className="bg-muted/50 p-6 rounded-lg">
+      <div className="bg-muted/50 p-6 rounded-lg border">
         <div className="text-3xl font-bold mb-2">
           {stats.newKnowbys}
         </div>
@@ -135,7 +135,7 @@ export default function KnowbyStats() {
       </div>
 
       {/* Recently Edited Knowbys */}
-      <div className="bg-muted/50 p-6 rounded-lg">
+      <div className="bg-muted/50 p-6 rounded-lg border">
         <div className="text-3xl font-bold mb-2">
           {stats.recentlyEdited}
         </div>
@@ -148,7 +148,7 @@ export default function KnowbyStats() {
       </div>
 
       {/* Unused Knowbys */}
-      <div className="bg-muted/50 p-6 rounded-lg">
+      <div className="bg-muted/50 p-6 rounded-lg border">
         <div className="text-3xl font-bold mb-2">
           {stats.unusedKnowbys}
         </div>

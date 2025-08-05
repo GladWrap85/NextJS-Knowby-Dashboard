@@ -43,7 +43,7 @@ export default function TodaysUsageCard({ selectedDateRange }: TodaysUsageCardPr
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const isDark = useDarkMode();
   const searchInputRef = useRef<HTMLInputElement>(null);
-
+  
   // Determine the effective end date from the selected range, defaulting to today if not available
   const effectiveEndDate = selectedDateRange?.to || new Date();
   // Calculate the effective start date as 7 days prior to the effective end date
@@ -193,66 +193,6 @@ export default function TodaysUsageCard({ selectedDateRange }: TodaysUsageCardPr
         <hr className="border-border" />
 
         <CardContent className="pt-0">
-          <div className="pb-4">
-            <DropdownMenu onOpenChange={(open) => setDropdownOpen(open)} open={dropdownOpen}>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={cn(
-                    "shadow-md max-w-[200px] truncate relative flex justify-between items-center",
-                    isDark ? "hover:bg-muted/50" : "hover:bg-accent"
-                  )}
-                  title={selectedKnowby || "Select Knowby"}
-                >
-                  <span className="overflow-hidden text-ellipsis whitespace-nowrap pr-4">
-                    {selectedKnowby || "Select Knowby"}
-                  </span>
-                  <ChevronDown
-                    className={cn(
-                      "ml-2 transition-transform duration-200",
-                      dropdownOpen && "rotate-90"
-                    )}
-                  />
-                  <span className="absolute right-0 top-0 h-full w-6 bg-gradient-to-l from-background to-transparent" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="max-h-[250px] overflow-y-auto w-60 p-2">
-                <Input
-                  ref={searchInputRef}
-                  placeholder="Search Knowby..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  onClick={(e) => e.stopPropagation()}
-                  onKeyDown={(e) => e.stopPropagation()}
-                  className="mb-2"
-                />
-                <DropdownMenuItem
-                  onSelect={(e) => {
-                    e.preventDefault();
-                    handleSelect(null);
-                  }}
-                  className="font-semibold"
-                  title="All Knowbys"
-                >
-                  All Knowbys
-                </DropdownMenuItem>
-                {filteredKnowbys.map((name) => (
-                  <DropdownMenuItem
-                    key={name}
-                    onSelect={(e) => {
-                      e.preventDefault();
-                      handleSelect(name);
-                    }}
-                    title={name}
-                  >
-                    <span className="overflow-hidden text-ellipsis whitespace-nowrap w-full">
-                      {name}
-                    </span>
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
 
           <div className="h-[200px] w-full">
             <ResponsiveBar
@@ -263,7 +203,11 @@ export default function TodaysUsageCard({ selectedDateRange }: TodaysUsageCardPr
               padding={0.4}
               groupMode="grouped"
               theme={getNivoTheme(isDark)}
-              colors={{ scheme: "category10" }}
+              colors={({ id }) => {
+                if (id === "Completions") return "#a3a3a3";
+                if (id === "Views") return "#c4b5fd";
+                return "#cccccc";
+              }}
               axisBottom={{ tickRotation: -30 }} //change for different x-axis label roation
               axisLeft={{
                 tickSize: 5,

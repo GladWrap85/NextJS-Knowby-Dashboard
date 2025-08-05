@@ -145,6 +145,21 @@ export default function TotalUsageCard() {
   const preciseDisplayRate =
     completionRate !== null ? `${completionRate.toFixed(2)}%` : "--";
 
+  const nonZeroViews = monthlyData.map(d => d.Views).filter(v => v > 0);
+  const nonZeroCompletions = monthlyData.map(d => d.Completions).filter(v => v > 0);
+
+  const viewsAverage =
+    nonZeroViews.length > 0
+      ? nonZeroViews.reduce((sum, v) => sum + v, 0) / nonZeroViews.length
+      : 0;
+
+  const completionsAverage =
+    nonZeroCompletions.length > 0
+      ? nonZeroCompletions.reduce((sum, v) => sum + v, 0) / nonZeroCompletions.length
+      : 0;
+
+  const accentColor = "#22c55e";
+  
   return (
     <TooltipProvider>
       <Card className="flex flex-col p-6 rounded-xl h-fit gap-3">
@@ -165,68 +180,8 @@ export default function TotalUsageCard() {
         <hr className="border-border" />
 
         <CardContent className="pt-0">
-          <div className="pb-4">
-            <DropdownMenu onOpenChange={(open) => setDropdownOpen(open)} open={dropdownOpen}>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={cn(
-                    "shadow-md max-w-[200px] truncate relative flex justify-between items-center",
-                    isDark ? "hover:bg-muted/50" : "hover:bg-accent"
-                  )}
-                  title={selectedKnowby || "Select Knowby"}
-                >
-                  <span className="overflow-hidden text-ellipsis whitespace-nowrap pr-4">
-                    {selectedKnowby || "Select Knowby"}
-                  </span>
-                  <ChevronDown
-                    className={cn(
-                      "ml-2 transition-transform duration-200",
-                      dropdownOpen && "rotate-90"
-                    )}
-                  />
-                  <span className="absolute right-0 top-0 h-full w-6 bg-gradient-to-l from-background to-transparent" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="max-h-[250px] overflow-y-auto w-60 p-2">
-                <Input
-                  ref={searchInputRef}
-                  placeholder="Search Knowby..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  onClick={(e) => e.stopPropagation()}
-                  onKeyDown={(e) => e.stopPropagation()}
-                  className="mb-2"
-                />
-                <DropdownMenuItem
-                  onSelect={(e) => {
-                    e.preventDefault();
-                    handleSelect(null);
-                  }}
-                  className="font-semibold"
-                  title="All Knowbys"
-                >
-                  All Knowbys
-                </DropdownMenuItem>
-                {filteredKnowbys.map((name) => (
-                  <DropdownMenuItem
-                    key={name}
-                    onSelect={(e) => {
-                      e.preventDefault();
-                      handleSelect(name);
-                    }}
-                    title={name}
-                  >
-                    <span className="overflow-hidden text-ellipsis whitespace-nowrap w-full">
-                      {name}
-                    </span>
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
 
-          <div className="h-[200px]">
+          <div className="h-[200px] w-full">
             <ResponsiveBar
               data={monthlyData}
               keys={["Completions", "Views"]}
@@ -235,7 +190,11 @@ export default function TotalUsageCard() {
               padding={0.4}
               groupMode="grouped"
               theme={getNivoTheme(isDark)}
-              colors={{ scheme: "category10" }}
+              colors={({ id }) => {
+                if (id === "Completions") return "#fff"; // green
+                if (id === "Views") return "#fff";       // lighter green
+                return "#e5e7eb";
+              }}
               axisBottom={{ tickRotation: -45 }}
               axisLeft={{
                 tickSize: 5,
@@ -245,6 +204,26 @@ export default function TotalUsageCard() {
                 legendPosition: "middle",
                 legendOffset: -40,
               }}
+              markers={[
+                {
+                  axis: 'y',
+                  value: viewsAverage,
+                  lineStyle: {
+                    stroke: '#ff7f0e', // Matches "Views" color in category10
+                    strokeWidth: 1,
+                    strokeDasharray: '6 6',
+                  },
+                },
+                {
+                  axis: 'y',
+                  value: completionsAverage,
+                  lineStyle: {
+                    stroke: '#1f77b4', // Matches "Completions" color
+                    strokeWidth: 1,
+                    strokeDasharray: '6 6',
+                  },
+                },
+              ]}
               tooltip={({ id, value, indexValue }) => (
                 <div style={{ padding: 10, background: "#fff", borderRadius: 4 }}>
                   <strong>{id}</strong> in <strong>{indexValue}</strong>: {value}

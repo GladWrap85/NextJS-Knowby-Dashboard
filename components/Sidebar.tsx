@@ -19,6 +19,7 @@ import { createContext, useContext, useState } from 'react'
 import { Button } from './ui/button'
 import { useSidebar } from './Sidebar-Context'
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip'
+import { cn } from '@/lib/utils'
 
 
 export default function Sidebar() {
@@ -64,7 +65,7 @@ export default function Sidebar() {
 
   return (
       <aside
-        className={`h-screen flex flex-col items bg-white dark:bg-card border-r shadow-sm transition-all duration-300 ${expanded ? 'w-[260px]' : 'w-[75px]'
+        className={`h-screen flex flex-col items bg-sidebar border-r shadow-sm transition-all duration-300 ${expanded ? 'w-[260px]' : 'w-[75px]'
           }`}
       >
       <div className="p-3 flex items-center justify-start">
@@ -119,17 +120,17 @@ export default function Sidebar() {
                                 `}
                             >
                               <Icon
-                                className={` transition-all duration-300 text-muted-foreground
-                                  ${!expanded && item.text === 'Refresh'
-                                    ? 'text-white'
-                                    : 'group-hover:text-[var(--accent-foreground)]'}
-                                      group-hover:text-[var(--accent-foreground)]
-                                  `}
+                                className={cn(
+                                  "transition-all duration-300",
+                                  expanded ? "text-muted-foreground group-hover:text-[var(--accent-foreground)]" : "",
+                                  !expanded && item.text === "Refresh" ? "text-white" : "text-muted-foreground group-hover:text-[var(--accent-foreground)]"
+                                )}
                                 style={{
-                                  width: expanded ? '16px' : '20px',
-                                  height: expanded ? '16px' : '20px',
+                                  width: expanded ? "16px" : "20px",
+                                  height: expanded ? "16px" : "20px",
                                 }}
                               />
+
                               {expanded && (
                                 <span className="text-sm transition-opacity duration-200 group-hover:text-[var(--accent-foreground)]">
                                   {item.text}

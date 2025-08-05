@@ -39,24 +39,26 @@ export default function TeamSettings() {
             <TodaysUsageCard selectedDateRange={dateRange} />
             <TopKnowbyCard selectedDateRange={dateRange} />
 
-            <ModularGraphCard />            
             <Card>
               <CardHeader>
                 <CardTitle>Knowby Stats</CardTitle>
-                <CardDescription>Overview of knowby activity and usage.</CardDescription>
+                <CardDescription>Overview of Knowby activity and usage</CardDescription>
               </CardHeader>
               <CardContent>
                 <KnowbyStats />
               </CardContent>
             </Card>
+  
+            <ModularGraphCard />            
+            
           </div>
         </div>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-[32px] lg:h-[300px] mb-[32px]">
         <Card className="overflow-y-scroll">
           <CardHeader>
-            <CardTitle>Users</CardTitle>
-            <CardDescription>These are the users of the month.</CardDescription>
+            <CardTitle>Calendar Heatmap</CardTitle>
+            <CardDescription>Usage of Knowby over a quarterly period</CardDescription>
           </CardHeader>
           <div className="px-4">
             <ViewsCalendarHeatmap />
