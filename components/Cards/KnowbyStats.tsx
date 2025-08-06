@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Papa from "papaparse";
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/ui/dialog"; // Import ShadCN dialog
 import { TableDemo } from "@/components/Cards/Table"; // temporary table import for example purposes
+import StatsTable from "@/components/Cards/StatsTable"; // custom table component that changes based on stat type
 
 interface KnowbyData {
   knowby_id: string;
@@ -22,7 +23,7 @@ interface KnowbyData {
 interface StatsData {
   activeMembers: number;
   newKnowbys: number;
-  recentlyEdited: number;
+  recentlyViewed: number;
   unusedKnowbys: number;
 }
 
@@ -30,70 +31,79 @@ export default function KnowbyStats() {
   const [stats, setStats] = useState<StatsData>({
     activeMembers: 0,
     newKnowbys: 0,
-    recentlyEdited: 0,
+    recentlyViewed: 0,
     unusedKnowbys: 0,
   });
 
   const [activePopup, setActivePopup] = useState<null | string>(null); // New code from Sahil to track which tile was clicked
 
+  // Data for each of the 4 tables (filtered subsets of the full csv)
+  const [activeMembersData, setActiveMembersData] = useState<KnowbyData[]>([]);
+  const [newKnowbysData, setNewKnowbysData] = useState<KnowbyData[]>([]);
+  const [recentlyViewedData, setRecentlyViewedData] = useState<KnowbyData[]>([]);
+  const [unusedKnowbysData, setUnusedKnowbysData] = useState<KnowbyData[]>([]);
+
+  // Run once on component mount to parse CSV and calculate all stats
   useEffect(() => {
     Papa.parse("/testknowbys.csv", {
-      // using testknowbys.csv file because one given has no stats within 30 days.
-      // change back to 'knowbys.csv' file to see result.
       download: true,
       header: true,
       skipEmptyLines: true,
       complete: (results) => {
         const data = results.data as KnowbyData[];
-
-        // Calculate stats
+  
+        // Calculate date 30 days ago from today
         const thirtyDaysAgo = new Date();
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
-        // Active Members - unique members who created knowbys in last 30 days
-        const activeMembers = new Set(
-          data
-            .filter((d) => {
-              const createdDate = parseDate(d.created_at);
-              return createdDate && createdDate >= thirtyDaysAgo;
-            })
-            .map((d) => d.created_by_member_id)
-            .filter((id) => id && id.trim() !== "")
-        );
-
-        // New Knowbys Created - knowbys created in last 30 days
-        const newKnowbys = data.filter((d) => {
+  
+        // New knowbys created in last 30 days
+        const recentCreations = data.filter((d) => {
           const createdDate = parseDate(d.created_at);
           return createdDate && createdDate >= thirtyDaysAgo;
         });
-
-        // Recently Edited Knowbys - knowbys with last_viewed in last 30 days
-        const recentlyEdited = data.filter((d) => {
+  
+        const activeMembersSet = new Set(
+          recentCreations.map((d) => d.created_by_member_id).filter((id) => id && id.trim() !== "")
+        );
+  
+        // Knowbys with last_viewed date within the lasst 30 days
+        const recentlyViewed = data.filter((d) => {
           const lastViewed = parseDate(d.last_viewed);
           return lastViewed && lastViewed >= thirtyDaysAgo;
         });
-
-        // Unused Knowbys - knowbys with no views or last viewed more than 30 days ago
+  
+        // Knowbys with 0 views OR last viewed over 30 days ago
         const unusedKnowbys = data.filter((d) => {
           const views = parseInt(d.views) || 0;
           const lastViewed = parseDate(d.last_viewed);
-
-          // Consider knowby unused if no views or last viewed more than 30 days ago
           return views === 0 || !lastViewed || lastViewed < thirtyDaysAgo;
         });
-
+  
+        // Set the dashboard tile numbers
         setStats({
-          activeMembers: activeMembers.size,
-          newKnowbys: newKnowbys.length,
-          recentlyEdited: recentlyEdited.length,
+          activeMembers: activeMembersSet.size,
+          newKnowbys: recentCreations.length,
+          recentlyViewed: recentlyViewed.length,
           unusedKnowbys: unusedKnowbys.length,
         });
+  
+        // Set the data to be shown in popups
+        setActiveMembersData(
+          data.filter((d) => {
+            const createdDate = parseDate(d.created_at);
+            return createdDate && createdDate >= thirtyDaysAgo;
+          })
+        );
+        setNewKnowbysData(recentCreations);
+        setRecentlyViewedData(recentlyViewed);
+        setUnusedKnowbysData(unusedKnowbys);
       },
       error: (error) => {
         console.error("Error parsing CSV:", error);
       },
     });
   }, []);
+  
 
   // Helper function to parse dates in DD/MM/YYYY format
   const parseDate = (dateString: string): Date | null => {
@@ -110,7 +120,7 @@ export default function KnowbyStats() {
     return isNaN(date.getTime()) ? null : date;
   };
 
-  // Reusable stat tile with trigger
+  // Reusable stat tile component, eaach one opens a different dialog
   const StatTile = ({
     label,
     value,
@@ -139,7 +149,6 @@ export default function KnowbyStats() {
       </DialogTrigger>
       {/* DialogContent is the popup that appears when this tile is clicked */}
       <DialogContent>
-        <h2 className="text-xl font-bold mb-2">{label}</h2>
         <DialogTitle>{label}</DialogTitle>
         <p className="text-sm text-muted-foreground mb-4">{description}</p>
         {popupContent} {/* inserted JSX content */}
@@ -153,32 +162,59 @@ export default function KnowbyStats() {
       {/* Each StatTile has its own popupId and can have custom popupContent for different tables/graphs*/}
 
       <StatTile
-        popupId="active"
-        label="Active Members"
-        value={stats.activeMembers}
-        description="Active members in the last 30 days."
-        popupContent={<TableDemo />} // Custom JSX shown in the popup using tableDemo for examples
+      popupId="active"
+      label="Active Members"
+      value={stats.activeMembers}
+      description="Active members in the last 30 days."
+      popupContent={
+        <StatsTable
+          data={activeMembersData}
+          caption="Top active members by number of knowbys created"
+          type="active"
+        />
+      }
       />
+
       <StatTile
-        popupId="new"
-        label="New Knowbys Created"
-        value={stats.newKnowbys}
-        description="Knowbys created in the last 30 days."
-        popupContent={<TableDemo />}
+      popupId="new"
+      label="New Knowbys Created"
+      value={stats.newKnowbys}
+      description="Knowbys created in the last 30 days."
+      popupContent={
+        <StatsTable
+          data={newKnowbysData}
+          caption="Most recently created knowbys"
+          type="new"
+        />
+      }
       />
+
       <StatTile
-        popupId="edited"
-        label="Recently Edited Knowbys"
-        value={stats.recentlyEdited}
-        description="Knowbys edited in the last 30 days."
-        popupContent={<TableDemo />}
+      popupId="viewed"
+      label="Recently Viewed Knowbys"
+      value={stats.recentlyViewed}
+      description="Knowbys viewed in the last 30 days."
+      popupContent={
+        <StatsTable
+          data={recentlyViewedData}
+          caption="Knowbys most recently viewed"
+          type="viewed"
+        />
+      }
       />
+
       <StatTile
-        popupId="unused"
-        label="Unused Knowbys"
-        value={stats.unusedKnowbys}
-        description="Knowbys not used in the last 30 days."
-        popupContent={<TableDemo />}
+      popupId="unused"
+      label="Unused Knowbys"
+      value={stats.unusedKnowbys}
+      description="Knowbys not used in the last 30 days."
+      popupContent={
+        <StatsTable
+          data={unusedKnowbysData}
+          caption="Knowbys that haven’t been viewed recently"
+          type="unused"
+        />
+      }
       />
     </div>
   );
