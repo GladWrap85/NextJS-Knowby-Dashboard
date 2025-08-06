@@ -10,6 +10,7 @@ const SidebarContext = createContext<{
 })
 
 export const SidebarProvider = ({ children }: { children: ReactNode }) => {
+  // Used to set the default state of the sidebar, here setExpanded is set to false, so its default is collapsed
   const [expanded, setExpanded] = useState(false)
 
   const toggle = () => setExpanded((prev) => !prev)

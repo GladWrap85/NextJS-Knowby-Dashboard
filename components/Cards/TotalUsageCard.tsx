@@ -191,8 +191,8 @@ export default function TotalUsageCard() {
               groupMode="grouped"
               theme={getNivoTheme(isDark)}
               colors={({ id }) => {
-                if (id === "Completions") return "#fff"; // green
-                if (id === "Views") return "#fff";       // lighter green
+                if (id === "Completions") return "#000"; // green
+                if (id === "Views") return "green";       // lighter green
                 return "#e5e7eb";
               }}
               axisBottom={{ tickRotation: -45 }}

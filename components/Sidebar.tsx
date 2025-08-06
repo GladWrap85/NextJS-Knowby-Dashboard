@@ -1,22 +1,13 @@
 'use client'
 
 import {
-  Frame,
   LayoutDashboard,
-  LogIn,
-  LogOut,
   RefreshCcw,
   Settings,
   User,
-
 } from 'lucide-react'
-
 import Link from 'next/link'
-import UserItem from './UserItem'
 import { Command, CommandGroup, CommandItem, CommandList } from './ui/command'
-import { SidebarProvider, SidebarTrigger } from './ui/sidebar'
-import { createContext, useContext, useState } from 'react'
-import { Button } from './ui/button'
 import { useSidebar } from './Sidebar-Context'
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip'
 import { cn } from '@/lib/utils'
@@ -24,14 +15,17 @@ import { cn } from '@/lib/utils'
 
 export default function Sidebar() {
   const { expanded } = useSidebar()
-
+  // Groups of links, icons and text for each link in the sidebar navigation
   const menuList = [
     {
+      // Group text is only applied when sidebar is expanded
       group: 'Connection',
       items: [
         {
           link: '/',
+          // Refers to an imported icon, the actual call is not used here in order to edit its sizing later
           icon: RefreshCcw,
+          // Text is used on links when sidebar is expanded, and as tooltips when collapsed
           text: 'Refresh',
         },
       ],
@@ -40,7 +34,7 @@ export default function Sidebar() {
       group: 'Account',
       items: [
         {
-          link: '/team',
+          link: '/',
           icon: LayoutDashboard,
           text: 'Dashboard',
         },
@@ -73,6 +67,7 @@ export default function Sidebar() {
           className="relative overflow-hidden transition-all duration-300"
           style={{ width: expanded ? '142px' : '64px', height: '50px' }}
         >
+          {/* First Step Solutions logo, with the overflow hidden when sidebar collapses | light + dark */}
           <div style={{ width: '142px', height: '50px' }}>
             <img
               src="./ffs_logo_full.png"
@@ -96,7 +91,7 @@ export default function Sidebar() {
 
 
 
-        {/* Menu */}
+        {/* Menu items - Constructor */}
         <div className="px-2 mt-8 w-full flex flex-col items-center">
           <Command style={{ overflow: 'visible' }} className="bg-transparent">
             <CommandList className="max-h-[calc(100vh-200px)]">
@@ -105,6 +100,7 @@ export default function Sidebar() {
                   {menu.items.map((item, idx) => {
                     const Icon = item.icon
 
+                    {/* Menu items - Applying links | Visual elements for collapsed and expanded versions */}
                     return (
                       <Tooltip key={`${menu.group}-${item.text}`}>
                         <TooltipTrigger asChild>
@@ -140,15 +136,11 @@ export default function Sidebar() {
 
                           </Link>
                         </TooltipTrigger>
-
+                        {/* Hover tooltip for links when sidebar is collapsed */}
                         <TooltipContent side="right" className={`${expanded ? 'hidden' : ''} z-[9999]`}>{item.text}</TooltipContent>
                       </Tooltip>
-
                     )
                   })}
-
-
-
                 </CommandGroup>
               ))}
             </CommandList>
