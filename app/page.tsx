@@ -32,73 +32,68 @@ export default function Home() {
 
   return (
     <div className="grid gap-[32px]">
-      <div className="grid">
-        <div className="grid gap-[32px]">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-[32px] w-full min-w-0">
-            <TotalUsageCard />
-            <TodaysUsageCard selectedDateRange={dateRange} />
-            <TopKnowbyCard selectedDateRange={dateRange} />
+  {/* Top row of cards */}
+  <div className="grid grid-cols-1 lg:grid-cols-3 gap-[32px]">
+    <TotalUsageCard />
+    <TodaysUsageCard selectedDateRange={dateRange} />
+    <TopKnowbyCard selectedDateRange={dateRange} />
+  </div>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Knowby Stats</CardTitle>
-                <CardDescription>Overview of Knowby activity and usage</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <KnowbyStats />
-              </CardContent>
-            </Card>
-  
-            <ModularGraphCard />            
-            
-          </div>
-        </div>
+  {/* Knowby Stats + ModularGraphCard */}
+  <div className="grid grid-cols-1 lg:grid-cols-3 gap-[32px]">
+    <Card>
+      <CardHeader>
+        <CardTitle>Knowby Stats</CardTitle>
+        <CardDescription>Overview of Knowby activity and usage</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <KnowbyStats />
+      </CardContent>
+    </Card>
+
+    <ModularGraphCard />
+  </div>
+
+  {/* Calendar Heatmap + Dialog Card */}
+  <div className="grid grid-cols-1 lg:grid-cols-2 gap-[32px]">
+    <Card className="overflow-y-scroll">
+      <CardHeader>
+        <CardTitle>Calendar Heatmap</CardTitle>
+        <CardDescription>Usage of Knowby over a quarterly period</CardDescription>
+      </CardHeader>
+      <div className="px-4">
+        <ViewsCalendarHeatmap />
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-[32px] lg:h-[300px] mb-[32px]">
-        <Card className="overflow-y-scroll">
+    </Card>
+
+    <Dialog>
+      <DialogTrigger asChild>
+        <Card className="relative cursor-pointer hover:shadow-lg transition">
           <CardHeader>
-            <CardTitle>Calendar Heatmap</CardTitle>
-            <CardDescription>Usage of Knowby over a quarterly period</CardDescription>
+            <CardTitle>Highest Performing Employees</CardTitle>
+            <CardDescription>
+              These are the employees with the greatest completions.
+            </CardDescription>
+            <ChevronRight
+              size={16}
+              className="absolute top-2 right-2 text-muted-foreground rotate-90"
+            />
           </CardHeader>
-          <div className="px-4">
-            <ViewsCalendarHeatmap />
+          <div className="px-6 py-1 text-sm text-muted-foreground">
+            Click to view full table →
           </div>
         </Card>
+      </DialogTrigger>
 
-        {/* 
-        New Code for testing clickable popups
-        Card wrapped within dialogTriggers to make it clickable.
-        */}
-        <Dialog>
-          <DialogTrigger asChild>
-            <Card className="relative cursor-pointer hover:shadow-lg transition">
-              <CardHeader>
-                <CardTitle>Highest Performing Employees</CardTitle>
-                <CardDescription>
-                  These are the employees with the greatest completions.
-                </CardDescription>
-                <ChevronRight
-                  size={16}
-                  className="absolute top-2 right-2 text-muted-foreground rotate-90"
-                />
-              </CardHeader>
-              <div className="px-6 py-1 text-sm text-muted-foreground">
-                Click to view full table →
-              </div>
-            </Card>
-          </DialogTrigger>
+      <DialogContent className="max-w-3xl p-6 bg-background">
+        <DialogTitle>Highest Performing Employees</DialogTitle>
+        <div className="max-h-[500px] overflow-y-auto mt-4">
+          <TableDemo />
+        </div>
+      </DialogContent>
+    </Dialog>
+  </div>
+</div>
 
-          {/* 
-          Modal dialog box shown when card is clicked
-          */}
-          <DialogContent className="max-w-3xl p-6 bg-background">
-            <DialogTitle>Highest Performing Employees</DialogTitle>
-            <div className="max-h-[500px] overflow-y-auto mt-4">
-              <TableDemo />
-            </div>
-          </DialogContent>
-        </Dialog>
-      </div>
-    </div>
   );
 }

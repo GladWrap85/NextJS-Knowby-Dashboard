@@ -59,7 +59,7 @@ export default function Sidebar() {
 
   return (
       <aside
-        className={`h-screen flex flex-col items bg-sidebar border-r shadow-sm transition-all duration-300 ${expanded ? 'w-[260px]' : 'w-[75px]'
+        className={`h-screen flex flex-col items bg-sidebar border-r shadow-sm transition-all duration-300 ${expanded ? 'w-[230px]' : 'w-[75px]'
           }`}
       >
       <div className="p-3 flex items-center justify-start">
