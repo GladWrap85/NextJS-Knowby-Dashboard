@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import Papa from "papaparse";
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/ui/dialog"; // Import ShadCN dialog
-import { TableDemo } from "@/components/Cards/Table"; // temporary table import for example purposes
 import StatsTable from "@/components/Cards/StatsTable"; // custom table component that changes based on stat type
 
 interface KnowbyData {
@@ -18,6 +17,15 @@ interface KnowbyData {
   visibility: string;
   views: string;
   last_viewed: string;
+}
+
+interface CompletionData {
+  organisation_name: string;
+  knowby_id: string;
+  knowby_name: string;
+  member_id: string;
+  member_name: string;
+  date: string;
 }
 
 interface StatsData {
@@ -38,42 +46,66 @@ export default function KnowbyStats() {
   const [activePopup, setActivePopup] = useState<null | string>(null); // New code from Sahil to track which tile was clicked
 
   // Data for each of the 4 tables (filtered subsets of the full csv)
-  const [activeMembersData, setActiveMembersData] = useState<KnowbyData[]>([]);
-  const [newKnowbysData, setNewKnowbysData] = useState<KnowbyData[]>([]);
+  const [activeMembersData, setActiveMembersData] = useState<CompletionData[]>([]);  const [newKnowbysData, setNewKnowbysData] = useState<KnowbyData[]>([]);
   const [recentlyViewedData, setRecentlyViewedData] = useState<KnowbyData[]>([]);
   const [unusedKnowbysData, setUnusedKnowbysData] = useState<KnowbyData[]>([]);
 
   // Run once on component mount to parse CSV and calculate all stats
   useEffect(() => {
-    Papa.parse("/testknowbys.csv", {
-      download: true,
-      header: true,
-      skipEmptyLines: true,
-      complete: (results) => {
-        const data = results.data as KnowbyData[];
+    const loadData = async () => {
+      try {
+        // Load completions CSV for active members
+        const completionsPromise = new Promise<CompletionData[]>((resolve, reject) => {
+          Papa.parse("/testcompletions.csv", {
+            download: true,
+            header: true,
+            skipEmptyLines: true,
+            complete: (results) => resolve(results.data as CompletionData[]),
+            error: (error) => reject(error),
+          });
+        });
+  
+        // Load knowbys CSV for other stats
+        const knowbysPromise = new Promise<KnowbyData[]>((resolve, reject) => {
+          Papa.parse("/testknowbys.csv", {
+            download: true,
+            header: true,
+            skipEmptyLines: true,
+            complete: (results) => resolve(results.data as KnowbyData[]),
+            error: (error) => reject(error),
+          });
+        });
+  
+        const [completionsData, knowbysData] = await Promise.all([completionsPromise, knowbysPromise]);
   
         // Calculate date 30 days ago from today
         const thirtyDaysAgo = new Date();
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
   
+        // Active members based on completions in last 30 days
+        const recentCompletions = completionsData.filter((d) => {
+          const completionDate = parseDate(d.date);
+          return completionDate && completionDate >= thirtyDaysAgo;
+        });
+  
+        const activeMembersSet = new Set(
+          recentCompletions.map((d) => d.member_id).filter((id) => id && id.trim() !== "")
+        );
+  
         // New knowbys created in last 30 days
-        const recentCreations = data.filter((d) => {
+        const recentCreations = knowbysData.filter((d) => {
           const createdDate = parseDate(d.created_at);
           return createdDate && createdDate >= thirtyDaysAgo;
         });
   
-        const activeMembersSet = new Set(
-          recentCreations.map((d) => d.created_by_member_id).filter((id) => id && id.trim() !== "")
-        );
-  
-        // Knowbys with last_viewed date within the lasst 30 days
-        const recentlyViewed = data.filter((d) => {
+        // Knowbys with last_viewed date within the last 30 days
+        const recentlyViewed = knowbysData.filter((d) => {
           const lastViewed = parseDate(d.last_viewed);
           return lastViewed && lastViewed >= thirtyDaysAgo;
         });
   
         // Knowbys with 0 views OR last viewed over 30 days ago
-        const unusedKnowbys = data.filter((d) => {
+        const unusedKnowbys = knowbysData.filter((d) => {
           const views = parseInt(d.views) || 0;
           const lastViewed = parseDate(d.last_viewed);
           return views === 0 || !lastViewed || lastViewed < thirtyDaysAgo;
@@ -88,20 +120,17 @@ export default function KnowbyStats() {
         });
   
         // Set the data to be shown in popups
-        setActiveMembersData(
-          data.filter((d) => {
-            const createdDate = parseDate(d.created_at);
-            return createdDate && createdDate >= thirtyDaysAgo;
-          })
-        );
+        setActiveMembersData(recentCompletions);
         setNewKnowbysData(recentCreations);
         setRecentlyViewedData(recentlyViewed);
         setUnusedKnowbysData(unusedKnowbys);
-      },
-      error: (error) => {
-        console.error("Error parsing CSV:", error);
-      },
-    });
+  
+      } catch (error) {
+        console.error("Error parsing CSVs:", error);
+      }
+    };
+  
+    loadData();
   }, []);
   
 
@@ -165,12 +194,10 @@ export default function KnowbyStats() {
       popupId="active"
       label="Active Members"
       value={stats.activeMembers}
-      description="Active members in the last 30 days."
-      popupContent={
+      description="Members with completions in the last 30 days."      popupContent={
         <StatsTable
           data={activeMembersData}
-          caption="Top active members by number of knowbys created"
-          type="active"
+          caption="Members with the most completions in the last 30 days"          type="active"
         />
       }
       />

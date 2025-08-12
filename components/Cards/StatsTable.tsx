@@ -26,6 +26,15 @@ interface KnowbyData {
   last_viewed: string;
 }
 
+interface CompletionData {
+  organisation_name: string;
+  knowby_id: string;
+  knowby_name: string;
+  member_id: string;
+  member_name: string;
+  date: string;
+}
+
 // Defined table types for conditional rendering
 type TableType = "active" | "new" | "viewed" | "unused";
 
@@ -35,24 +44,25 @@ export default function StatsTable({
   caption,
   type,
 }: {
-  data: KnowbyData[];
+  data: KnowbyData[] | CompletionData[];  
   caption: string;
   type: TableType;
 }) {
   // Dynamically sort and prepare the data based on type
   const getSortedData = () => {
     switch (type) {
-      case "active":
-        // Count how many knowbys each member created
-        const counts: Record<string, { member_name: string; count: number }> = {};
-        data.forEach((d) => {
-          const id = d.created_by_member_id;
-          if (!counts[id]) counts[id] = { member_name: d.member_name, count: 0 };
-          counts[id].count += 1;
-        });
 
+      case "active":
+        // Count how many completions each member has
+        const completionCounts: Record<string, { member_name: string; count: number }> = {};
+        (data as CompletionData[]).forEach((d) => {
+          const id = d.member_id;
+          if (!completionCounts[id]) completionCounts[id] = { member_name: d.member_name, count: 0 };
+          completionCounts[id].count += 1;
+        });
+      
         // Convert object to array and sort by count descending
-        return Object.entries(counts)
+        return Object.entries(completionCounts)
           .map(([id, info]) => ({
             member_id: id,
             member_name: info.member_name,
@@ -60,17 +70,17 @@ export default function StatsTable({
           }))
           .sort((a, b) => b.count - a.count);
 
-      case "new":
-        // Sort knowbys by most recent creation date
-        return [...data].sort((a, b) => parseDate(b.created_at) - parseDate(a.created_at));
-
-      case "viewed":
-        // Sort by most recently viewed knowbys
-        return [...data].sort((a, b) => parseDate(b.last_viewed) - parseDate(a.last_viewed));
-
-      case "unused":
-        // Sorty by number of views (descending)
-        return [...data].sort((a, b) => parseInt(b.views) - parseInt(a.views));
+          case "new":
+            // Sort knowbys by most recent creation date
+            return [...(data as KnowbyData[])].sort((a, b) => parseDate(b.created_at) - parseDate(a.created_at));
+          
+          case "viewed":
+            // Sort by most recently viewed knowbys
+            return [...(data as KnowbyData[])].sort((a, b) => parseDate(b.last_viewed) - parseDate(a.last_viewed));
+          
+          case "unused":
+            // Sort by number of views (descending)
+            return [...(data as KnowbyData[])].sort((a, b) => parseInt(b.views) - parseInt(a.views));
 
       default:
         return [];
@@ -87,7 +97,7 @@ export default function StatsTable({
           {type === "active" && (
             <>
               <TableHead>Member</TableHead>
-              <TableHead className="text-right">Knowbys Created</TableHead>
+              <TableHead className="text-right">Completions</TableHead>
             </>
           )}
 
