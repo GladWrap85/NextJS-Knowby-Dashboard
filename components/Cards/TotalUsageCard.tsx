@@ -29,6 +29,10 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import dynamic from "next/dynamic";
+import type { ApexOptions } from "apexcharts";
+const ReactApexChart = dynamic(() => import("react-apexcharts"), { ssr: false });
+
 
 function parseDate(dateStr: string): Date {
   const [day, month, year] = dateStr.split("/").map(Number);
@@ -158,117 +162,142 @@ export default function TotalUsageCard() {
       ? nonZeroCompletions.reduce((sum, v) => sum + v, 0) / nonZeroCompletions.length
       : 0;
 
-  const accentColor = "#22c55e";
+
+  // Turn "YYYY-MM" into a timestamp at the 1st of the month
+  const toTs = (ym: string) => new Date(`${ym}-01T00:00:00`).getTime();
+
+  const series = [
+    {
+      name: "Views",
+      data: monthlyData.map(d => ({ x: toTs(d.month), y: d.Views })),
+    },
+    {
+      name: "Completions",
+      data: monthlyData.map(d => ({ x: toTs(d.month), y: d.Completions })),
+    },
+  ];
+
+
+  const options: ApexOptions = {
+    chart: {
+      type: "area",
+      toolbar: { show: false },
+    },
+    dataLabels: { enabled: false },
+    stroke: { curve: "smooth", width: 2 },
+    markers: { size: 0 },
+    xaxis: {
+      type: "datetime",
+      tickAmount: 6,
+      labels: { datetimeUTC: false,
+        rotate: -30,
+        format: "MMM yyyy",
+        style: {
+          colors: isDark ? '#aaa' : ''
+        }
+      },
+      
+    },
+    yaxis: {
+      tickAmount: 4,
+      labels: { formatter: (v) => `${Math.round(v)}`,
+        style: {
+          colors: isDark ? '#aaa' : ''
+        }
+    },
+    },
+    tooltip: {
+      shared: true,
+      x: { format: "MMM yyyy" },
+      theme: isDark ? 'dark' : 'light',
+    },
+    grid: { 
+      strokeDashArray: 2,
+      borderColor: '#aaa'
+    },
+    fill: {
+      type: "gradient",
+      gradient: {
+        shadeIntensity: 0.4,
+        opacityFrom: 0.7,
+        opacityTo: 0.3,
+        stops: [0, 90, 100],
+      },
+    },
+    legend: { 
+      position: "top",
+      floating: true,
+      labels: {
+        colors: isDark ? '#aaa' : ''
+      }
+    },
+  };
+
+
+
+
   
   return (
     <TooltipProvider>
       <Card className="flex flex-col p-6 rounded-xl h-fit gap-3">
         <div className="flex items-center gap-4">
-          <div className="flex items-center justify-center w-20 h-20 rounded-2xl text-white bg-gradient-to-b from-green-500 to-green-700">
-            <TrendingUp className="h-10 w-10" />
+          <div className="flex items-center justify-center w-15 h-15 rounded-lg text-white bg-gradient-to-b from-green-500 to-green-700">
+            <TrendingUp className="h-8 w-8" />
           </div>
 
           <div className="flex flex-col gap-1">
-            <h3 className="text-xl font-semibold">Total Usage</h3>
+            <h3 className="text-lg font-semibold">Total Usage</h3>
             <div className="flex items-baseline gap-2">
-              <div className="text-5xl font-bold leading-none">{roundedDisplayRate}</div>
-              <p className="text-sm text-muted-foreground">completion rate</p>
+              <div className="text-4xl font-bold leading-none">{roundedDisplayRate}</div>
+              <p className="text-xs text-muted-foreground">completion rate</p>
             </div>
           </div>
         </div>
 
         <hr className="border-border" />
 
-        <CardContent className="pt-0">
+        <CardContent className="p-0">
 
-          <div className="h-[200px] w-full">
-            <ResponsiveBar
-              data={monthlyData}
-              keys={["Completions", "Views"]}
-              indexBy="month"
-              margin={{ top: 10, right: 30, bottom: 40, left: 50 }}
-              padding={0.4}
-              groupMode="grouped"
-              theme={getNivoTheme(isDark)}
-              colors={({ id }) => {
-                if (id === "Completions") return "#000"; // green
-                if (id === "Views") return "green";       // lighter green
-                return "#e5e7eb";
-              }}
-              axisBottom={{ tickRotation: -45 }}
-              axisLeft={{
-                tickSize: 5,
-                tickPadding: 5,
-                tickRotation: 0,
-                legend: "Count",
-                legendPosition: "middle",
-                legendOffset: -40,
-              }}
-              markers={[
-                {
-                  axis: 'y',
-                  value: viewsAverage,
-                  lineStyle: {
-                    stroke: '#ff7f0e', // Matches "Views" color in category10
-                    strokeWidth: 1,
-                    strokeDasharray: '6 6',
-                  },
-                },
-                {
-                  axis: 'y',
-                  value: completionsAverage,
-                  lineStyle: {
-                    stroke: '#1f77b4', // Matches "Completions" color
-                    strokeWidth: 1,
-                    strokeDasharray: '6 6',
-                  },
-                },
-              ]}
-              tooltip={({ id, value, indexValue }) => (
-                <div style={{ padding: 10, background: "#fff", borderRadius: 4 }}>
-                  <strong>{id}</strong> in <strong>{indexValue}</strong>: {value}
-                </div>
-              )}
-              borderRadius={4}
-              enableLabel={false}
-            />
-          </div>
-
-          <div className="pt-4">
-            <p className="text-sm font-semibold">Completions vs Views per Month</p>
-            <CardFooter className="flex items-center justify-between text-muted-foreground text-sm px-0 pt-2">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <div className="flex items-center gap-1.5">
-                    <Eye className="h-4 w-4" />
-                    <span>{totalViews}</span>
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent>Total Views</TooltipContent>
-              </Tooltip>
-
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <div className="flex items-center gap-1.5">
-                    <CheckCircle className="h-4 w-4" />
-                    <span>{totalCompletions}</span>
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent>Total Completions</TooltipContent>
-              </Tooltip>
-
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <div className="flex items-center gap-1.5">
-                    <TrendingUp className="h-4 w-4" />
-                    <span>{preciseDisplayRate}</span>
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent>Completion Rate</TooltipContent>
-              </Tooltip>
-            </CardFooter>
+          <div className="h-[145px]">
+            <ReactApexChart options={options} series={series} type="area" height={150} />
           </div>
         </CardContent>
+        <div className="pl-6 pr-6">
+          <div className="flex justify-center">
+          <p className="text-xs font-semibold">Completions vs Views per Month</p>
+          </div>
+          <CardFooter className="flex items-center justify-between text-muted-foreground text-sm px-0 pt-2">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="flex items-center gap-1.5">
+                  <Eye className="h-4 w-4" />
+                  <span className="text-xs">{totalViews}</span>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent>Total Views</TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="flex items-center gap-1.5">
+                  <CheckCircle className="h-4 w-4" />
+                  <span className="text-xs">{totalCompletions}</span>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent>Total Completions</TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="flex items-center gap-1.5">
+                  <TrendingUp className="h-4 w-4" />
+                  <span className="text-xs">{preciseDisplayRate}</span>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent>Completion Rate</TooltipContent>
+            </Tooltip>
+          </CardFooter>
+        </div>
       </Card>
     </TooltipProvider>
   );

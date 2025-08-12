@@ -31,16 +31,16 @@ export default function Home() {
   const { dateRange } = useDateRange(); // Get the dateRange from the context
 
   return (
-    <div className="grid gap-[32px]">
+    <div className="grid gap-[20px]">
   {/* Top row of cards */}
-  <div className="grid grid-cols-1 lg:grid-cols-3 gap-[32px]">
+  <div className="grid grid-cols-1 lg:grid-cols-3 gap-[20px]">
     <TotalUsageCard />
     <TodaysUsageCard selectedDateRange={dateRange} />
     <TopKnowbyCard selectedDateRange={dateRange} />
   </div>
 
   {/* Knowby Stats + ModularGraphCard */}
-  <div className="grid grid-cols-1 lg:grid-cols-3 gap-[32px]">
+  <div className="grid grid-cols-1 lg:grid-cols-3 gap-[20px]">
     <Card>
       <CardHeader>
         <CardTitle>Knowby Stats</CardTitle>
@@ -55,7 +55,7 @@ export default function Home() {
   </div>
 
   {/* Calendar Heatmap + Dialog Card */}
-  <div className="grid grid-cols-1 lg:grid-cols-2 gap-[32px]">
+  <div className="grid grid-cols-1 lg:grid-cols-2 gap-[20px]">
     <Card className="overflow-y-scroll">
       <CardHeader>
         <CardTitle>Calendar Heatmap</CardTitle>

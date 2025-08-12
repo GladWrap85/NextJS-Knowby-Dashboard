@@ -134,13 +134,18 @@ export default function TodaysUsageCard({ selectedDateRange }: TodaysUsageCardPr
               );
 
               // Map data for Nivo Bar chart, ensuring all dates in datesToDisplay are present
-              const data = datesToDisplay.map((dateStr) => ({
-                date: dateStr,
-                Completions: dateCounts[dateStr]?.completions ?? 0,
-                Views: dateCounts[dateStr]?.views ?? 0,
-              }));
+              const data = datesToDisplay.map((dateStr) => {
+                const parsedDate = parse(dateStr, "dd/MM/yyyy", new Date());
+                return {
+                  // This is the display label on the x-axis
+                  date: format(parsedDate, "EEE"), // Mon, Tue, Wed, etc.
+                  Completions: dateCounts[dateStr]?.completions ?? 0,
+                  Views: dateCounts[dateStr]?.views ?? 0,
+                };
+              });
 
               setDailyData(data);
+
 
               // Calculate completion rate for the *entire 7-day period* for the FOOTER
               const totalCompletionsForPeriod = data.reduce((sum, d) => sum + d.Completions, 0);
@@ -196,7 +201,7 @@ export default function TodaysUsageCard({ selectedDateRange }: TodaysUsageCardPr
 
           <div className="h-[200px] w-full">
             <ResponsiveBar
-              data={dailyData.map((d) => ({ ...d, date: d.date }))}
+              data={dailyData}
               keys={["Completions", "Views"]}
               indexBy="date"
               margin={{ top: 10, right: 30, bottom: 40, left: 50 }}
@@ -208,7 +213,7 @@ export default function TodaysUsageCard({ selectedDateRange }: TodaysUsageCardPr
                 if (id === "Views") return "#c4b5fd";
                 return "#cccccc";
               }}
-              axisBottom={{ tickRotation: -30 }} //change for different x-axis label roation
+              axisBottom={{ tickRotation: 0 }} //change for different x-axis label roation
               axisLeft={{
                 tickSize: 5,
                 tickPadding: 5,

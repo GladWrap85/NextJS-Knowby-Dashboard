@@ -275,3 +275,7 @@
   font-size: 1rem !important; /* try 24px or larger */
   font-weight: bold;
 }
+
+.apexcharts-xaxis text {
+  font-weight: 400 !important;
+}
