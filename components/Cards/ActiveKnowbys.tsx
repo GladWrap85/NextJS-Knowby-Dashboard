@@ -13,7 +13,7 @@ export default function PublishedKnowbyCount() {
   const [count, setCount] = useState(0);
 
   useEffect(() => {
-    Papa.parse("/knowbys.csv", {
+    Papa.parse("/scraperpublished.csv", {
       download: true,
       header: true,
       skipEmptyLines: true,

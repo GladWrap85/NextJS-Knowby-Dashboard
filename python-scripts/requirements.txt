@@ -1,0 +1,9 @@
+# Core dependencies for the Knowby scraper
+requests>=2.31.0
+pandas>=2.0.0
+playwright>=1.40.0
+
+# Data processing
+python-dateutil>=2.8.0
+
+# Install with: pip install -r requirements.txt

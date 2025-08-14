@@ -50,7 +50,7 @@ export default function TotalUsageCard() {
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    Papa.parse("/completions.csv", {
+    Papa.parse("/scrapercompletions.csv", {
       download: true,
       header: true,
       skipEmptyLines: true,
@@ -66,7 +66,7 @@ export default function TotalUsageCard() {
     const monthlyCounts: Record<string, { completions: number; views: number }> = {};
 
     const processData = () => {
-      Papa.parse("/completions.csv", {
+      Papa.parse("/scrapercompletions.csv", {
         download: true,
         header: true,
         skipEmptyLines: true,
@@ -81,7 +81,7 @@ export default function TotalUsageCard() {
             monthlyCounts[key].completions++;
           });
 
-          Papa.parse("/views.csv", {
+          Papa.parse("/scraperviews.csv", {
             download: true,
             header: true,
             skipEmptyLines: true,

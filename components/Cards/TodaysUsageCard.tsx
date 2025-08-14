@@ -56,7 +56,7 @@ export default function TodaysUsageCard({ selectedDateRange }: TodaysUsageCardPr
   }).map(date => format(date, "dd/MM/yyyy"));
 
   useEffect(() => {
-    Papa.parse("/completions.csv", {
+    Papa.parse("/scrapercompletions.csv", {
       download: true,
       header: true,
       skipEmptyLines: true,
@@ -80,7 +80,7 @@ export default function TodaysUsageCard({ selectedDateRange }: TodaysUsageCardPr
     const latestDayFormatted = format(effectiveEndDate, "dd/MM/yyyy"); // The "today" for this card
 
     const parseCSV = async () => {
-      Papa.parse("/completions.csv", {
+      Papa.parse("/scrapercompletions.csv", {
         download: true,
         header: true,
         skipEmptyLines: true,
@@ -104,7 +104,7 @@ export default function TodaysUsageCard({ selectedDateRange }: TodaysUsageCardPr
             }
           });
 
-          Papa.parse("/views.csv", {
+          Papa.parse("/scraperviews.csv", {
             download: true,
             header: true,
             skipEmptyLines: true,

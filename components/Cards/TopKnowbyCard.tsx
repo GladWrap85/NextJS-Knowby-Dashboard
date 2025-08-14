@@ -101,7 +101,7 @@ export default function TopKnowbyCard({ selectedDateRange }: TopKnowbyCardProps)
 
   // --- Initial Load & Top Knowby Calculation ---
   useEffect(() => {
-    Papa.parse("/completions.csv", {
+    Papa.parse("/scrapercompletions.csv", {
       download: true,
       header: true,
       skipEmptyLines: true,
@@ -240,7 +240,7 @@ export default function TopKnowbyCard({ selectedDateRange }: TopKnowbyCardProps)
       });
 
       // Fetch completions data
-      Papa.parse("/completions.csv", {
+      Papa.parse("/scrapercompletions.csv", {
         download: true,
         header: true,
         skipEmptyLines: true,
@@ -270,7 +270,7 @@ export default function TopKnowbyCard({ selectedDateRange }: TopKnowbyCardProps)
           });
 
           // Fetch views data
-          Papa.parse("/views.csv", {
+          Papa.parse("/scraperviews.csv", {
             download: true,
             header: true,
             skipEmptyLines: true,

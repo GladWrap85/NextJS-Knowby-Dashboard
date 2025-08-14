@@ -56,7 +56,7 @@ export default function KnowbyStats() {
       try {
         // Load completions CSV for active members
         const completionsPromise = new Promise<CompletionData[]>((resolve, reject) => {
-          Papa.parse("/testcompletions.csv", {
+          Papa.parse("/scrapercompletions.csv", {
             download: true,
             header: true,
             skipEmptyLines: true,
@@ -67,7 +67,7 @@ export default function KnowbyStats() {
   
         // Load knowbys CSV for other stats
         const knowbysPromise = new Promise<KnowbyData[]>((resolve, reject) => {
-          Papa.parse("/testknowbys.csv", {
+          Papa.parse("/scraperpublished.csv", {
             download: true,
             header: true,
             skipEmptyLines: true,

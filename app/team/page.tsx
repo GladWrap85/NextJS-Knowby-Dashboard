@@ -16,6 +16,7 @@ import { CheckCircle, Eye, Settings, TrendingUp } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { useDateRange } from "@/lib/DateRangeContext"; // Import the custom hook
 import KnowbyStats from "@/components/Cards/KnowbyStats"
+import ScraperButton from "@/components/ScraperButton"
 
 //new imports for popups
 import {
@@ -31,6 +32,9 @@ export default function TeamSettings() {
 
   return (
     <div className="grid gap-[32px]">
+      <div className="flex justify-center">
+        <ScraperButton />
+      </div>
       <div className="grid">
         <div className="grid gap-[32px]">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-[32px]">
