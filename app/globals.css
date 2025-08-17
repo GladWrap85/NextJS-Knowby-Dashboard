@@ -279,3 +279,7 @@
 .apexcharts-xaxis text {
   font-weight: 400 !important;
 }
+
+.chart-container {
+    transition: width 0.3s ease;
+}

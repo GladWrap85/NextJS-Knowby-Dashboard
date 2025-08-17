@@ -451,8 +451,8 @@ export default function TopKnowbyCard({ selectedDateRange }: TopKnowbyCardProps)
         {/* Icon and Fixed Top Knowby Display */}
         <div className="flex items-start gap-4">
           {/* Icon container with fixed size */}
-          <div className="flex-shrink-0 w-20 h-20 rounded-2xl bg-gradient-to-b from-blue-500 to-blue-700 flex items-center justify-center text-white">
-            <TrendingUp className="h-10 w-10" />
+          <div className="shrink-0 flex items-center justify-center w-16 h-16 rounded-lg bg-gradient-to-b from-blue-500 to-blue-700 text-white">
+            <TrendingUp className="h-8 w-8" />
           </div>
 
           {/* Text container that expands */}
