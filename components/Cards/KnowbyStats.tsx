@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Papa from "papaparse";
 import dynamic from "next/dynamic";
 import type { ApexOptions } from "apexcharts";
+import { sparklineChartOptions } from "@/lib/chartOptions";
 
 const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
@@ -227,17 +228,6 @@ export default function KnowbyStats() {
     })();
   }, []);
 
-  const baseChartOptions: ApexOptions = {
-    chart: { type: "area", sparkline: { enabled: true } },
-    stroke: { curve: "smooth", width: 2 },
-    fill: {
-      type: "gradient",
-      gradient: { shadeIntensity: 1, opacityFrom: 1, opacityTo: 0, stops: [0, 100] },
-    },
-    tooltip: { enabled: false },
-    yaxis: { show: false },
-  };
-
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
       {/* Active Members */}
@@ -246,7 +236,7 @@ export default function KnowbyStats() {
           <div className="text-3xl font-bold">{stats.activeMembers}</div>
           <div className="w-24 h-6 mb-3">
             <Chart
-              options={baseChartOptions}
+              options={sparklineChartOptions}
               series={[{ name: "Active Members", data: activeMemberTrend }]}
               type="area"
               height={40}
@@ -265,7 +255,7 @@ export default function KnowbyStats() {
           <div className="text-3xl font-bold">{stats.newKnowbys}</div>
           <div className="w-24 h-6 mb-3">
             <Chart
-              options={baseChartOptions}
+              options={sparklineChartOptions}
               series={[{ name: "New Knowbys", data: newKnowbyTrend }]}
               type="area"
               height={40}
@@ -284,7 +274,7 @@ export default function KnowbyStats() {
           <div className="text-3xl font-bold mb-2">{stats.recentlyEdited}</div>
             <div className="w-24 h-6 mb-3">
               <Chart
-                options={baseChartOptions}
+              options={sparklineChartOptions}
                 series={[{ name: "New Knowbys", data: recentlyEditedTrend }]}
                 type="area"
                 height={40}

@@ -4,8 +4,9 @@ import "cal-heatmap/cal-heatmap.css";
 import Papa from "papaparse";
 import dayjs from "dayjs";
 import { useDarkMode } from "./NivoWrapper";
+import Tooltip from 'cal-heatmap/plugins/Tooltip';
 
-type ViewRow = { date: string; [key: string]: any };
+type Row = { date?: string;[k: string]: any };
 type CalendarDatum = { date: string; value: number };
 
 function quarterStart(d: Date) {
@@ -22,49 +23,72 @@ function quarterLabel(date: Date) {
   const q = Math.floor(m / 3) + 1; // 1..4
   return `Q${q} ${date.getFullYear()}`;
 }
+// Strictly convert "dd/mm/yyyy" → "yyyy-mm-dd". No ambiguity.
+const toISO = (raw?: string | null) => {
+  if (!raw) return null;
+  const s = String(raw).trim();
+
+  // dd/mm/yyyy
+  const m1 = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (m1) {
+    const [, dd, mm, yyyy] = m1;
+    const d = dd.padStart(2, "0");
+    const m = mm.padStart(2, "0");
+    return `${yyyy}-${m}-${d}`; // ISO for cal-heatmap
+  }
+
+  // already ISO yyyy-mm-dd
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+
+  // anything else: ignore
+  return null;
+};
+
+const parseCsv = (text: string) =>
+  new Promise<Row[]>((resolve) =>
+    Papa.parse<Row>(text, {
+      header: true,
+      skipEmptyLines: "greedy",
+      complete: ({ data }) => resolve(data),
+    })
+  );
 
 export default function ViewsCalendarHeatmap() {
   const refCurrent = useRef<HTMLDivElement>(null);
   const refLast = useRef<HTMLDivElement>(null);
   const [calendarData, setCalendarData] = useState<CalendarDatum[] | null>(null);
-  const isDark = useDarkMode(); // Assuming this hook gives the dark mode status
+  const isDark = useDarkMode(); // your hook
 
-  // Toggle dark mode on the body
+  // Keep your global dark class toggle if you need it elsewhere
   useEffect(() => {
-    if (isDark) {
-      document.documentElement.classList.add("dark"); // Add 'dark' class to the HTML tag
-    } else {
-      document.documentElement.classList.remove("dark"); // Remove it on light mode
-    }
+    document.documentElement.classList.toggle("dark", !!isDark);
   }, [isDark]);
 
-  // Load and aggregate CSV data
+  // Load and aggregate both CSVs into a single {date -> count} map
   useEffect(() => {
-    fetch("/views.csv")
-      .then((res) => res.text())
-      .then((csv) => {
-        Papa.parse<ViewRow>(csv, {
-          header: true,
-          complete: ({ data }) => {
-            const counts: Record<string, number> = {};
-            data.forEach((row) => {
-              if (!row.date) return;
-              const iso = dayjs(row.date.trim(), ["D/M/YYYY", "DD/MM/YYYY"], true)
-                .format("YYYY-MM-DD");
-              if (iso === "Invalid Date") return;
-              counts[iso] = (counts[iso] ?? 0) + 1;
-            });
-            // Normalize data values between 0-100 for color scale
-            const maxVal = Math.max(...Object.values(counts));
-            setCalendarData(
-              Object.entries(counts).map(([date, value]) => ({
-                date,
-                value: (value / maxVal) * 100, // Normalize value to 0-100 range
-              }))
-            );
-          },
+    (async () => {
+      const [viewsText, compsText] = await Promise.all([
+        fetch("/scraperviews.csv").then((r) => r.text()),
+        fetch("/scrapercompletions.csv").then((r) => r.text()),
+      ]);
+      const [viewsRows, compsRows] = await Promise.all([parseCsv(viewsText), parseCsv(compsText)]);
+
+      const counts: Record<string, number> = {};
+      const add = (rows: Row[]) => {
+        rows.forEach((row) => {
+          const iso = toISO(row.date);
+          if (iso) counts[iso] = (counts[iso] ?? 0) + 1;
         });
-      });
+      };
+      add(viewsRows);
+      add(compsRows);
+
+      const combined: CalendarDatum[] = Object.entries(counts)
+        .map(([date, value]) => ({ date, value }))
+        .sort((a, b) => (a.date < b.date ? -1 : 1));
+
+      setCalendarData(combined);
+    })();
   }, []);
 
   // Paint both quarter heatmaps
@@ -75,27 +99,79 @@ export default function ViewsCalendarHeatmap() {
     const today = new Date();
     const startCurrentQ = quarterStart(today);
     const startLastQ = previousQuarterStart(today);
-    
+    const maxVal = calendarData.reduce((m, d) => Math.max(m, d.value), 1);
+
     const common = {
       data: { source: calendarData, x: "date", y: "value" },
       verticalOrientation: false,
-      range: 3, // exactly one quarter
-      domain: { type: "month", padding: [0, 10, 0, 10], label: { position: "top" }, dynamicDimension: false },
-      subDomain: { type: "xDay", width: 20, height: 20, gutter: 2, label: (ts: number) => dayjs(ts).format("D") },
-      scale: { 
-        color: { 
-          type: "linear", 
-          domain: [0, 100], 
-          range: isDark ? ["#ffffff", "#0000ff"] : ["#ffffff", "#0000ff"] 
-        } 
+      range: 3,
+      domain: {
+        type: "month",
+        padding: [0, 10, 0, 10],
+        label: { position: "top" },
+        dynamicDimension: false,
       },
+      subDomain: {
+        type: "xDay",
+        width: 20,
+        height: 20,
+        gutter: 2,
+        radius: 4,
+        label: (ts: number) => dayjs(ts).format("D"),
+      },
+      scale: {
+        color: {
+          type: "linear",
+          domain: [1, maxVal],
+          range: isDark ? ["#1f2a44", "#60a5fa"] : ["#e6efff", "#1d4ed8"],
+        },
+      },
+      theme: isDark ? "dark" : "light",
     } as const;
+
+    // Tooltip plugin (only shows on days that have data)
+    const plugins = [
+      [
+        Tooltip,
+        {
+          text: (date: Date, value?: number) => {
+            if (value == null) return null; // hide for empty cells
+            const fullDate = dayjs(date).format("dddd, D MMMM YYYY");
+            const total = value.toLocaleString();
+            // Tiny, neutral markup; inherits your theme colors
+            return `
+            <div style="font-size:12px; line-height:1.2;">
+              <div style="opacity:.75;">${fullDate}</div>
+              <div style="font-weight:600;">${total} total</div>
+            </div>
+          `;
+          },
+          // Optional niceties:
+          // delay: 0,
+          // offset: { x: 8, y: 8 },
+        } as any,
+      ],
+    ] as const;
 
     const calCurr = new CalHeatmap();
     const calLast = new CalHeatmap();
 
-    calCurr.paint({ itemSelector: refCurrent.current, date: { start: startCurrentQ }, ...common });
-    calLast.paint({ itemSelector: refLast.current, date: { start: startLastQ }, ...common });
+    calCurr.paint(
+      {
+        itemSelector: refCurrent.current!,
+        date: { start: startCurrentQ },
+        ...common,
+      },
+      plugins
+    );
+    calLast.paint(
+      {
+        itemSelector: refLast.current!,
+        date: { start: startLastQ },
+        ...common,
+      },
+      plugins
+    );
 
     return () => {
       calCurr.destroy();
@@ -108,18 +184,18 @@ export default function ViewsCalendarHeatmap() {
   const startLastQ = previousQuarterStart(today);
 
   return (
-    <div className="flex flex-col">
-      <div>
-        <div className="text-lg font-semibold mb-2">{quarterLabel(startCurrentQ)}</div>
-        <div ref={refCurrent} style={{ width: "100%", minWidth: 720 }} className="overflow-x-auto" />
+    <div className="flex flex-col w-fit">
+      <div className="flex flex-col items-center mb-2">
+        <div className="text-base font-semibold">{quarterLabel(startCurrentQ)}</div>
+        <div ref={refCurrent} className="overflow-x-auto p-1 rounded-lg shadow-lg border" />
       </div>
 
-      <div>
-        <div className="text-lg font-semibold mb-2">{quarterLabel(startLastQ)}</div>
-        <div ref={refLast} style={{ width: "100%", minWidth: 720 }} className="overflow-x-auto" />
+      <div className="flex flex-col items-center">
+        <div className="text-base font-semibold">{quarterLabel(startLastQ)}</div>
+        <div ref={refLast} className="overflow-x-auto p-1 rounded-lg shadow-lg border" />
       </div>
 
-      {!calendarData && <div>Loading data…</div>}
+      {!calendarData && <div className="mt-2 text-sm opacity-70">Loading data…</div>}
     </div>
   );
 }

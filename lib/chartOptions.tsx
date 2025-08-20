@@ -5,16 +5,18 @@ export const topChartOptions = (isDark: boolean): ApexOptions => ({
   chart: {
     type: "area",
     toolbar: { show: false },
+    zoom: { enabled: false }
   },
   dataLabels: { enabled: false },
   stroke: { curve: "smooth", width: 2 },
   markers: { size: 0 },
   xaxis: {
     type: "datetime",
+    tooltip: { enabled: false },
     tickAmount: 6,
     labels: {
       datetimeUTC: false,
-      rotate: -30,
+      rotate: 0,
       format: "MMM yyyy",
       style: { colors: isDark ? "#aaa" : "" },
     },
@@ -50,3 +52,15 @@ export const topChartOptions = (isDark: boolean): ApexOptions => ({
     labels: { colors: isDark ? "#aaa" : "" },
   },
 });
+
+
+export const sparklineChartOptions: ApexOptions = {
+    chart: { type: "area", sparkline: { enabled: true } },
+    stroke: { curve: "smooth", width: 2 },
+    fill: {
+      type: "gradient",
+      gradient: { shadeIntensity: 1, opacityFrom: 1, opacityTo: 0, stops: [0, 100] },
+    },
+    tooltip: { enabled: false },
+    yaxis: { show: false },
+};

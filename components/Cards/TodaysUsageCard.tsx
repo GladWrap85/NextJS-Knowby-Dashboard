@@ -3,7 +3,6 @@
 // ---------------- Imports ----------------
 
 import { useEffect, useState, useMemo } from "react";
-import Papa from "papaparse";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { useDarkMode } from "@/components/NivoWrapper";
 import { Eye, CheckCircle, TrendingUp } from "lucide-react";
@@ -11,22 +10,31 @@ import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
-  TooltipTrigger,
+  TooltipTrigger
 } from "@/components/ui/tooltip";
-import { subDays, format, parse, isWithinInterval, eachDayOfInterval } from "date-fns";
+import {
+  subDays,
+  format,
+  parse,
+  isWithinInterval,
+  eachDayOfInterval
+} from "date-fns";
 import { DateRange } from "react-day-picker";
-import type { ApexOptions } from "apexcharts";
 import dynamic from "next/dynamic";
 import { topChartOptions } from "@/lib/chartOptions";
-const ReactApexChart = dynamic(() => import("react-apexcharts"), { ssr: false });
+import { ApexOptions } from "apexcharts";
+import { useKnowbyData } from "@/lib/KnowbyDataProvider"; // <-- use shared data
+const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
 
 // ------------ HELPER FUNCTIONS ------------
 
+// Type for the props of the TodaysUsageCard component
 interface TodaysUsageCardProps {
   selectedDateRange: DateRange | undefined;
 }
 
+// Type for daily data rows
 type DailyRow = {
   date: string;
   ts: number;
@@ -38,102 +46,104 @@ type DailyRow = {
 // -------------- MAIN COMPONENT -------------
 
 export default function TodaysUsageCard({ selectedDateRange }: TodaysUsageCardProps) {
-  const [completionRate, setCompletionRate] = useState<number | null>(null);
+  // State variables
   const [sevenDayCompletionRate, setSevenDayCompletionRate] = useState<number | null>(null);
   const [dailyData, setDailyData] = useState<DailyRow[]>([]);
   const isDark = useDarkMode();
+  // Default to today if no date range is selected
+  const [today] = useState(() => new Date());
 
-  const effectiveEndDate = selectedDateRange?.to || new Date();
-  const effectiveStartDate = subDays(effectiveEndDate, 6);
+  // Calculate the start and end dates
+  const endDate = selectedDateRange?.to ?? today;
+  const startDate = useMemo(() => subDays(endDate, 6), [endDate]);
 
-  const datesToDisplay = useMemo(
-    () =>
-      eachDayOfInterval({ start: effectiveStartDate, end: effectiveEndDate }).map((d) =>
-        format(d, "dd/MM/yyyy")
-      ),
-    [effectiveStartDate, effectiveEndDate]
-  );
+  // Convert start and end dates to milliseconds for easier calculations
+  const startMs = useMemo(() => new Date(startDate).setHours(0, 0, 0, 0), [startDate]);
+  const endMs = useMemo(() => new Date(endDate).setHours(23, 59, 59, 999), [endDate]);
 
+  // Generate an array of dates to display
+  const datesToDisplay = useMemo<string[]>(() => {
+    return eachDayOfInterval({
+      start: new Date(startMs),
+      end: new Date(endMs),
+    }).map(d => format(d, "dd/MM/yyyy"));
+  }, [startMs, endMs]);
+
+  // Create a unique key for the dates to avoid unnecessary re-renders
+  const datesKey = useMemo(() => `${startMs}-${endMs}`, [startMs, endMs]);
+
+  // Effect to fetch and parse CSV data
+  const { completions, views, status } = useKnowbyData(); // read shared arrays + status
   useEffect(() => {
+    if (status === "loading") return; // keep old data visible until first load completes
+
     let cancelled = false;
 
-    const parseCsvText = (text: string) =>
-      Papa.parse(text, { header: true, skipEmptyLines: true }).data as any[];
-
-    (async () => {
-      try {
-        const [compText, viewText] = await Promise.all([
-          fetch("/completions.csv").then((r) => r.text()),
-          fetch("/views.csv").then((r) => r.text()),
-        ]);
-
-        if (cancelled) return;
-
-        const completions = parseCsvText(compText);
-        const views = parseCsvText(viewText);
-
-        const dateCounts: Record<string, { completions: number; views: number }> = {};
-        for (const dateStr of datesToDisplay) {
-          dateCounts[dateStr] = { completions: 0, views: 0 };
-        }
-
-        let latestDayCompletions = 0;
-        let latestDayViews = 0;
-        const latestDayFormatted = format(effectiveEndDate, "dd/MM/yyyy");
-
-        // Tally completions
-        for (const row of completions) {
-          if (!row?.date) continue;
-          const rowDate = parse(row.date, "dd/MM/yyyy", new Date());
-          if (isWithinInterval(rowDate, { start: effectiveStartDate, end: effectiveEndDate })) {
-            const key = format(rowDate, "dd/MM/yyyy");
-            if (dateCounts[key]) dateCounts[key].completions += 1;
-            if (key === latestDayFormatted) latestDayCompletions += 1;
-          }
-        }
-
-        // Tally views
-        for (const row of views) {
-          if (!row?.date) continue;
-          const rowDate = parse(row.date, "dd/MM/yyyy", new Date());
-          if (isWithinInterval(rowDate, { start: effectiveStartDate, end: effectiveEndDate })) {
-            const key = format(rowDate, "dd/MM/yyyy");
-            if (dateCounts[key]) dateCounts[key].views += 1;
-            if (key === latestDayFormatted) latestDayViews += 1;
-          }
-        }
-
-        if (cancelled) return;
-
-        setCompletionRate(
-          latestDayViews > 0 ? parseFloat(((latestDayCompletions / latestDayViews) * 100).toFixed(2)) : null
-        );
-
-        const rows: DailyRow[] = datesToDisplay.map((dateStr) => {
-          const d = parse(dateStr, "dd/MM/yyyy", new Date());
-          return {
-            date: format(d, "EEE"),
-            ts: d.getTime(),
-            Completions: dateCounts[dateStr]?.completions ?? 0,
-            Views: dateCounts[dateStr]?.views ?? 0,
-          };
-        });
-
-        setDailyData(rows);
-
-        const totalC = rows.reduce((s, r) => s + r.Completions, 0);
-        const totalV = rows.reduce((s, r) => s + r.Views, 0);
-        setSevenDayCompletionRate(totalV > 0 ? parseFloat(((totalC / totalV) * 100).toFixed(2)) : null);
-      } catch (e) {
-        console.error("Failed to load CSVs", e);
+    try {
+      const dateCounts: Record<string, { completions: number; views: number }> = {};
+      for (const dateStr of datesToDisplay) {
+        dateCounts[dateStr] = { completions: 0, views: 0 };
       }
-    })();
+
+      let latestDayCompletions = 0;
+      let latestDayViews = 0;
+      const latestDayFormatted = format(endDate, "dd/MM/yyyy");
+
+      // Load completions from provider data
+      for (const row of completions) {
+        const ds = row?.date as string | undefined;
+        if (!ds) continue;
+        const rowDate = parse(ds, "dd/MM/yyyy", new Date());
+        if (isWithinInterval(rowDate, { start: startDate, end: endDate })) {
+          const key = format(rowDate, "dd/MM/yyyy");
+          if (dateCounts[key]) dateCounts[key].completions += 1;
+          if (key === latestDayFormatted) latestDayCompletions += 1;
+        }
+      }
+
+      // Load views from provider data
+      for (const row of views) {
+        const ds = row?.date as string | undefined;
+        if (!ds) continue;
+        const rowDate = parse(ds, "dd/MM/yyyy", new Date());
+        if (isWithinInterval(rowDate, { start: startDate, end: endDate })) {
+          const key = format(rowDate, "dd/MM/yyyy");
+          if (dateCounts[key]) dateCounts[key].views += 1;
+          if (key === latestDayFormatted) latestDayViews += 1;
+        }
+      }
+
+      if (cancelled) return;
+
+      const rows: DailyRow[] = datesToDisplay.map((dateStr) => {
+        const d = parse(dateStr, "dd/MM/yyyy", new Date());
+        return {
+          date: format(d, "EEE"),
+          ts: d.getTime(),
+          Completions: dateCounts[dateStr]?.completions ?? 0,
+          Views: dateCounts[dateStr]?.views ?? 0,
+        };
+      });
+
+      setDailyData(rows);
+
+      // Calculate the 7-day completion rate
+      const totalC = rows.reduce((s, r) => s + r.Completions, 0);
+      const totalV = rows.reduce((s, r) => s + r.Views, 0);
+      setSevenDayCompletionRate(totalV > 0 ? parseFloat(((totalC / totalV) * 100).toFixed(2)) : null);
+    } catch (e) {
+      console.error("Failed to compute weekly stats", e);
+    }
 
     return () => {
       cancelled = true;
     };
-  }, [datesToDisplay, effectiveStartDate, effectiveEndDate]);
+  }, [datesKey, startDate, endDate, datesToDisplay, completions, views, status]);
 
+
+  // ----------- DATA PREPARATION -----------
+
+  // Prepare the series data for the chart
   const series = useMemo(
     () => [
       { name: "Views", data: dailyData.map((r) => [r.ts, r.Views]) as [number, number][] },
@@ -142,9 +152,38 @@ export default function TodaysUsageCard({ selectedDateRange }: TodaysUsageCardPr
     [dailyData]
   );
 
+  // Calculate the total completions and views for footer
   const totalCompletions = dailyData.reduce((sum, d) => sum + d.Completions, 0);
   const totalViews = dailyData.reduce((sum, d) => sum + d.Views, 0);
-  
+
+  // Prepare the chart options
+  const options = useMemo<ApexOptions>(() => {
+    const base = topChartOptions(isDark);
+
+    return {
+      ...base,
+      chart: {
+        ...(base.chart ?? {}),
+        redrawOnParentResize: true,
+        redrawOnWindowResize: false,
+      },
+      xaxis: {
+        ...(base.xaxis ?? {}),
+        labels: {
+          ...(base.xaxis?.labels ?? {}),
+          format: 'dd MMM',
+        },
+      },
+      tooltip: {
+        ...(base.tooltip ?? {}),
+        x: { format: "dd MMM" },
+        theme: isDark ? "dark" : "light",
+      },
+    };
+  }, [isDark]);
+
+
+  // ----------------- JSX -----------------
 
   return (
     <TooltipProvider>
@@ -160,7 +199,7 @@ export default function TodaysUsageCard({ selectedDateRange }: TodaysUsageCardPr
             <h3 className="text-lg font-semibold">Week's Usage</h3>
             <div className="flex items-baseline gap-2">
               <div className="text-4xl font-bold leading-none">
-                {completionRate !== null ? `${Math.round(completionRate)}%` : "--%"}
+                {sevenDayCompletionRate !== null ? `${Math.round(sevenDayCompletionRate)}%` : "--%"}
               </div>
               <p className="text-xs text-muted-foreground">completion rate</p>
             </div>
@@ -171,8 +210,8 @@ export default function TodaysUsageCard({ selectedDateRange }: TodaysUsageCardPr
         {/* Apex chart */}
         <CardContent className="p-0">
           <div className="h-[145px]">
-            <ReactApexChart
-              options={topChartOptions(isDark)}
+            <Chart
+              options={options}
               series={series}
               type="area"
               height={150}

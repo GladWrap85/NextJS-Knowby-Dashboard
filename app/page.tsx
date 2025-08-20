@@ -50,18 +50,20 @@ export default function Home() {
       </div>
 
       {/* Calendar Heatmap + Dialog Card */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-[20px]">
-        <Card className="overflow-y-scroll">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-[20px]">
+        <Card className="bg-card text-card-foreground flex flex-col rounded-xl border">
           <CardHeader>
             <CardTitle>Calendar Heatmap</CardTitle>
-            <CardDescription>Usage of Knowby over a quarterly period</CardDescription>
           </CardHeader>
-          <div className="px-4">
+          <CardContent>
             <ViewsCalendarHeatmap />
-          </div>
+          </CardContent>
         </Card>
 
-        <Dialog>
+
+        <Card />
+        <Card />
+        {/* <Dialog>
           <DialogTrigger asChild>
             <Card className="relative cursor-pointer hover:shadow-lg">
               <CardHeader>
@@ -86,7 +88,7 @@ export default function Home() {
               <TableDemo />
             </div>
           </DialogContent>
-        </Dialog>
+        </Dialog> */}
       </div>
     </div>
 

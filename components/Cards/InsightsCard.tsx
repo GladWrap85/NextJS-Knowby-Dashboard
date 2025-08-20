@@ -75,7 +75,7 @@ export default function InsightsCard() {
   const isDark = useDarkMode();
   const nivoTheme = getNivoTheme(isDark);
 
-  const [chartType, setChartType] = useState<InsightsChartType>("overall");
+  const [chartType, setChartType] = useState<InsightsChartType>("quarterly");
   const [quarterlyTrendMetric, setQuarterlyTrendMetric] =
     useState<QuarterlyMetric>("completionRate");
 
