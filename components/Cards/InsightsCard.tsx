@@ -132,7 +132,7 @@ export default function InsightsCard() {
 
       await Promise.all([
         new Promise<void>((resolve) => {
-          Papa.parse("/completions.csv", {
+          Papa.parse("/scrapercompletions.csv", {
             download: true,
             header: true,
             skipEmptyLines: true,
@@ -147,7 +147,7 @@ export default function InsightsCard() {
           });
         }),
         new Promise<void>((resolve) => {
-          Papa.parse("/views.csv", {
+          Papa.parse("/scraperviews.csv", {
             download: true,
             header: true,
             skipEmptyLines: true,
