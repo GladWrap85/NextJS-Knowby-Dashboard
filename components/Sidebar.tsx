@@ -26,6 +26,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 
 // 👉 keep your original import path if this is where it lives
 import { useKnowbyData } from '@/lib/KnowbyDataProvider'
+import ScraperButton from './ScraperButton'
 
 type MenuItem = {
   link: string
@@ -97,6 +98,7 @@ export default function Sidebar() {
             <div className="flex flex-col w-fit">
               <Button variant="secondary" className="text-sm">Login</Button>
               <Button variant="secondary" className="text-sm">Logout</Button>
+              <ScraperButton/>
             </div>
           </div>
         ),
