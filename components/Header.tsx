@@ -40,7 +40,7 @@ export default function Header() {
   return (
     <div className="grid grid-cols-2 gap-4 p-3 border-b">
       <div className="flex items-center">
-        <Button onClick={toggle} variant="outline" size="icon">
+        <Button className="relative hover:!bg-accent dark:!bg-secondary dark:!text-secondary-foreground dark:hover:!bg-secondary/80 dark:border-transparent" onClick={toggle} variant={"outline"} size="icon">
           {expanded ? <ChevronFirst /> : <ChevronLast />}
         </Button>
         <span className="text-2xl font-bold pl-4">Analytical Dashboard of Knowby</span>
@@ -53,7 +53,7 @@ export default function Header() {
             onSelect={setDateRange}
           />
           <DropdownMenuTrigger asChild>
-            <Button className="relative hover:!bg-accent" variant="outline" size="icon">
+            <Button className="relative hover:!bg-accent  dark:!bg-secondary dark:!text-secondary-foreground dark:hover:!bg-secondary/80 dark:border-transparent" variant="outline" size="icon">
               <div className={`absolute -top-2 -right-1 h-3 w-3 rounded-full my-1 ${notifications.find((x: any) => x.read === true) ? 'bg-green-500' : 'bg-neutral-200'}`}></div>
               <BellIcon className="h-4 w-4" />
             </Button>

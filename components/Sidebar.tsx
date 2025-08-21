@@ -93,15 +93,11 @@ export default function Sidebar() {
         description:
           'Manage your profile, organization, and notification preferences.',
         body: (
-          <div className="grid gap-2 text-sm">
-            <label className="flex items-center justify-between">
-              <span>Email notifications</span>
-              <input type="checkbox" className="toggle" />
-            </label>
-            <label className="flex items-center justify-between">
-              <span>Two-factor authentication</span>
-              <input type="checkbox" className="toggle" />
-            </label>
+          <div className="gap-5">
+            <div className="flex flex-col w-fit">
+              <Button variant="secondary" className="text-sm">Login</Button>
+              <Button variant="secondary" className="text-sm">Logout</Button>
+            </div>
           </div>
         ),
         okText: 'Open account',

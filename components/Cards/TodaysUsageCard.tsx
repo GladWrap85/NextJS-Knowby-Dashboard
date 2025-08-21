@@ -182,6 +182,22 @@ export default function TodaysUsageCard({ selectedDateRange }: TodaysUsageCardPr
     };
   }, [isDark]);
 
+  if (status === "loading") {
+    return (
+      <Card className="flex flex-col p-6 rounded-xl h-fit gap-3">
+        <div className="flex items-center gap-4">
+          <div className="shrink-0 w-16 h-16 rounded-lg bg-muted animate-pulse" />
+          <div className="flex-1 space-y-2">
+            <div className="h-4 w-32 bg-muted rounded animate-pulse" />
+            <div className="h-8 w-24 bg-muted rounded animate-pulse" />
+          </div>
+        </div>
+        <div className="h-[145px] rounded-md bg-muted animate-pulse" />
+      </Card>
+    );
+  }
+
+  const isRefreshing = status === "refreshing";
 
   // ----------------- JSX -----------------
 
@@ -196,7 +212,12 @@ export default function TodaysUsageCard({ selectedDateRange }: TodaysUsageCardPr
           </div>
           {/* Title and completion rate */}
           <div className="flex flex-col gap-1 w-full">
-            <h3 className="text-lg font-semibold">Week's Usage</h3>
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold">Total Usage</h3>
+              {isRefreshing && (
+                <span className="text-xs text-muted-foreground">Refreshing…</span>
+              )}
+            </div>
             <div className="flex items-baseline gap-2">
               <div className="text-4xl font-bold leading-none">
                 {sevenDayCompletionRate !== null ? `${Math.round(sevenDayCompletionRate)}%` : "--%"}

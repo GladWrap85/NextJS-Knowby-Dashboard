@@ -42,7 +42,7 @@ export function DatePickerWithRange({
             className={cn(
               "w-[300px] justify-start text-left font-normal",
               !date && "text-muted-foreground",
-              "hover:!bg-accent"
+              "hover:!bg-accent dark:!bg-secondary dark:!text-secondary-foreground dark:hover:!bg-secondary/80 dark:border-transparent"
             )}
           >
             <CalendarIcon />
