@@ -38,7 +38,7 @@
   --chart-3: oklch(0.398 0.07 227.392);
   --chart-4: oklch(0.828 0.189 84.429);
   --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.985 0 0);
+  --sidebar: oklch(100% 0.00011 271.152);
   --sidebar-foreground: oklch(0.145 0 0);
   --sidebar-primary: oklch(0.205 0 0);
   --sidebar-primary-foreground: oklch(0.985 0 0);
@@ -52,39 +52,29 @@
 }
 
 .dark {
-  --background: #0b0d18; /* slightly cooler black-blue */
-  --foreground: oklch(89.755% 0.0001 271.152); /* bright neutral text */
-
-  --card: #181a24; /* flatter card color, not too blue */
+  --background: #0b0d18;
+  --foreground: oklch(89.755% 0.0001 271.152);
+  --card: #181a24;
   --card-foreground: oklch(83.591% 0.0001 271.152);
-
   --popover: #222530;
   --popover-foreground: oklch(0.98 0 0);
-
-  --primary: oklch(100% 0.00011 271.152); /* electric blue */
+  --primary: oklch(100% 0.00011 271.152);
   --primary-foreground: oklch(0.15 0 0);
-
-  --secondary: oklch(0.25 0.02 260); /* cool muted steel */
+  --secondary: oklch(0.25 0.02 260);
   --secondary-foreground: oklch(0.95 0 0);
-
-  --muted: oklch(0.2 0.01 260);
+  --muted: oklch(0.26 0.015 260);
   --muted-foreground: oklch(0.65 0 0);
-
-  --accent: oklch(88.837% 0.0001 271.152); /* bluish-violet pop */
+  --accent: oklch(88.837% 0.0001 271.152);
   --accent-foreground: oklch(0.1 0 0);
-
-  --destructive: oklch(0.65 0.25 27); /* strong red */
-  --border: oklch(0.3 0.01 270 / 40%);
+  --destructive: oklch(0.65 0.25 27);
+  --border: oklch(0.3 0.012 270 / 50%);
   --input: oklch(0.2 0.01 260);
   --ring: oklch(0.5 0.05 270);
-
-  /* Charts – visually distinct and balanced */
-  --chart-1: oklch(0.7 0.2 260); /* indigo */
-  --chart-2: oklch(0.65 0.15 200); /* aqua */
-  --chart-3: oklch(0.75 0.2 70); /* golden */
-  --chart-4: oklch(0.5 0.15 340); /* rose */
-  --chart-5: oklch(0.8 0.18 140); /* lime green */
-
+  --chart-1: oklch(0.7 0.2 260);
+  --chart-2: oklch(0.65 0.15 200);
+  --chart-3: oklch(0.75 0.2 70);
+  --chart-4: oklch(0.5 0.15 340);
+  --chart-5: oklch(0.8 0.18 140);
   --sidebar: #181a24;
   --sidebar-foreground: oklch(0.98 0 0);
   --sidebar-primary: oklch(0.75 0.2 264);
@@ -96,7 +86,7 @@
 }
 
 .orange {
-  --background: #1e1409;
+  --background: #fcfbf9;
   --foreground: oklch(0.98 0 0); /* light text */
   --card: #2a1a0c;
   --card-foreground: oklch(0.98 0 0);
@@ -264,4 +254,22 @@
 [data-selected="true"]:not(:hover) {
   background: none !important;
   color: inherit !important;
+}
+
+/*Calendar Heatmap text syling*/
+.ch-subdomain-text {
+  font-size: 0.65rem !important;
+}
+
+.ch-domain-text {
+  font-size: 1rem !important; /* try 24px or larger */
+  font-weight: bold;
+}
+
+.apexcharts-xaxis text {
+  font-weight: 400 !important;
+}
+
+.chart-container {
+    transition: width 0.3s ease;
 }

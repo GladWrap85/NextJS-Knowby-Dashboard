@@ -75,7 +75,7 @@ export default function InsightsCard() {
   const isDark = useDarkMode();
   const nivoTheme = getNivoTheme(isDark);
 
-  const [chartType, setChartType] = useState<InsightsChartType>("overall");
+  const [chartType, setChartType] = useState<InsightsChartType>("quarterly");
   const [quarterlyTrendMetric, setQuarterlyTrendMetric] =
     useState<QuarterlyMetric>("completionRate");
 
@@ -361,9 +361,9 @@ export default function InsightsCard() {
   }, [chartType, quarterlyTrendMetric]);
 
   return (
-    <Card className="flex flex-col p-6 rounded-xl h-fit gap-3 col-span-2">
+    <Card className={`flex flex-col p-6 rounded-xl gap-3 col-span-2 ${ chartType === "overall" ? "h-fit" : "" }`}>
       <div className="flex items-center justify-between">
-        <h3 className="text-xl font-semibold">{getGraphTitle()}</h3>
+        <h3 className="text-lg font-semibold">{getGraphTitle()}</h3>
 
         <div className="flex gap-2 items-center">
           <DropdownMenu>
