@@ -315,7 +315,7 @@ export default function KnowbyStats() {
       </DialogTrigger>
 
       {/* Popup content */}
-      <DialogContent className="min-w-[1000px]">
+      <DialogContent className="w-full sm:max-w-[600px] md:max-w-[800px] lg:max-w-[1000px]">
         <h2 className="text-xl font-bold mb-2">{label}</h2>
         <DialogTitle />
         <p className="text-sm text-muted-foreground mb-4">{description}</p>
