@@ -213,7 +213,7 @@ export default function TodaysUsageCard({ selectedDateRange }: TodaysUsageCardPr
           {/* Title and completion rate */}
           <div className="flex flex-col gap-1 w-full">
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold">Total Usage</h3>
+              <h3 className="text-lg font-semibold">Week's Usage</h3>
               {isRefreshing && (
                 <span className="text-xs text-muted-foreground">Refreshing…</span>
               )}
