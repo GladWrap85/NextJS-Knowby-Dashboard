@@ -43,7 +43,7 @@ export default function Header() {
         <Button className="relative hover:!bg-accent dark:!bg-secondary dark:!text-secondary-foreground dark:hover:!bg-secondary/80 dark:border-transparent" onClick={toggle} variant={"outline"} size="icon">
           {expanded ? <ChevronFirst /> : <ChevronLast />}
         </Button>
-        <span className="text-2xl font-bold pl-4">Analytical Dashboard of Knowby</span>
+        <span className="text-2xl font-bold pl-4">Dashboard</span>
       </div>
       <div className="flex items-center justify-end gap-[32px] pr-4">
         <DropdownMenu>

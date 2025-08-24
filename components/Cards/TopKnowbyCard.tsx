@@ -2,7 +2,6 @@
 "use client";
 
 import { useEffect, useMemo, useState, useRef, useCallback } from "react";
-import Papa from "papaparse";
 import {
   subDays,
   format,
@@ -27,6 +26,7 @@ import dynamic from "next/dynamic";
 import { topChartOptions } from "@/lib/chartOptions";
 import { Tabs, TabsList, TabsTrigger } from "../ui/tabs";
 import { ApexOptions } from "apexcharts";
+import { useKnowbyData } from "@/lib/KnowbyDataProvider";
 
 const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
@@ -46,6 +46,8 @@ export default function TopKnowbyCard({ selectedDateRange }: TopKnowbyCardProps)
   const [totalsDaily, setTotalsDaily] = useState({ views: 0, comps: 0 });
   const [totalsMonthly, setTotalsMonthly] = useState({ views: 0, comps: 0 });
   const isDark = useDarkMode();
+
+  const { completions, views, status } = useKnowbyData();
 
   // --- Time windows
   const effectiveEndDate = selectedDateRange?.to || new Date();
@@ -76,28 +78,18 @@ export default function TopKnowbyCard({ selectedDateRange }: TopKnowbyCardProps)
   // --- Data load
   useEffect(() => {
     let cancelled = false;
-    const parseCsvText = (text: string) =>
-      Papa.parse(text, { header: true, skipEmptyLines: true }).data as any[];
 
     (async () => {
       try {
-        const [compText, viewText] = await Promise.all([
-          fetch("/scrapercompletions.csv").then((r) => r.text()),
-          fetch("/scraperviews.csv").then((r) => r.text()),
-        ]);
-        if (cancelled) return;
-
-        const completions = parseCsvText(compText);
-        const views = parseCsvText(viewText);
-
         // 1) Top knowby by completions
         const byKnowby: Record<string, number> = {};
         for (const row of completions) {
-          const name = row?.knowby_name;
+          const name = (row as any)?.knowby_name;
           if (!name) continue;
           byKnowby[name] = (byKnowby[name] ?? 0) + 1;
         }
         const top = Object.entries(byKnowby).sort((a, b) => b[1] - a[1])[0]?.[0] ?? "—";
+        if (cancelled) return;
         setTopKnowby(top);
 
         // 2) Daily (10d) counts
@@ -105,15 +97,15 @@ export default function TopKnowbyCard({ selectedDateRange }: TopKnowbyCardProps)
         dayKeys.forEach(({ label }) => (dayMap[label] = { views: 0, comps: 0 }));
 
         for (const row of completions) {
-          if (row?.knowby_name !== top || !row?.date) continue;
-          const d = parse(row.date, "dd/MM/yyyy", new Date());
+          if ((row as any)?.knowby_name !== top || !(row as any)?.date) continue;
+          const d = parse((row as any).date, "dd/MM/yyyy", new Date());
           if (isWithinInterval(d, { start: dailyStart, end: effectiveEndDate })) {
             dayMap[format(d, "dd/MM/yyyy")].comps++;
           }
         }
         for (const row of views) {
-          if (row?.knowby_name !== top || !row?.date) continue;
-          const d = parse(row.date, "dd/MM/yyyy", new Date());
+          if ((row as any)?.knowby_name !== top || !(row as any)?.date) continue;
+          const d = parse((row as any).date, "dd/MM/yyyy", new Date());
           if (isWithinInterval(d, { start: dailyStart, end: effectiveEndDate })) {
             dayMap[format(d, "dd/MM/yyyy")].views++;
           }
@@ -135,13 +127,13 @@ export default function TopKnowbyCard({ selectedDateRange }: TopKnowbyCardProps)
         monthKeys.forEach(({ label }) => (monthMap[label] = { views: 0, comps: 0 }));
 
         for (const row of completions) {
-          if (row?.knowby_name !== top || !row?.date) continue;
-          const key = format(parse(row.date, "dd/MM/yyyy", new Date()), "MMM yyyy");
+          if ((row as any)?.knowby_name !== top || !(row as any)?.date) continue;
+          const key = format(parse((row as any).date, "dd/MM/yyyy", new Date()), "MMM yyyy");
           if (key in monthMap) monthMap[key].comps++;
         }
         for (const row of views) {
-          if (row?.knowby_name !== top || !row?.date) continue;
-          const key = format(parse(row.date, "dd/MM/yyyy", new Date()), "MMM yyyy");
+          if ((row as any)?.knowby_name !== top || !(row as any)?.date) continue;
+          const key = format(parse((row as any).date, "dd/MM/yyyy", new Date()), "MMM yyyy");
           if (key in monthMap) monthMap[key].views++;
         }
 
@@ -169,7 +161,7 @@ export default function TopKnowbyCard({ selectedDateRange }: TopKnowbyCardProps)
     return () => {
       cancelled = true;
     };
-  }, [dayKeys, monthKeys, dailyStart, effectiveEndDate]);
+  }, [completions, views, dayKeys, monthKeys, dailyStart, effectiveEndDate]);
 
   // ---- Series
   const series = useMemo(() => {
@@ -276,7 +268,7 @@ export default function TopKnowbyCard({ selectedDateRange }: TopKnowbyCardProps)
         ...(base.xaxis ?? {}),
         labels: {
           ...(base.xaxis?.labels ?? {}),
-        format: chartType === "daily" ? "dd MMM" : "MMM yy",
+          format: chartType === "daily" ? "dd MMM" : "MMM yy",
         },
       },
       yaxis: {
@@ -296,6 +288,23 @@ export default function TopKnowbyCard({ selectedDateRange }: TopKnowbyCardProps)
     };
   }, [isDark, chartType]);
 
+  // Only show skeleton on very first load; keep chart during "refreshing"
+  if (status === "loading") {
+    return (
+      <Card className="flex flex-col p-6 rounded-xl gap-3">
+        <div className="flex items-center gap-4">
+          <div className="shrink-0 w-16 h-16 rounded-lg bg-muted animate-pulse" />
+          <div className="flex-1 space-y-2">
+            <div className="h-4 w-32 bg-muted rounded animate-pulse" />
+            <div className="h-8 w-24 bg-muted rounded animate-pulse" />
+          </div>
+        </div>
+        <div className="h-[145px] rounded-md bg-muted animate-pulse" />
+      </Card>
+    );
+  }
+
+  const isRefreshing = status === "refreshing";
 
   // ================================================
 
@@ -342,8 +351,8 @@ export default function TopKnowbyCard({ selectedDateRange }: TopKnowbyCardProps)
             <div
               ref={containerRef}
               className="min-w-0 overflow-hidden font-bold whitespace-nowrap text-blue-600 dark:text-blue-400 leading-tight"
-              style={{ 
-                maskImage: maskCSS, 
+              style={{
+                maskImage: maskCSS,
                 WebkitMaskImage: maskCSS,
                 paddingLeft: "5px",
                 paddingRight: "5px",
