@@ -390,7 +390,7 @@ export default function TopKnowbyCard({ selectedDateRange }: TopKnowbyCardProps)
         <hr className="border-border" />
 
         {/* Chart */}
-        <CardContent className="p-0">
+        <CardContent className="p-0 overflow-hidden">
           <div className="h-[145px] overflow-hidden">
             <Chart options={options} series={series} type="area" height={150} />
           </div>

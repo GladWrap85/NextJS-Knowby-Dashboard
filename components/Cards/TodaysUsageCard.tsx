@@ -229,7 +229,7 @@ export default function TodaysUsageCard({ selectedDateRange }: TodaysUsageCardPr
 
         <hr className="border-border" />
         {/* Apex chart */}
-        <CardContent className="p-0">
+        <CardContent className="p-0 overflow-hidden">
           <div className="h-[145px]">
             <Chart
               options={options}
