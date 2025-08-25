@@ -18,26 +18,53 @@ export function useDarkMode(): boolean {
   return isDark;
 }
 
+// utils/getNivoTheme.ts
 export function getNivoTheme(isDark: boolean) {
   return {
-    textColor: isDark ? "#ffffff" : "#111111",
+    background: 'transparent',
+    textColor: isDark ? '#e0e0e0' : '#333333',
+    fontSize: 12,
     axis: {
-      domain: { line: { stroke: isDark ? "#999" : "#333" } },
-      ticks: {
-        line: { stroke: isDark ? "#999" : "#333", strokeWidth: 1 },
-        text: { fill: isDark ? "#ccc" : "#333" },
+      domain: {
+        line: {
+          stroke: isDark ? '#555' : '#999',
+        },
       },
-      legend: { text: { fill: isDark ? "#ccc" : "#333" } },
+      ticks: {
+        line: {
+          stroke: isDark ? '#666' : '#ccc',
+          strokeWidth: 1,
+        },
+        text: {
+          fill: isDark ? '#aaa' : '#333',
+        },
+      },
+      legend: {
+        text: {
+          fill: isDark ? '#aaa' : '#333',
+        },
+      },
+    },
+    grid: {
+      line: {
+        stroke: isDark ? '#444' : '#ddd',
+        strokeDasharray: '2 2',
+      },
     },
     legends: {
-      text: { fill: isDark ? "#ccc" : "#333" },
+      text: {
+        fill: isDark ? '#ccc' : '#333',
+      },
     },
     tooltip: {
       container: {
-        background: isDark ? "#1e1e1e" : "#fff",
-        color: isDark ? "#fff" : "#000",
+        background: isDark ? '#222' : '#fff',
+        color: isDark ? '#fff' : '#000',
         fontSize: 12,
+        borderRadius: '4px',
+        boxShadow: '0 1px 2px rgba(0, 0, 0, 0.25)',
       },
     },
   };
 }
+
