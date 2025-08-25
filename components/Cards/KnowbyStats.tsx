@@ -57,6 +57,7 @@ export default function KnowbyStats() {
   const [activeMemberTrend, setActiveMemberTrend] = useState<number[]>([]);
   const [newKnowbyTrend, setNewKnowbyTrend] = useState<number[]>([]);
   const [recentlyEditedTrend, setRecentlyEditedTrend] = useState<number[]>([]);
+  const [recentlyUnusedTrend, setRecentlyUnusedTrend] = useState<number[]>([]);
 
   const [activePopup, setActivePopup] = useState<null | string>(null); // New code from Sahil to track which tile was clicked
 
@@ -173,6 +174,40 @@ export default function KnowbyStats() {
         }
 
         setRecentlyEditedTrend(editedTrend);
+
+        // Unused Knowbys trend (by last_viewed date)
+        const dailyUnusedMap = new Map<string, number>();
+        for (const entry of knowbysData) {
+          const lastViewed = parseDate(entry.last_viewed);
+          if (!lastViewed || lastViewed < thirtyDaysAgo) {
+            const cursor = new Date(thirtyDaysAgo);
+            while (cursor <= today) {
+              const key = cursor.toISOString().split("T")[0];
+              dailyUnusedMap.set(key, (dailyUnusedMap.get(key) || 0) + 1);
+              cursor.setDate(cursor.getDate() + 1);
+            }
+          } else {
+            const cursor = new Date(thirtyDaysAgo);
+            while (cursor <= today) {
+              const key = cursor.toISOString().split("T")[0];
+              if (cursor < lastViewed) {
+                dailyUnusedMap.set(key, (dailyUnusedMap.get(key) || 0) + 1);
+              }
+              cursor.setDate(cursor.getDate() + 1);
+            }
+          }
+        }
+
+        // Build final trend array
+        const unusedTrend: number[] = [];
+        const dateCursor4 = new Date(thirtyDaysAgo);
+        while (dateCursor4 <= today) {
+          const key = dateCursor4.toISOString().split("T")[0];
+          unusedTrend.push(dailyUnusedMap.get(key) || 0);
+          dateCursor4.setDate(dateCursor4.getDate() + 1);
+        }
+
+        setRecentlyUnusedTrend(unusedTrend);
 
         // Active members based on completions in last 30 days
         const recentCompletions = completionsData.filter((d) => {
@@ -381,7 +416,7 @@ export default function KnowbyStats() {
         label="Unused Knowbys"
         value={stats.unusedKnowbys}
         description="Knowbys not used in the last 30 days."
-        chartSeries={null}
+        chartSeries={recentlyUnusedTrend}
         popupContent={
           <StatsTable
             data={unusedKnowbysData}
