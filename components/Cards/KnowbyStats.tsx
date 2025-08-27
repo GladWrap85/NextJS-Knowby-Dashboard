@@ -7,11 +7,13 @@ import {
   DialogContent,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog"; // Import ShadCN dialog
-import StatsTable from "@/components/Cards/StatsTable"; // custom table component that changes based on stat type
+} from "@/components/ui/dialog";
+import StatsTable from "@/components/Cards/StatsTable";
+import StatsPopupGraph from "@/components/Cards/StatsPopupGraph";
 import dynamic from "next/dynamic";
 import type { ApexOptions } from "apexcharts";
 import { ChevronDown } from "lucide-react";
+
 const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
 interface KnowbyData {
@@ -52,17 +54,37 @@ export default function KnowbyStats() {
     unusedKnowbys: 0,
   });
 
-  {
-    /* for  oliver's sparkcharts */
-  }
   const [activeMemberTrend, setActiveMemberTrend] = useState<number[]>([]);
   const [newKnowbyTrend, setNewKnowbyTrend] = useState<number[]>([]);
   const [recentlyEditedTrend, setRecentlyEditedTrend] = useState<number[]>([]);
   const [recentlyUnusedTrend, setRecentlyUnusedTrend] = useState<number[]>([]);
 
-  const [activePopup, setActivePopup] = useState<null | string>(null); // New code from Sahil to track which tile was clicked
+  const [activePopup, setActivePopup] = useState<null | string>(null);
 
-  // Data for each of the 4 tables (filtered subsets of the full csv)
+  // Popup series with x-axis labels
+  const [activeChartSeries, setActiveChartSeries] = useState<
+    { x: string; y: number }[]
+  >([]);
+  const [newChartSeries, setNewChartSeries] = useState<
+    { x: string; y: number }[]
+  >([]);
+  const [viewedChartSeries, setViewedChartSeries] = useState<
+    { x: string; y: number }[]
+  >([]);
+  const [unusedChartSeries, setUnusedChartSeries] = useState<
+    { x: string; y: number }[]
+  >([]);
+
+  const [activeChartOptions, setActiveChartOptions] =
+    useState<ApexOptions | null>(null);
+  const [newChartOptions, setNewChartOptions] = useState<ApexOptions | null>(
+    null
+  );
+  const [viewedChartOptions, setViewedChartOptions] =
+    useState<ApexOptions | null>(null);
+  const [unusedChartOptions, setUnusedChartOptions] =
+    useState<ApexOptions | null>(null);
+
   const [activeMembersData, setActiveMembersData] = useState<CompletionData[]>(
     []
   );
@@ -72,245 +94,20 @@ export default function KnowbyStats() {
   );
   const [unusedKnowbysData, setUnusedKnowbysData] = useState<KnowbyData[]>([]);
 
-  // Run once on component mount to parse CSV and calculate all stats
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        // Load completions CSV for active members
-        const completionsPromise = new Promise<CompletionData[]>(
-          (resolve, reject) => {
-            Papa.parse("/scrapercompletions.csv", {
-              download: true,
-              header: true,
-              skipEmptyLines: true,
-              complete: (results) => resolve(results.data as CompletionData[]),
-              error: (error) => reject(error),
-            });
-          }
-        );
-
-        // Load knowbys CSV for other stats
-        const knowbysPromise = new Promise<KnowbyData[]>((resolve, reject) => {
-          Papa.parse("/scraperpublished.csv", {
-            download: true,
-            header: true,
-            skipEmptyLines: true,
-            complete: (results) => resolve(results.data as KnowbyData[]),
-            error: (error) => reject(error),
-          });
-        });
-
-        const [completionsData, knowbysData] = await Promise.all([
-          completionsPromise,
-          knowbysPromise,
-        ]);
-
-        // Calculate date 30 days ago from today
-        const thirtyDaysAgo = new Date();
-        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
-        const today = new Date();
-
-        // Active members trend
-        const dailyMemberMap = new Map<string, Set<string>>();
-        for (const entry of knowbysData) {
-          const createdDate = parseDate(entry.created_at);
-          if (
-            createdDate &&
-            createdDate >= thirtyDaysAgo &&
-            entry.created_by_member_id?.trim()
-          ) {
-            const key = createdDate.toISOString().split("T")[0];
-            if (!dailyMemberMap.has(key)) {
-              dailyMemberMap.set(key, new Set());
-            }
-            dailyMemberMap.get(key)?.add(entry.created_by_member_id);
-          }
-        }
-
-        // --- Build completion dates per knowby and a helper to get "last interaction" ---
-        // Map: knowby_id -> array of completion Date objects (from ALL data)
-        const completionDatesByKnowby = new Map<string, Date[]>();
-        for (const c of completionsData) {
-          const d = parseDate(c.date);
-          if (!d) continue;
-          const arr = completionDatesByKnowby.get(c.knowby_id) || [];
-          arr.push(d);
-          completionDatesByKnowby.set(c.knowby_id, arr);
-        }
-
-        // Helper: get the most recent interaction date for a knowby
-        // (max of last_viewed and any completion dates). Returns null if none.
-        const getLastInteraction = (k: KnowbyData): Date | null => {
-          const lv = parseDate(k.last_viewed);
-          const compDates = completionDatesByKnowby.get(k.knowby_id) || [];
-          const latestComp =
-            compDates.length > 0
-              ? new Date(Math.max(...compDates.map((x) => x.getTime())))
-              : null;
-
-          if (lv && latestComp)
-            return new Date(Math.max(lv.getTime(), latestComp.getTime()));
-          return lv ?? latestComp ?? null;
-        };
-
-        const activeTrend: number[] = [];
-        const dateCursor1 = new Date(thirtyDaysAgo);
-        while (dateCursor1 <= today) {
-          const key = dateCursor1.toISOString().split("T")[0];
-          activeTrend.push(dailyMemberMap.get(key)?.size || 0);
-          dateCursor1.setDate(dateCursor1.getDate() + 1);
-        }
-        setActiveMemberTrend(activeTrend);
-
-        // New knowbys trend
-        const dailyKnowbyMap = new Map<string, number>();
-        for (const entry of knowbysData) {
-          const createdDate = parseDate(entry.created_at);
-          if (createdDate && createdDate >= thirtyDaysAgo) {
-            const key = createdDate.toISOString().split("T")[0];
-            dailyKnowbyMap.set(key, (dailyKnowbyMap.get(key) || 0) + 1);
-          }
-        }
-
-        const knowbyTrend: number[] = [];
-        const dateCursor2 = new Date(thirtyDaysAgo);
-        while (dateCursor2 <= today) {
-          const key = dateCursor2.toISOString().split("T")[0];
-          knowbyTrend.push(dailyKnowbyMap.get(key) || 0);
-          dateCursor2.setDate(dateCursor2.getDate() + 1);
-        }
-        setNewKnowbyTrend(knowbyTrend);
-
-        // Recently Viewed Knowbys trend (by last_viewed date)
-        const dailyEditedMap = new Map<string, number>();
-        for (const entry of knowbysData) {
-          const lastViewed = parseDate(entry.last_viewed);
-          if (lastViewed && lastViewed >= thirtyDaysAgo) {
-            const key = lastViewed.toISOString().split("T")[0];
-            dailyEditedMap.set(key, (dailyEditedMap.get(key) || 0) + 1);
-          }
-        }
-
-        const editedTrend: number[] = [];
-        const dateCursor3 = new Date(thirtyDaysAgo);
-        while (dateCursor3 <= today) {
-          const key = dateCursor3.toISOString().split("T")[0];
-          editedTrend.push(dailyEditedMap.get(key) || 0);
-          dateCursor3.setDate(dateCursor3.getDate() + 1);
-        }
-
-        setRecentlyEditedTrend(editedTrend);
-
-        // Unused Knowbys trend (by last_viewed date)
-        const dailyUnusedMap = new Map<string, number>();
-        for (const entry of knowbysData) {
-          const lastViewed = parseDate(entry.last_viewed);
-          if (!lastViewed || lastViewed < thirtyDaysAgo) {
-            const cursor = new Date(thirtyDaysAgo);
-            while (cursor <= today) {
-              const key = cursor.toISOString().split("T")[0];
-              dailyUnusedMap.set(key, (dailyUnusedMap.get(key) || 0) + 1);
-              cursor.setDate(cursor.getDate() + 1);
-            }
-          } else {
-            const cursor = new Date(thirtyDaysAgo);
-            while (cursor <= today) {
-              const key = cursor.toISOString().split("T")[0];
-              if (cursor < lastViewed) {
-                dailyUnusedMap.set(key, (dailyUnusedMap.get(key) || 0) + 1);
-              }
-              cursor.setDate(cursor.getDate() + 1);
-            }
-          }
-        }
-
-        // Build final trend array
-        const unusedTrend: number[] = [];
-        const dateCursor4 = new Date(thirtyDaysAgo);
-        while (dateCursor4 <= today) {
-          const key = dateCursor4.toISOString().split("T")[0];
-          unusedTrend.push(dailyUnusedMap.get(key) || 0);
-          dateCursor4.setDate(dateCursor4.getDate() + 1);
-        }
-
-        setRecentlyUnusedTrend(unusedTrend);
-
-        // Active members based on completions in last 30 days
-        const recentCompletions = completionsData.filter((d) => {
-          const completionDate = parseDate(d.date);
-          return completionDate && completionDate >= thirtyDaysAgo;
-        });
-
-        const activeMembersSet = new Set(
-          recentCompletions
-            .map((d) => d.member_id)
-            .filter((id) => id && id.trim() !== "")
-        );
-
-        // New knowbys created in last 30 days
-        const recentCreations = knowbysData.filter((d) => {
-          const createdDate = parseDate(d.created_at);
-          return createdDate && createdDate >= thirtyDaysAgo;
-        });
-
-        // Knowbys with last_viewed date within the last 30 days
-        const recentlyViewed = knowbysData.filter((d) => {
-          const lastViewed = parseDate(d.last_viewed);
-          return lastViewed && lastViewed >= thirtyDaysAgo;
-        });
-
-        // Knowbys with 0 views OR last viewed over 30 days ago
-        const unusedKnowbys = knowbysData.filter((k) => {
-          const lastIx = getLastInteraction(k);
-          return !lastIx || lastIx < thirtyDaysAgo;
-        });
-
-        // Set the dashboard tile numbers
-        setStats({
-          activeMembers: activeMembersSet.size,
-          newKnowbys: recentCreations.length,
-          recentlyViewed: recentlyViewed.length,
-          unusedKnowbys: unusedKnowbys.length,
-        });
-
-        // Set the data to be shown in popups
-        setActiveMembersData(recentCompletions);
-        setNewKnowbysData(recentCreations);
-        setRecentlyViewedData(recentlyViewed);
-        setUnusedKnowbysData(unusedKnowbys);
-      } catch (error) {
-        console.error("Error parsing CSVs:", error);
-      }
-    };
-
-    loadData();
-  }, []);
-
-  // Helper function to parse dates in DD/MM/YYYY format
   const parseDate = (dateString: string): Date | null => {
-    if (!dateString || dateString.trim() === "") return null;
-
+    if (!dateString) return null;
     const parts = dateString.split("/");
     if (parts.length !== 3) return null;
-
     const day = parseInt(parts[0]);
-    const month = parseInt(parts[1]) - 1; // Month is 0-indexed
+    const month = parseInt(parts[1]) - 1;
     const year = parseInt(parts[2]);
-
     const date = new Date(year, month, day);
     return isNaN(date.getTime()) ? null : date;
   };
 
-  const baseChartOptions: ApexOptions = {
-    chart: {
-      type: "area",
-      sparkline: { enabled: true },
-    },
-    stroke: {
-      curve: "smooth",
-      width: 2,
-    },
+  const baseSparkOptions: ApexOptions = {
+    chart: { type: "area", sparkline: { enabled: true } },
+    stroke: { curve: "smooth", width: 2 },
     fill: {
       type: "gradient",
       gradient: {
@@ -324,39 +121,230 @@ export default function KnowbyStats() {
     yaxis: { show: false },
   };
 
-  // Reusable stat tile component, eaach one opens a different dialog
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const completionsData: CompletionData[] = await new Promise(
+          (resolve, reject) =>
+            Papa.parse("/scrapercompletions.csv", {
+              download: true,
+              header: true,
+              skipEmptyLines: true,
+              complete: (results) => resolve(results.data as CompletionData[]),
+              error: reject,
+            })
+        );
+
+        const knowbysData: KnowbyData[] = await new Promise((resolve, reject) =>
+          Papa.parse("/scraperpublished.csv", {
+            download: true,
+            header: true,
+            skipEmptyLines: true,
+            complete: (results) => resolve(results.data as KnowbyData[]),
+            error: reject,
+          })
+        );
+
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        const today = new Date();
+
+        const formatDateKey = (d: Date) =>
+          `${d.getUTCFullYear()}-${(d.getUTCMonth() + 1)
+            .toString()
+            .padStart(2, "0")}-${d.getUTCDate().toString().padStart(2, "0")}`;
+
+        // --- Active Members Trend ---
+        const dailyMemberMap = new Map<string, Set<string>>();
+        completionsData.forEach((c) => {
+          const d = parseDate(c.date);
+          if (!d || d < thirtyDaysAgo || !c.member_id?.trim()) return;
+          const key = formatDateKey(d); // Local date key
+          if (!dailyMemberMap.has(key)) dailyMemberMap.set(key, new Set());
+          dailyMemberMap.get(key)?.add(c.member_id);
+        });
+
+        const activeTrend: number[] = [];
+        const cursor1 = new Date(thirtyDaysAgo);
+        while (cursor1 <= today) {
+          const key = formatDateKey(cursor1);
+          activeTrend.push(dailyMemberMap.get(key)?.size || 0);
+          cursor1.setDate(cursor1.getDate() + 1);
+        }
+        setActiveMemberTrend(activeTrend);
+
+        // --- New Knowbys Trend ---
+        const dailyKnowbyMap = new Map<string, number>();
+        knowbysData.forEach((k) => {
+          const d = parseDate(k.created_at);
+          if (!d || d < thirtyDaysAgo) return;
+          const key = formatDateKey(d); // Local date key
+          dailyKnowbyMap.set(key, (dailyKnowbyMap.get(key) || 0) + 1);
+        });
+
+        const newTrend: number[] = [];
+        const cursor2 = new Date(thirtyDaysAgo);
+        while (cursor2 <= today) {
+          const key = formatDateKey(cursor2);
+          newTrend.push(dailyKnowbyMap.get(key) || 0);
+          cursor2.setDate(cursor2.getDate() + 1);
+        }
+        setNewKnowbyTrend(newTrend);
+
+        // --- Recently Viewed Trend ---
+        const dailyEditedMap = new Map<string, number>();
+        knowbysData.forEach((k) => {
+          const d = parseDate(k.last_viewed);
+          if (!d || d < thirtyDaysAgo) return;
+          const key = formatDateKey(d); // Local date key
+          dailyEditedMap.set(key, (dailyEditedMap.get(key) || 0) + 1);
+        });
+
+        const viewedTrend: number[] = [];
+        const cursor3 = new Date(thirtyDaysAgo);
+        while (cursor3 <= today) {
+          const key = formatDateKey(cursor3);
+          viewedTrend.push(dailyEditedMap.get(key) || 0);
+          cursor3.setDate(cursor3.getDate() + 1);
+        }
+        setRecentlyEditedTrend(viewedTrend);
+
+        // --- Unused Knowbys Trend ---
+        const dailyUnusedMap = new Map<string, number>();
+        const last30DaysDates: Date[] = [];
+        const cursor = new Date(thirtyDaysAgo);
+        while (cursor <= today) {
+          last30DaysDates.push(new Date(cursor));
+          cursor.setDate(cursor.getDate() + 1);
+        }
+
+        last30DaysDates.forEach((date) => {
+          let count = 0;
+          knowbysData.forEach((k) => {
+            const last = parseDate(k.last_viewed);
+            // Count Knowby if it hasn't been viewed in the last 30 days
+            if (
+              !last ||
+              last < new Date(date.getTime() - 30 * 24 * 60 * 60 * 1000)
+            ) {
+              count++;
+            }
+          });
+          dailyUnusedMap.set(formatDateKey(date), count);
+        });
+
+        const unusedTrend = last30DaysDates.map(
+          (d) => dailyUnusedMap.get(formatDateKey(d)) || 0
+        );
+        setRecentlyUnusedTrend(unusedTrend);
+
+        // --- Dashboard stats ---
+        const recentCompletions = completionsData.filter(
+          (d) => parseDate(d.date) && parseDate(d.date)! >= thirtyDaysAgo
+        );
+        const activeMembersSet = new Set(
+          recentCompletions.map((d) => d.member_id).filter(Boolean)
+        );
+        const recentCreations = knowbysData.filter(
+          (d) => parseDate(d.created_at)! >= thirtyDaysAgo
+        );
+        const recentlyViewed = knowbysData.filter(
+          (d) => parseDate(d.last_viewed)! >= thirtyDaysAgo
+        );
+        const unusedKnowbys = knowbysData.filter((k) => {
+          const last = parseDate(k.last_viewed);
+          return !last || last < thirtyDaysAgo;
+        });
+
+        setStats({
+          activeMembers: activeMembersSet.size,
+          newKnowbys: recentCreations.length,
+          recentlyViewed: recentlyViewed.length,
+          unusedKnowbys: unusedKnowbys.length,
+        });
+
+        setActiveMembersData(recentCompletions);
+        setNewKnowbysData(recentCreations);
+        setRecentlyViewedData(recentlyViewed);
+        setUnusedKnowbysData(unusedKnowbys);
+      } catch (err) {
+        console.error(err);
+      }
+    };
+
+    loadData();
+  }, []);
+
+  // --- Generate last 30 days labels for charts (local dates) ---
+  const generateLast30DaysLabels = (): string[] => {
+    const labels: string[] = [];
+    const today = new Date();
+    const cursor = new Date(
+      Date.UTC(today.getFullYear(), today.getMonth(), today.getDate() - 29)
+    );
+    for (let i = 0; i < 30; i++) {
+      const day = cursor.getUTCDate().toString().padStart(2, "0");
+      const month = (cursor.getUTCMonth() + 1).toString().padStart(2, "0");
+      labels.push(`${day}/${month}`);
+      cursor.setUTCDate(cursor.getUTCDate() + 1);
+    }
+    return labels;
+  };
+
+  useEffect(() => {
+    const labels = generateLast30DaysLabels();
+
+    // Reuse this helper to match trend arrays to labels
+    const seriesFromTrend = (trend: number[]) =>
+      labels.map((label, i) => ({ x: label, y: trend[i] || 0 }));
+
+    setActiveChartSeries(seriesFromTrend(activeMemberTrend));
+    setNewChartSeries(seriesFromTrend(newKnowbyTrend));
+    setViewedChartSeries(seriesFromTrend(recentlyEditedTrend));
+    setUnusedChartSeries(seriesFromTrend(recentlyUnusedTrend));
+
+    const xaxisOptions = {
+      xaxis: { categories: labels, labels: { rotate: -45 } },
+    };
+    setActiveChartOptions(xaxisOptions);
+    setNewChartOptions(xaxisOptions);
+    setViewedChartOptions(xaxisOptions);
+    setUnusedChartOptions(xaxisOptions);
+  }, [
+    activeMemberTrend,
+    newKnowbyTrend,
+    recentlyEditedTrend,
+    recentlyUnusedTrend,
+  ]);
+
+  // --- Reusable StatTile ---
   const StatTile = ({
     label,
     value,
     description,
     popupId,
-    popupContent,
     chartSeries,
+    popupContent,
   }: {
-    label: string; // Label for stat
-    value: number; // Number to display in tile
-    description: string; // description under the label
-    popupId: string; // ID to manage which popup is open
-    popupContent: React.ReactNode; // JSX content or tables displayed in popup
-    chartSeries: (number | null)[] | null; // now allows nulls in data OR no chart
+    label: string;
+    value: number;
+    description: string;
+    popupId: string;
+    chartSeries: number[];
+    popupContent: React.ReactNode;
   }) => (
-    // Tile is wrapped in Dialog component that opens depending on activePopup state
     <Dialog
-      open={activePopup === popupId} // Set popup as open if ID matches current activePopup
-      onOpenChange={(open) => setActivePopup(open ? popupId : null)} // When popup open state changes (opened or closed) update activePopup
+      open={activePopup === popupId}
+      onOpenChange={(open) => setActivePopup(open ? popupId : null)}
     >
-      {/* DialogTrigger asChild lets us use the div for the tile as the clickable trigger for the popup*/}
       <DialogTrigger asChild>
         <div className="relative bg-muted/50 p-6 rounded-lg cursor-pointer hover:bg-muted transition border shadow-md">
-          {/* Number + optional chart in same row */}
           <div className="flex justify-between mb-2">
             <div className="text-3xl font-bold">{value}</div>
-
-            {/* Only render chart if we have data */}
             {chartSeries && chartSeries.length > 0 ? (
               <div className="w-24 h-6">
                 <Chart
-                  options={baseChartOptions}
+                  options={baseSparkOptions}
                   series={[{ name: label, data: chartSeries }]}
                   type="area"
                   height={40}
@@ -368,17 +356,11 @@ export default function KnowbyStats() {
               </div>
             )}
           </div>
-
-          {/* Text details */}
           <div className="text-sm font-medium mb-1">{label}</div>
           <div className="text-xs text-muted-foreground">{description}</div>
-
-          {/* Chevron bottom-right */}
           <ChevronDown className="absolute bottom-2 right-2 h-4 w-4 text-muted-foreground" />
         </div>
       </DialogTrigger>
-
-      {/* Popup content */}
       <DialogContent className="w-full sm:max-w-[600px] md:max-w-[800px] lg:max-w-[1000px]">
         <h2 className="text-xl font-bold mb-2">{label}</h2>
         <DialogTitle />
@@ -389,10 +371,7 @@ export default function KnowbyStats() {
   );
 
   return (
-    // Grid layout for the 4 stat tiles,
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-      {/* Each StatTile has its own popupId and can have custom popupContent for different tables/graphs*/}
-
       <StatTile
         popupId="active"
         label="Active Members"
@@ -400,10 +379,18 @@ export default function KnowbyStats() {
         description="Members with completions in the last 30 days."
         chartSeries={activeMemberTrend}
         popupContent={
-          <StatsTable
-            data={activeMembersData}
-            caption="Members with the most completions in the last 30 days"
-            type="active"
+          <StatsPopupGraph
+            chartSeries={activeChartSeries}
+            chartLabel="Active Members"
+            chartOptions={activeChartOptions ?? {}}
+            tableContent={
+              <StatsTable
+                data={activeMembersData}
+                caption="Most completions in last 30 days"
+                type="active"
+              />
+            }
+            layout="vertical"
           />
         }
       />
@@ -415,10 +402,18 @@ export default function KnowbyStats() {
         description="Knowbys created in the last 30 days."
         chartSeries={newKnowbyTrend}
         popupContent={
-          <StatsTable
-            data={newKnowbysData}
-            caption="Most recently created knowbys"
-            type="new"
+          <StatsPopupGraph
+            chartSeries={newChartSeries}
+            chartLabel="New Knowbys Created"
+            chartOptions={newChartOptions ?? {}}
+            tableContent={
+              <StatsTable
+                data={newKnowbysData}
+                caption="Most recently created knowbys"
+                type="new"
+              />
+            }
+            layout="vertical"
           />
         }
       />
@@ -430,10 +425,18 @@ export default function KnowbyStats() {
         description="Knowbys viewed in the last 30 days."
         chartSeries={recentlyEditedTrend}
         popupContent={
-          <StatsTable
-            data={recentlyViewedData}
-            caption="Knowbys most recently viewed"
-            type="viewed"
+          <StatsPopupGraph
+            chartSeries={viewedChartSeries}
+            chartLabel="Recently Viewed Knowbys"
+            chartOptions={viewedChartOptions ?? {}}
+            tableContent={
+              <StatsTable
+                data={recentlyViewedData}
+                caption="Most recently viewed knowbys"
+                type="viewed"
+              />
+            }
+            layout="vertical"
           />
         }
       />
@@ -445,10 +448,18 @@ export default function KnowbyStats() {
         description="Knowbys not used in the last 30 days."
         chartSeries={recentlyUnusedTrend}
         popupContent={
-          <StatsTable
-            data={unusedKnowbysData}
-            caption="Knowbys that haven’t been viewed recently"
-            type="unused"
+          <StatsPopupGraph
+            chartSeries={unusedChartSeries}
+            chartLabel="Unused Knowbys"
+            chartOptions={unusedChartOptions ?? {}}
+            tableContent={
+              <StatsTable
+                data={unusedKnowbysData}
+                caption="Knowbys not viewed recently"
+                type="unused"
+              />
+            }
+            layout="vertical"
           />
         }
       />
