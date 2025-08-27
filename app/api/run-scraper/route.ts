@@ -1,52 +1,70 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { spawn } from 'child_process';
 
-// API route to run scraper.py
-export async function POST(request: NextRequest) {
+// Force this API route to run in the Node.js runtime (not Edge),
+// since we need to spawn a Python process.
+export const runtime = 'nodejs';
+
+export async function POST(_req: NextRequest): Promise<Response> {
   try {
-    // Run the scaper.py script using child_process.spawn()
-    // This opens a separate process to execute the script
+    // Run scraper.py using child_process.spawn()
+    // This launches a separate Python process.
     const pythonProcess = spawn('python', ['python-scripts/scraper.py'], {
-      cwd: process.cwd(), // Use current working directory
-      stdio: ['pipe', 'pipe', 'pipe'] // Capture stdin, stdout, and stderr
+      cwd: process.cwd(), // Run from project root
+      stdio: ['pipe', 'pipe', 'pipe'], // Capture stdin, stdout, and stderr
     });
-    
-    // Wait for the scraper to finish running before sending a response
-    return new Promise((resolve) => {
-      // When the Python script finishes, we check the exit code
+
+    // Optional: log output for debugging
+    pythonProcess.stdout?.on('data', (d) =>
+      console.log('[scraper stdout]', d.toString()),
+    );
+    pythonProcess.stderr?.on('data', (d) =>
+      console.error('[scraper stderr]', d.toString()),
+    );
+
+    const TIMEOUT_MS = 5 * 60 * 1000; // 5-minute timeout
+
+    // Wrap process execution in a Promise<Response>
+    return await new Promise<Response>((resolve) => {
+      // Timeout handler to prevent scraper running indefinitely
+      const timeout = setTimeout(() => {
+        pythonProcess.kill(); // Kill Python process if too slow
+        resolve(
+          NextResponse.json(
+            { success: false, message: 'Scraper timed out' },
+            { status: 408 },
+          ),
+        );
+      }, TIMEOUT_MS);
+
+      // Listen for scraper process to finish
       pythonProcess.on('close', (code) => {
+        clearTimeout(timeout); // Cancel timeout when process exits
         if (code === 0) {
-          // Exit code 0 means everything worked
-          resolve(NextResponse.json({
-            success: true,
-            message: 'Scraper completed successfully'
-          }));
+          // Exit code 0 = success
+          resolve(
+            NextResponse.json({
+              success: true,
+              message: 'Scraper completed successfully',
+            }),
+          );
         } else {
-          // Any other exit code means an error occurred
-          resolve(NextResponse.json({
-            success: false,
-            message: 'Scraper failed'
-          }, { status: 500 }));
+          // Non-zero exit code = failure
+          resolve(
+            NextResponse.json(
+              { success: false, message: 'Scraper failed' },
+              { status: 500 },
+            ),
+          );
         }
       });
-      
-      // Set a timeout to prevent the scraper from running indefinitely
-      // If scraper takes longer than 5 minutes, kill it and return timeout error
-      setTimeout(() => {
-        pythonProcess.kill(); // Terminate Python process
-        resolve(NextResponse.json({
-          success: false,
-          message: 'Scraper timed out'
-        }, { status: 408 }));
-      }, 5 * 60 * 1000); // 5 minute timeout
     });
-    
-  } catch (error) {
-    // If there was error starting Python process
-    // Return error response to frontend
-    return NextResponse.json({
-      success: false,
-      message: 'Failed to start scraper'
-    }, { status: 500 });
+  } catch (err) {
+    // Error starting the Python process
+    console.error('Failed to start scraper:', err);
+    return NextResponse.json(
+      { success: false, message: 'Failed to start scraper' },
+      { status: 500 },
+    );
   }
 }
