@@ -443,8 +443,7 @@ export default function TopKnowbyCard({ selectedDateRange }: TopKnowbyCardProps)
       </Card>
 
       {/* Local CSS for marquee */}
-      <style jsx>{`
-        /* Moves left, fades out, snaps back invisible, fades in */
+      {/* <style jsx>{`
         .marquee--leftfade {
           animation: marqueeLeftFade var(--marquee-duration, 8s) linear infinite;
         }
@@ -452,13 +451,13 @@ export default function TopKnowbyCard({ selectedDateRange }: TopKnowbyCardProps)
         @keyframes marqueeLeftFade {
           0%   { transform: translateX(0);                          opacity: 1; }
           75%  { transform: translateX(var(--scroll-distance, -120px)); opacity: 1; }
-          85%  { transform: translateX(var(--scroll-distance, -120px)); opacity: 0; } /* fade out */
-          86%  { transform: translateX(0);                          opacity: 0; }     /* snap back invisible */
-          100% { transform: translateX(0);                          opacity: 1; }     /* fade in */
+          85%  { transform: translateX(var(--scroll-distance, -120px)); opacity: 0; }
+          86%  { transform: translateX(0);                          opacity: 0; }    
+          100% { transform: translateX(0);                          opacity: 1; }  
         }
 
 
-      `}</style>
+      `}</style> */}
     </TooltipProvider>
   );
 }
