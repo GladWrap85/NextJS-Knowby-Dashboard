@@ -12,8 +12,7 @@ interface StatsPopupGraphProps {
   chartLabel: string;
   chartHeight?: number;
   chartOptions?: ApexOptions;
-  tableContent: React.ReactNode;
-  layout?: "vertical" | "horizontal"; // vertical = graph above table, horizontal = graph beside table
+  layout?: "vertical" | "horizontal"; // kept for possible future use
 }
 
 const baseChartOptions: ApexOptions = {
@@ -41,37 +40,21 @@ const baseChartOptions: ApexOptions = {
 export default function StatsPopupGraph({
   chartSeries,
   chartLabel,
-  chartHeight = 160,
+  chartHeight = 220,
   chartOptions,
-  tableContent,
-  layout = "vertical",
 }: StatsPopupGraphProps) {
   return (
-    <div
-      className={`flex ${
-        layout === "vertical" ? "flex-col gap-4" : "flex-row gap-6"
-      }`}
-    >
-      <div className={layout === "vertical" ? "w-full" : "w-1/3"}>
-        <Chart
-          options={{
-            ...baseChartOptions,
-            ...chartOptions,
-            xaxis: { type: "category" },
-          }}
-          series={[{ name: chartLabel, data: chartSeries }]}
-          type="area"
-          height={chartHeight}
-        />
-      </div>
-
-      <div
-        className={
-          layout === "vertical" ? "" : "flex-1 overflow-auto max-h-[400px]"
-        }
-      >
-        {tableContent}
-      </div>
+    <div className="w-full">
+      <Chart
+        options={{
+          ...baseChartOptions,
+          ...chartOptions,
+          xaxis: { type: "category" },
+        }}
+        series={[{ name: chartLabel, data: chartSeries }]}
+        type="area"
+        height={chartHeight}
+      />
     </div>
   );
 }

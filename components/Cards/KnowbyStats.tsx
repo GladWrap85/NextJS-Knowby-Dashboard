@@ -317,152 +317,166 @@ export default function KnowbyStats() {
     recentlyUnusedTrend,
   ]);
 
-  // --- Reusable StatTile ---
   const StatTile = ({
-    label,
-    value,
-    description,
-    popupId,
-    chartSeries,
-    popupContent,
-  }: {
-    label: string;
-    value: number;
-    description: string;
-    popupId: string;
-    chartSeries: number[];
-    popupContent: React.ReactNode;
-  }) => (
-    <Dialog
-      open={activePopup === popupId}
-      onOpenChange={(open) => setActivePopup(open ? popupId : null)}
-    >
-      <DialogTrigger asChild>
-        <div className="relative bg-muted/50 p-6 rounded-lg cursor-pointer hover:bg-muted transition border shadow-md">
-          <div className="flex justify-between mb-2">
-            <div className="text-3xl font-bold">{value}</div>
-            {chartSeries && chartSeries.length > 0 ? (
-              <div className="w-24 h-6">
-                <Chart
-                  options={baseSparkOptions}
-                  series={[{ name: label, data: chartSeries }]}
-                  type="area"
-                  height={40}
-                />
-              </div>
-            ) : (
-              <div className="w-24 h-6 mb-3 flex items-center justify-center text-xs text-muted-foreground">
-                No data
-              </div>
-            )}
-          </div>
-          <div className="text-sm font-medium mb-1">{label}</div>
-          <div className="text-xs text-muted-foreground">{description}</div>
-          <ChevronDown className="absolute bottom-2 right-2 h-4 w-4 text-muted-foreground" />
+  label,
+  value,
+  description,
+  popupId,
+  chartSeries, // sparkline numeric array for the tile
+  popupGraph, // ReactNode (chart-only)
+  popupTable, // ReactNode (table-only)
+}: {
+  label: string;
+  value: number;
+  description: string;
+  popupId: string;
+  chartSeries: number[];
+  popupGraph?: React.ReactNode;
+  popupTable?: React.ReactNode;
+}) => (
+  <Dialog
+    open={activePopup === popupId}
+    onOpenChange={(open) => setActivePopup(open ? popupId : null)}
+  >
+    <DialogTrigger asChild>
+      <div className="relative bg-muted/50 p-6 rounded-lg cursor-pointer hover:bg-muted transition border shadow-md">
+        <div className="flex justify-between mb-2">
+          <div className="text-3xl font-bold">{value}</div>
+
+          {/* Tile sparkline (small preview) */}
+          {chartSeries && chartSeries.length > 0 ? (
+            <div className="w-24 h-6">
+              <Chart
+                options={baseSparkOptions}
+                series={[{ name: label, data: chartSeries }]}
+                type="area"
+                height={40}
+              />
+            </div>
+          ) : (
+            <div className="w-24 h-6 mb-3 flex items-center justify-center text-xs text-muted-foreground">
+              No data
+            </div>
+          )}
         </div>
-      </DialogTrigger>
-      <DialogContent className="w-full sm:max-w-[600px] md:max-w-[800px] lg:max-w-[1000px]">
-        <h2 className="text-xl font-bold mb-2">{label}</h2>
-        <DialogTitle />
-        <p className="text-sm text-muted-foreground mb-4">{description}</p>
-        <div className="overflow-scroll max-h-[500px]">{popupContent}</div>
-      </DialogContent>
-    </Dialog>
-  );
 
-  return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-      <StatTile
-        popupId="active"
-        label="Active Members"
-        value={stats.activeMembers}
-        description="Members with completions in the last 30 days."
-        chartSeries={activeMemberTrend}
-        popupContent={
-          <StatsPopupGraph
-            chartSeries={activeChartSeries}
-            chartLabel="Active Members"
-            chartOptions={activeChartOptions ?? {}}
-            tableContent={
-              <StatsTable
-                data={activeMembersData}
-                caption="Most completions in last 30 days"
-                type="active"
-              />
-            }
-            layout="vertical"
-          />
-        }
-      />
+        <div className="text-sm font-medium mb-1">{label}</div>
+        <div className="text-xs text-muted-foreground">{description}</div>
+        <ChevronDown className="absolute bottom-2 right-2 h-4 w-4 text-muted-foreground" />
+      </div>
+    </DialogTrigger>
 
-      <StatTile
-        popupId="new"
-        label="New Knowbys Created"
-        value={stats.newKnowbys}
-        description="Knowbys created in the last 30 days."
-        chartSeries={newKnowbyTrend}
-        popupContent={
-          <StatsPopupGraph
-            chartSeries={newChartSeries}
-            chartLabel="New Knowbys Created"
-            chartOptions={newChartOptions ?? {}}
-            tableContent={
-              <StatsTable
-                data={newKnowbysData}
-                caption="Most recently created knowbys"
-                type="new"
-              />
-            }
-            layout="vertical"
-          />
-        }
-      />
+    {/* Popup content: chart (non-scroll) above, table (scrollable) below */}
+    <DialogContent className="w-full h-auto max-h-[80vh] sm:max-w-[600px] md:max-w-[800px] lg:max-w-[1000px]">
+      <h2 className="text-xl font-bold mb-2">{label}</h2>
+      <DialogTitle />
+      <p className="text-sm text-muted-foreground mb-4">{description}</p>
 
-      <StatTile
-        popupId="viewed"
-        label="Recently Viewed Knowbys"
-        value={stats.recentlyViewed}
-        description="Knowbys viewed in the last 30 days."
-        chartSeries={recentlyEditedTrend}
-        popupContent={
-          <StatsPopupGraph
-            chartSeries={viewedChartSeries}
-            chartLabel="Recently Viewed Knowbys"
-            chartOptions={viewedChartOptions ?? {}}
-            tableContent={
-              <StatsTable
-                data={recentlyViewedData}
-                caption="Most recently viewed knowbys"
-                type="viewed"
-              />
-            }
-            layout="vertical"
-          />
-        }
-      />
+      <div className="flex flex-col gap-4">
+        {/* Chart area — always visible */}
+        <div className="w-full">{popupGraph ?? null}</div>
 
-      <StatTile
-        popupId="unused"
-        label="Unused Knowbys"
-        value={stats.unusedKnowbys}
-        description="Knowbys not used in the last 30 days."
-        chartSeries={recentlyUnusedTrend}
-        popupContent={
-          <StatsPopupGraph
-            chartSeries={unusedChartSeries}
-            chartLabel="Unused Knowbys"
-            chartOptions={unusedChartOptions ?? {}}
-            tableContent={
-              <StatsTable
-                data={unusedKnowbysData}
-                caption="Knowbys not viewed recently"
-                type="unused"
-              />
-            }
-            layout="vertical"
-          />
-        }
-      />
-    </div>
-  );
+        {/* Table area — scrolls independently */}
+        <div className="flex-1 h-auto max-h-[25vh] overflow-y-auto">
+          {popupTable ?? null}
+        </div>
+      </div>
+    </DialogContent>
+  </Dialog>
+);
+
+/* --- Now the four StatTile usages: replace existing usages with these --- */
+
+return (
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <StatTile
+      popupId="active"
+      label="Active Members"
+      value={stats.activeMembers}
+      description="Members with completions in the last 30 days."
+      chartSeries={activeMemberTrend}
+      popupGraph={
+        <StatsPopupGraph
+          chartSeries={activeChartSeries}
+          chartLabel="Active Members"
+          chartOptions={activeChartOptions ?? {}}
+          // height can be controlled via StatsPopupGraph if desired
+        />
+      }
+      popupTable={
+        <StatsTable
+          data={activeMembersData}
+          caption="Members with the most completions in the last 30 days"
+          type="active"
+        />
+      }
+    />
+
+    <StatTile
+      popupId="new"
+      label="New Knowbys Created"
+      value={stats.newKnowbys}
+      description="Knowbys created in the last 30 days."
+      chartSeries={newKnowbyTrend}
+      popupGraph={
+        <StatsPopupGraph
+          chartSeries={newChartSeries}
+          chartLabel="New Knowbys Created"
+          chartOptions={newChartOptions ?? {}}
+        />
+      }
+      popupTable={
+        <StatsTable
+          data={newKnowbysData}
+          caption="Most recently created knowbys"
+          type="new"
+        />
+      }
+    />
+
+    <StatTile
+      popupId="viewed"
+      label="Recently Viewed Knowbys"
+      value={stats.recentlyViewed}
+      description="Knowbys viewed in the last 30 days."
+      chartSeries={recentlyEditedTrend}
+      popupGraph={
+        <StatsPopupGraph
+          chartSeries={viewedChartSeries}
+          chartLabel="Recently Viewed Knowbys"
+          chartOptions={viewedChartOptions ?? {}}
+        />
+      }
+      popupTable={
+        <StatsTable
+          data={recentlyViewedData}
+          caption="Knowbys most recently viewed"
+          type="viewed"
+        />
+      }
+    />
+
+    <StatTile
+      popupId="unused"
+      label="Unused Knowbys"
+      value={stats.unusedKnowbys}
+      description="Knowbys not used in the last 30 days."
+      chartSeries={recentlyUnusedTrend}
+      popupGraph={
+        <StatsPopupGraph
+          chartSeries={unusedChartSeries}
+          chartLabel="Unused Knowbys"
+          chartOptions={unusedChartOptions ?? {}}
+        />
+      }
+      popupTable={
+        <StatsTable
+          data={unusedKnowbysData}
+          caption="Knowbys that haven’t been viewed recently"
+          type="unused"
+        />
+      }
+    />
+  </div>
+);
 }
