@@ -7,6 +7,7 @@ import Header from "@/components/Header"
 import { DateRangeProvider } from "@/lib/DateRangeContext"; // Import the DateRangeProvider
 import { SidebarProvider } from "@/components/Sidebar-Context" // Your global context
 import { KnowbyDataProvider } from "@/lib/KnowbyDataProvider"
+import { SpeedInsights } from "@vercel/speed-insights/next"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -35,6 +36,7 @@ export default function RootLayout({
                   <Header />
                   <div className="flex-1 overflow-y-auto p-8 pb-32">
                     {children}
+                    <SpeedInsights />
                   </div>
                 </main>
               </DateRangeProvider>
