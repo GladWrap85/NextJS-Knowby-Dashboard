@@ -134,8 +134,8 @@ export default function TotalUsageCard() {
         <hr className="border-border" />
 
         {/* Chart */}
-        <CardContent className="p-0">
-          <div className="h-[145px]">
+        <CardContent className="p-0 overflow-hidden">
+          <div className="h-[145px] ">
             <ReactApexChart options={options} series={series} type="area" height={150} />
           </div>
         </CardContent>

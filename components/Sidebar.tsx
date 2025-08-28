@@ -21,7 +21,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Loader2, CheckCircle, AlertCircle, ExternalLink } from 'lucide-react'
 
@@ -55,6 +55,19 @@ export default function Sidebar() {
   const { source, switchSource, reload, status } = useKnowbyData()
   type DataMode = 'sample' | 'real'
 
+  // === NEW: local, staged settings state (only applied on save) ===
+  const [pendingSource, setPendingSource] = useState<DataMode>(source)
+
+  // When the Settings dialog opens, initialize pending values from current source
+  useEffect(() => {
+    if (open && activeKey === 'Settings') {
+      setPendingSource(source)
+    }
+  }, [open, activeKey, source])
+
+  const hasUnsaved = activeKey === 'Settings' && pendingSource !== source
+  // ================================================================
+      
   // --- Account functionality state ---
   const [isLoading, setIsLoading] = useState(false)
   const [accountStatus, setAccountStatus] = useState<'idle' | 'success' | 'error'>('idle')
@@ -127,6 +140,7 @@ export default function Sidebar() {
       setScraperLoading(false)
     }
   }
+
 
   // --- Dialog content ---
   const dialogContent = useMemo<Record<DialogKey, DialogEntry>>(
@@ -209,7 +223,8 @@ export default function Sidebar() {
           <div className="space-y-4 text-sm">
             <div className="space-y-1">
               <div className="font-medium">Data source</div>
-              <Tabs value={source} onValueChange={(v) => switchSource(v as DataMode)}>
+              {/* Bind tabs to the staged pending value (not the live source) */}
+              <Tabs value={pendingSource} onValueChange={(v) => setPendingSource(v as DataMode)}>
                 <TabsList className="grid grid-cols-2">
                   <TabsTrigger value="sample">Sample data</TabsTrigger>
                   <TabsTrigger value="real">Real data</TabsTrigger>
@@ -230,13 +245,26 @@ export default function Sidebar() {
 
             <div className="text-xs opacity-70">
               Current mode: <code>{source}</code>
+              {hasUnsaved && (
+                <span className="ml-2 text-amber-500">(unsaved changes)</span>
+              )}
             </div>
           </div>
         ),
         okText: 'Save & Close',
+        onOk: () => {
+          // Only apply if changed
+          if (pendingSource !== source) {
+            switchSource(pendingSource)
+          }
+          // Close after saving
+          setOpen(false)
+        },
       },
     }),
+
     [source, status, switchSource, reload, isLoading, accountStatus, accountMessage, handleExtractHeaders, handleRunScraper, scraperLoading, scraperSuccess]
+
   )
 
   // --- Menu list ---
@@ -386,7 +414,17 @@ export default function Sidebar() {
       </aside>
 
       {/* Global dialog */}
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog
+        open={open}
+        onOpenChange={(v) => {
+          // closing without clicking save discards staged changes (we re-init on next open)
+          setOpen(v)
+          if (!v) {
+            // Optional: reset staged state immediately on close for cleanliness
+            setPendingSource(source)
+          }
+        }}
+      >
         <DialogContent>
           {active ? (
             <>
@@ -398,22 +436,23 @@ export default function Sidebar() {
               <div className="mt-2">{active.body}</div>
 
               <DialogFooter className="flex gap-2">
-                {/* Optional: actually navigate to the page */}
-                {activeKey && (
-                  <Link href={menuList.flatMap(g => g.items).find(i => i.text === activeKey)?.link ?? '/'}>
-                    <Button variant="secondary">Open page</Button>
-                  </Link>
-                )}
+                <Button variant="ghost" onClick={() => setOpen(false)}>
+                  Cancel
+                </Button>
                 <Button
                   onClick={() => {
                     active.onOk?.()
-                    if (activeKey !== 'Refresh') setOpen(false) // keep open during refresh if desired
+                    if (activeKey === 'Refresh') return
                   }}
-                  disabled={activeKey === 'Refresh' && (status === 'loading' || status === 'refreshing')}
+                  disabled={
+                    (activeKey === 'Refresh' && (status === 'loading' || status === 'refreshing')) ||
+                    (activeKey === 'Settings' && !hasUnsaved)
+                  }
                 >
                   {active.okText}
                 </Button>
               </DialogFooter>
+
             </>
           ) : null}
         </DialogContent>

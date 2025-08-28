@@ -11,6 +11,7 @@ import {
 import StatsTable from "@/components/Cards/StatsTable";// custom table component that changes based on stat type
 import dynamic from "next/dynamic";
 import type { ApexOptions } from "apexcharts";
+import { ChevronDown } from "lucide-react";
 const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
 interface KnowbyData {
@@ -57,17 +58,14 @@ export default function KnowbyStats() {
   const [activeMemberTrend, setActiveMemberTrend] = useState<number[]>([]);
   const [newKnowbyTrend, setNewKnowbyTrend] = useState<number[]>([]);
   const [recentlyEditedTrend, setRecentlyEditedTrend] = useState<number[]>([]);
+  const [unusedKnowbysTrend, setUnusedKnowbysTrend] = useState<number[]>([]);
 
   const [activePopup, setActivePopup] = useState<null | string>(null); // New code from Sahil to track which tile was clicked
 
   // Data for each of the 4 tables (filtered subsets of the full csv)
-  const [activeMembersData, setActiveMembersData] = useState<CompletionData[]>(
-    []
-  );
+  const [activeMembersData, setActiveMembersData] = useState<CompletionData[]>([]);
   const [newKnowbysData, setNewKnowbysData] = useState<KnowbyData[]>([]);
-  const [recentlyViewedData, setRecentlyViewedData] = useState<KnowbyData[]>(
-    []
-  );
+  const [recentlyViewedData, setRecentlyViewedData] = useState<KnowbyData[]>([]);
   const [unusedKnowbysData, setUnusedKnowbysData] = useState<KnowbyData[]>([]);
 
   // Run once on component mount to parse CSV and calculate all stats
@@ -126,6 +124,30 @@ export default function KnowbyStats() {
           }
         }
 
+        // --- Build completion dates per knowby and a helper to get "last interaction" ---
+        // Map: knowby_id -> array of completion Date objects (from ALL data)
+        const completionDatesByKnowby = new Map<string, Date[]>();
+        for (const c of completionsData) {
+          const d = parseDate(c.date);
+          if (!d) continue;
+          const arr = completionDatesByKnowby.get(c.knowby_id) || [];
+          arr.push(d);
+          completionDatesByKnowby.set(c.knowby_id, arr);
+        }
+
+        // Helper: get the most recent interaction date for a knowby
+        // (max of last_viewed and any completion dates). Returns null if none.
+        const getLastInteraction = (k: KnowbyData): Date | null => {
+          const lv = parseDate(k.last_viewed);
+          const compDates = completionDatesByKnowby.get(k.knowby_id) || [];
+          const latestComp =
+            compDates.length > 0 ? new Date(Math.max(...compDates.map(x => x.getTime()))) : null;
+
+          if (lv && latestComp) return new Date(Math.max(lv.getTime(), latestComp.getTime()));
+          return lv ?? latestComp ?? null;
+        };
+
+
         const activeTrend: number[] = [];
         const dateCursor1 = new Date(thirtyDaysAgo);
         while (dateCursor1 <= today) {
@@ -154,7 +176,7 @@ export default function KnowbyStats() {
         }
         setNewKnowbyTrend(knowbyTrend);
 
-        // Recently Edited Knowbys trend (by last_viewed date)
+        // Recently Viewed Knowbys trend (by last_viewed date)
         const dailyEditedMap = new Map<string, number>();
         for (const entry of knowbysData) {
           const lastViewed = parseDate(entry.last_viewed);
@@ -173,6 +195,38 @@ export default function KnowbyStats() {
         }
 
         setRecentlyEditedTrend(editedTrend);
+
+
+        // Unused knowbys trend (not viewed in last 30 days)
+        // build once from your existing helper
+        const lastInteractionByKnowby = new Map<string, Date>();
+        for (const k of knowbysData) {
+          const li = getLastInteraction(k);   // you already defined this
+          if (li) lastInteractionByKnowby.set(k.knowby_id, li);
+        }
+
+        const becameUnusedTrend: number[] = [];
+        {
+          const d = new Date(thirtyDaysAgo);
+          while (d <= today) {
+            const cut = new Date(d);
+            cut.setDate(cut.getDate() - 30);
+
+            // date-only comparison
+            const cutKey = cut.toISOString().split("T")[0];
+
+            let n = 0;
+            for (const li of lastInteractionByKnowby.values()) {
+              const liKey = li.toISOString().split("T")[0];
+              if (liKey === cutKey) n++; // crossed threshold today
+            }
+            becameUnusedTrend.push(n);
+            d.setDate(d.getDate() + 1);
+          }
+        }
+        setUnusedKnowbysTrend(becameUnusedTrend);
+
+
 
         // Active members based on completions in last 30 days
         const recentCompletions = completionsData.filter((d) => {
@@ -199,10 +253,9 @@ export default function KnowbyStats() {
         });
 
         // Knowbys with 0 views OR last viewed over 30 days ago
-        const unusedKnowbys = knowbysData.filter((d) => {
-          const views = parseInt(d.views) || 0;
-          const lastViewed = parseDate(d.last_viewed);
-          return views === 0 || !lastViewed || lastViewed < thirtyDaysAgo;
+        const unusedKnowbys = knowbysData.filter((k) => {
+          const lastIx = getLastInteraction(k);
+          return !lastIx || lastIx < thirtyDaysAgo;
         });
 
         // Set the dashboard tile numbers
@@ -286,14 +339,14 @@ export default function KnowbyStats() {
     >
       {/* DialogTrigger asChild lets us use the div for the tile as the clickable trigger for the popup*/}
       <DialogTrigger asChild>
-        <div className="bg-muted/50 p-6 rounded-lg cursor-pointer hover:bg-muted transition border">
+        <div className="relative bg-muted/50 p-6 rounded-lg cursor-pointer hover:bg-muted transition border shadow-md">
           {/* Number + optional chart in same row */}
-          <div className="flex justify-between mb-2 gap-6">
+          <div className="flex justify-between mb-2">
             <div className="text-3xl font-bold">{value}</div>
 
             {/* Only render chart if we have data */}
             {chartSeries && chartSeries.length > 0 ? (
-              <div className="w-24 h-6 mb-3">
+              <div className="w-24 h-6">
                 <Chart
                   options={baseChartOptions}
                   series={[{ name: label, data: chartSeries }]}
@@ -311,11 +364,14 @@ export default function KnowbyStats() {
           {/* Text details */}
           <div className="text-sm font-medium mb-1">{label}</div>
           <div className="text-xs text-muted-foreground">{description}</div>
+
+          {/* Chevron bottom-right */}
+          <ChevronDown className="absolute bottom-2 right-2 h-4 w-4 text-muted-foreground" />
         </div>
       </DialogTrigger>
 
       {/* Popup content */}
-      <DialogContent className="min-w-[1000px]">
+      <DialogContent className="w-full sm:max-w-[600px] md:max-w-[800px] lg:max-w-[1000px]">
         <h2 className="text-xl font-bold mb-2">{label}</h2>
         <DialogTitle />
         <p className="text-sm text-muted-foreground mb-4">{description}</p>
@@ -381,7 +437,7 @@ export default function KnowbyStats() {
         label="Unused Knowbys"
         value={stats.unusedKnowbys}
         description="Knowbys not used in the last 30 days."
-        chartSeries={null}
+        chartSeries={unusedKnowbysTrend}
         popupContent={
           <StatsTable
             data={unusedKnowbysData}
