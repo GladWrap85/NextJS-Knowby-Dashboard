@@ -23,6 +23,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { useState, useMemo } from 'react'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
+import { Loader2, CheckCircle, AlertCircle, ExternalLink } from 'lucide-react'
 
 // 👉 keep your original import path if this is where it lives
 import { useKnowbyData } from '@/lib/KnowbyDataProvider'
@@ -34,7 +35,7 @@ type MenuItem = {
   text: 'Refresh' | 'Dashboard' | 'Account' | 'Settings' | (string & {})
 }
 
-type DialogKey = 'Refresh' | 'Dashboard' | 'Account' | 'Settings'
+type DialogKey = 'Dashboard' | 'Account' | 'Settings'
 type DialogEntry = {
   title: string
   description: string
@@ -54,26 +55,82 @@ export default function Sidebar() {
   const { source, switchSource, reload, status } = useKnowbyData()
   type DataMode = 'sample' | 'real'
 
+  // --- Account functionality state ---
+  const [isLoading, setIsLoading] = useState(false)
+  const [accountStatus, setAccountStatus] = useState<'idle' | 'success' | 'error'>('idle')
+  const [accountMessage, setAccountMessage] = useState('')
+
+  // --- Scraper functionality state ---
+  const [scraperLoading, setScraperLoading] = useState(false)
+  const [scraperSuccess, setScraperSuccess] = useState(false)
+
+  // Handle the header extraction process
+  const handleExtractHeaders = async () => {
+    setIsLoading(true)
+    setAccountStatus('idle')
+    setAccountMessage('')
+
+    try {
+      // Call the API to extract headers
+      const response = await fetch('/api/extract-headers', {
+        method: 'POST',
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        setAccountStatus('success')
+        setAccountMessage('Headers extracted successfully! Your authentication is now configured and the web scraper is ready to use.')
+      } else {
+        setAccountStatus('error')
+        setAccountMessage(data.error || 'Failed to extract headers')
+      }
+    } catch (error) {
+      setAccountStatus('error')
+      setAccountMessage('An error occurred while extracting headers')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  // Handle the scraper process
+  const handleRunScraper = async () => {
+    setScraperLoading(true)
+    setScraperSuccess(false)
+    
+    try {
+      // Call the API to run the scraper
+      const response = await fetch('/api/run-scraper', {
+        method: 'POST',
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        // Show success state briefly
+        setScraperSuccess(true)
+        // Refresh the data after successful scraping
+        reload()
+        
+        // Reset success state after 2 seconds
+        setTimeout(() => {
+          setScraperSuccess(false)
+        }, 2000)
+      } else {
+        console.error('Scraper failed:', data.message)
+        // Could add toast notification here
+      }
+    } catch (error) {
+      console.error('An error occurred while running the scraper:', error)
+      // Could add toast notification here
+    } finally {
+      setScraperLoading(false)
+    }
+  }
+
   // --- Dialog content ---
   const dialogContent = useMemo<Record<DialogKey, DialogEntry>>(
     () => ({
-      Refresh: {
-        title: 'Refresh Connection',
-        description:
-          'Attempt to refresh data connections and re-fetch the latest metrics.',
-        body: (
-          <div className="space-y-2 text-sm">
-            <p>This will:</p>
-            <ul className="list-disc pl-5 space-y-1">
-              <li>Re-sync Knowby CSV sources</li>
-              <li>Invalidate client-side caches</li>
-              <li>Recompute totals and trends</li>
-            </ul>
-          </div>
-        ),
-        okText: (status === 'loading' || status === 'refreshing') ? 'Refreshing…' : 'Run refresh',
-        onOk: () => { reload() },
-      },
       Dashboard: {
         title: 'Open Dashboard',
         description:
@@ -94,15 +151,56 @@ export default function Sidebar() {
         description:
           'Manage your profile, organization, and notification preferences.',
         body: (
-          <div className="gap-5">
-            <div className="flex flex-col w-fit">
-              <Button variant="secondary" className="text-sm">Login</Button>
-              <Button variant="secondary" className="text-sm">Logout</Button>
-              <ScraperButton/>
+          <div className="space-y-4 text-sm">
+            <div className="space-y-2">
+              <div className="text-muted-foreground space-y-2">
+                <p>1. Click the button below to open Knowby in a new window</p>
+                <p>2. Sign in to your Knowby account manually</p>
+                <p>3. The authentication headers will be automatically extracted and saved</p>
+                <p>4. Once complete, you can use the web scraper functionality</p>
+              </div>
             </div>
+
+            <Button 
+              onClick={handleExtractHeaders} 
+              disabled={isLoading}
+              className="w-full"
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Extracting Headers...
+                </>
+              ) : (
+                <>
+                  <ExternalLink className="mr-2 h-4 w-4" />
+                  Extract Knowby Headers
+                </>
+              )}
+            </Button>
+
+            {/* Success message */}
+            {accountStatus === 'success' && (
+              <div className="p-4 bg-green-50 border border-green-200 rounded-md">
+                <div className="flex items-center gap-2">
+                  <CheckCircle className="h-4 w-4 text-green-600" />
+                  <span className="text-green-800">{accountMessage}</span>
+                </div>
+              </div>
+            )}
+
+            {/* Error message */}
+            {accountStatus === 'error' && (
+              <div className="p-4 bg-red-50 border border-red-200 rounded-md">
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="h-4 w-4 text-red-600" />
+                  <span className="text-red-800">{accountMessage}</span>
+                </div>
+              </div>
+            )}
           </div>
         ),
-        okText: 'Open account',
+        okText: 'Close',
       },
       Settings: {
         title: 'Settings',
@@ -138,7 +236,7 @@ export default function Sidebar() {
         okText: 'Save & Close',
       },
     }),
-    [source, status, switchSource, reload]
+    [source, status, switchSource, reload, isLoading, accountStatus, accountMessage, handleExtractHeaders, handleRunScraper, scraperLoading, scraperSuccess]
   )
 
   // --- Menu list ---
@@ -162,11 +260,18 @@ export default function Sidebar() {
 
   function handleOpenDialog(item: MenuItem, e?: React.MouseEvent) {
     if (e) e.preventDefault() // stop navigation; open modal instead
+    
+    // Special handling for Refresh - run scraper directly
+    if (item.text === 'Refresh') {
+      handleRunScraper()
+      return
+    }
+    
     setActiveKey(item.text)
     setOpen(true)
   }
 
-  const active = (activeKey && ['Refresh', 'Dashboard', 'Account', 'Settings'].includes(activeKey as string))
+  const active = (activeKey && ['Dashboard', 'Account', 'Settings'].includes(activeKey as string))
     ? dialogContent[activeKey as DialogKey]
     : undefined
 
@@ -212,38 +317,59 @@ export default function Sidebar() {
                         <TooltipTrigger asChild>
                           {/* Keep Link for semantics; prevent default in onClick */}
                           <Link href={item.link} onClick={(e) => handleOpenDialog(item, e)}>
-                            <CommandItem
-                              className={cn(
-                                'group cursor-pointer transition-all duration-300 rounded-md',
-                                expanded
-                                  ? 'flex items-center gap-2 px-3 py-2 justify-start hover:bg-[var(--accent)]'
-                                  : 'w-12 h-12 flex items-center justify-center hover:bg-[var(--accent)]',
-                                !expanded && isRefresh
-                                  ? 'bg-gradient-to-br from-blue-700 to-blue-500 hover:from-blue-800 hover:to-blue-600'
-                                  : ''
-                              )}
-                            >
-                              <Icon
-                                className={cn(
-                                  'transition-all duration-300',
-                                  expanded
-                                    ? 'text-muted-foreground group-hover:text-[var(--accent-foreground)]'
-                                    : '',
-                                  !expanded && isRefresh
-                                    ? 'text-white'
-                                    : 'text-muted-foreground group-hover:text-[var(--accent-foreground)]'
-                                )}
-                                style={{
-                                  width: expanded ? '16px' : '20px',
-                                  height: expanded ? '16px' : '20px',
-                                }}
-                              />
-                              {expanded && (
-                                <span className="text-sm transition-opacity duration-200 group-hover:text-[var(--accent-foreground)]">
-                                  {item.text}
-                                </span>
-                              )}
-                            </CommandItem>
+                                                         <CommandItem
+                               className={cn(
+                                 'group cursor-pointer transition-all duration-300 rounded-md',
+                                 expanded
+                                   ? 'flex items-center gap-2 px-3 py-2 justify-start hover:bg-[var(--accent)]'
+                                   : 'w-12 h-12 flex items-center justify-center hover:bg-[var(--accent)]',
+                                 !expanded && isRefresh
+                                   ? scraperSuccess
+                                     ? 'bg-gradient-to-br from-green-600 to-green-400'
+                                     : 'bg-gradient-to-br from-blue-700 to-blue-500 hover:from-blue-800 hover:to-blue-600'
+                                   : '',
+                                 (scraperLoading || scraperSuccess) && 'pointer-events-none opacity-75'
+                               )}
+                             >
+                               {isRefresh && scraperLoading ? (
+                                 <Loader2 
+                                   className="animate-spin text-white"
+                                   style={{
+                                     width: expanded ? '16px' : '20px',
+                                     height: expanded ? '16px' : '20px',
+                                   }}
+                                 />
+                               ) : isRefresh && scraperSuccess ? (
+                                 <CheckCircle 
+                                   className="text-white"
+                                   style={{
+                                     width: expanded ? '16px' : '20px',
+                                     height: expanded ? '16px' : '20px',
+                                   }}
+                                 />
+                               ) : (
+                                 <Icon
+                                   className={cn(
+                                     'transition-all duration-300',
+                                     expanded
+                                       ? 'text-muted-foreground group-hover:text-[var(--accent-foreground)]'
+                                       : '',
+                                     !expanded && isRefresh
+                                       ? 'text-white'
+                                       : 'text-muted-foreground group-hover:text-[var(--accent-foreground)]'
+                                   )}
+                                   style={{
+                                     width: expanded ? '16px' : '20px',
+                                     height: expanded ? '16px' : '20px',
+                                   }}
+                                 />
+                               )}
+                               {expanded && (
+                                 <span className="text-sm transition-opacity duration-200 group-hover:text-[var(--accent-foreground)]">
+                                   {isRefresh && scraperLoading ? 'Running...' : isRefresh && scraperSuccess ? 'Success!' : item.text}
+                                 </span>
+                               )}
+                             </CommandItem>
                           </Link>
                         </TooltipTrigger>
                         <TooltipContent side="right" className={`${expanded ? 'hidden' : ''} z-[9999]`}>
