@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { spawn } from 'child_process';
 
 // API route to run scraper.py
-export async function POST(request: NextRequest) {
+export async function POST(request: NextRequest): Promise<Response> {
   try {
     // Run the scaper.py script using child_process.spawn()
     // This opens a separate process to execute the script
