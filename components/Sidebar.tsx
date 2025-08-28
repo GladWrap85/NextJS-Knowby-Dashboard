@@ -159,6 +159,7 @@ export default function Sidebar() {
           </div>
         ),
         okText: 'Go to dashboard',
+        onOk: () => setOpen(false), 
       },
       Account: {
         title: 'Account',
@@ -215,6 +216,7 @@ export default function Sidebar() {
           </div>
         ),
         okText: 'Close',
+        onOk: () => setOpen(false), 
       },
       Settings: {
         title: 'Settings',
@@ -439,7 +441,7 @@ export default function Sidebar() {
 
               <DialogFooter className="flex gap-2">
                 <Button variant="ghost" onClick={() => setOpen(false)}>
-                  Cancel
+                  Close
                 </Button>
                 <Button
                   onClick={() => {
