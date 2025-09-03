@@ -222,7 +222,7 @@ export default function TodaysUsageCard({ selectedDateRange }: TodaysUsageCardPr
               <div className="text-4xl font-bold leading-none">
                 {sevenDayCompletionRate !== null ? `${Math.round(sevenDayCompletionRate)}%` : "--%"}
               </div>
-              <p className="text-xs text-muted-foreground">completion rate</p>
+              <p className="text-xs text-muted-foreground">Completion Rate</p>
             </div>
           </div>
         </div>

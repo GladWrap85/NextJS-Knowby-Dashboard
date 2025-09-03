@@ -33,7 +33,7 @@ export default function RootLayout({
                 </div>
                 <main className="flex flex-col w-full h-full">
                   <Header />
-                  <div className="flex-1 overflow-y-auto p-8 pb-32">
+                  <div className="flex-1 overflow-y-auto pl-15 pr-15 pt-5 pb-32">
                     {children}
                   </div>
                 </main>

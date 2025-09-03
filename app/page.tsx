@@ -1,95 +1,161 @@
 'use client';
+
 import TotalUsageCard from "@/components/Cards/TotalUsageCard";
 import TodaysUsageCard from "@/components/Cards/TodaysUsageCard";
 import TopKnowbyCard from "@/components/Cards/TopKnowbyCard";
 import ModularGraphCard from "@/components/Cards/InsightsCard";
-import { TableDemo } from "@/components/Cards/Table"
-import { Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle 
-} from "@/components/ui/card"
-import { useDateRange } from "@/lib/DateRangeContext"; // Import the custom hook
-import KnowbyStats from "@/components/Cards/KnowbyStats"
-import {
-  Dialog,
-  DialogTrigger,
-  DialogContent,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { ChevronRight } from "lucide-react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import KnowbyStats from "@/components/Cards/KnowbyStats";
 import ViewsCalendarHeatmap from "@/components/cal-heatmap";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useDateRange } from "@/lib/DateRangeContext";
+import { useEffect, useMemo, useState } from "react";
+import { DateRange } from "react-day-picker";
+import {
+  startOfWeek, endOfWeek,
+  startOfMonth, endOfMonth,
+  startOfYear, endOfYear,
+  format
+} from "date-fns";
+import {
+  Popover,
+  PopoverTrigger,
+  PopoverContent
+} from "@/components/ui/popover";
+import { DatePickerWithRange } from "@/components/DateRangePicker"; // your component
+import { Calendar as CalendarIcon } from "lucide-react";
 
+type Period = "daily" | "weekly" | "monthly" | "yearly" | "range";
 
 export default function Home() {
-  const { dateRange } = useDateRange(); // Get the dateRange from the context
+  const { dateRange, setDateRange } = useDateRange();
+  const [period, setPeriod] = useState<Period>("daily");
+  const [rangeOpen, setRangeOpen] = useState(false);
+  // local custom range (fallback: this week)
+  const [customRange, setCustomRange] = useState<DateRange>(() => {
+    const now = new Date();
+    return { from: startOfWeek(now, { weekStartsOn: 1 }), to: endOfWeek(now, { weekStartsOn: 1 }) };
+  });
+
+  const computedRange = useMemo<DateRange>(() => {
+    const now = new Date();
+    switch (period) {
+      case "daily": return { from: now, to: now };
+      case "weekly": return { from: startOfWeek(now, { weekStartsOn: 1 }), to: endOfWeek(now, { weekStartsOn: 1 }) };
+      case "monthly": return { from: startOfMonth(now), to: endOfMonth(now) };
+      case "yearly": return { from: startOfYear(now), to: endOfYear(now) };
+      case "range": return customRange;
+    }
+  }, [period, customRange]);
+
+  // Push chosen window globally
+  useEffect(() => {
+    if (!computedRange?.from || !computedRange?.to) return;
+    setDateRange(computedRange);
+  }, [computedRange, setDateRange]);
+
+  // Small pretty label for the active range
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
+  const label = useMemo(() => {
+    if (!mounted || !dateRange?.from || !dateRange?.to) return "";
+    // deterministic format (no locale/timezone differences from SSR)
+    return `${format(dateRange.from, "dd MMM yyyy")} → ${format(dateRange.to, "dd MMM yyyy")}`;
+  }, [mounted, dateRange]);
+
+  
 
   return (
-    <div className="grid gap-[20px]">
-      {/* Top row of cards */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-[20px]">
-        <TotalUsageCard />
-        <TodaysUsageCard selectedDateRange={dateRange} />
-        <TopKnowbyCard selectedDateRange={dateRange} />
-      </div>
+    <Tabs value={period} onValueChange={(v) => setPeriod(v as Period)} className="w-full">
+      <div className="relative">
+        <div className="relative mt-10 rounded-xl border bg-card shadow-md">
+          {/* curved “cradle” around the tabs */}
+          <div className="absolute -top-9 right-0">
+            <div className="rounded-t-2xl border border-b-0 bg-card">
+              <TabsList className="bg-transparent rounded-t-2xl px-2 py-1 flex gap-1">
+                <TabsTrigger value="daily">Daily</TabsTrigger>
+                <TabsTrigger value="weekly">Weekly</TabsTrigger>
+                <TabsTrigger value="monthly">Monthly</TabsTrigger>
+                <TabsTrigger value="yearly">Yearly</TabsTrigger>
 
-      {/* Knowby Stats + ModularGraphCard */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-[20px]">
-        <Card>
-          <CardHeader>
-            <CardTitle>Knowby Stats</CardTitle>
-            <CardDescription>Overview of Knowby activity and usage</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <KnowbyStats />
-          </CardContent>
-        </Card>
-
-        <ModularGraphCard />
-      </div>
-
-      {/* Calendar Heatmap + Dialog Card */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-[20px]">
-        <Card className="bg-card text-card-foreground flex flex-col rounded-xl border">
-          <CardHeader>
-            <CardTitle>Calendar Heatmap</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ViewsCalendarHeatmap />
-          </CardContent>
-        </Card>
-
-        <Card />
-        <Card />
-        {/* <Dialog>
-          <DialogTrigger asChild>
-            <Card className="relative cursor-pointer hover:shadow-lg">
-              <CardHeader>
-                <CardTitle>Highest Performing Employees</CardTitle>
-                <CardDescription>
-                  These are the employees with the greatest completions.
-                </CardDescription>
-                <ChevronRight
-                  size={16}
-                  className="absolute top-2 right-2 text-muted-foreground rotate-90"
-                />
-              </CardHeader>
-              <div className="px-6 py-1 text-sm text-muted-foreground">
-                Click to view full table →
-              </div>
-            </Card>
-          </DialogTrigger>
-
-          <DialogContent className="max-w-3xl p-6 bg-background">
-            <DialogTitle>Highest Performing Employees</DialogTitle>
-            <div className="max-h-[500px] overflow-y-auto mt-4">
-              <TableDemo />
+                {/* Range picker inside tabs */}
+                <Popover open={rangeOpen} onOpenChange={setRangeOpen}>
+                  <PopoverTrigger asChild>
+                    <button
+                      type="button"
+                      onClick={() => setPeriod("range")}
+                      className={`inline-flex items-center h-8 rounded-md px-3 text-sm border transition
+                        ${period === "range" ? "bg-background shadow-sm" : "bg-transparent hover:bg-muted"}
+                      `}
+                      title="Custom date range"
+                    >
+                      <CalendarIcon className="h-4 w-4 mr-1" />
+                      Range
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent className="p-2 w-auto">
+                    <DatePickerWithRange
+                      date={customRange}
+                      onSelect={(r) => {
+                        // guard against partial selection
+                        if (!r?.from || !r?.to) { setCustomRange(r ?? customRange); return; }
+                        setCustomRange(r);
+                        setPeriod("range");     // keep Range active
+                        setRangeOpen(false);    // close popover on completion
+                      }}
+                    />
+                  </PopoverContent>
+                </Popover>
+              </TabsList>
             </div>
-          </DialogContent>
-        </Dialog> */}
-      </div>
-    </div>
+          </div>
 
+          {/* Current range label */}
+          <div className="flex justify-end pt-5 px-6 text-xs text-muted-foreground">
+            {mounted ? label : "\u00A0" /* keep layout without showing mismatched text */}
+          </div>
+
+          {/* CONTENT (one block that reacts to global dateRange) */}
+          <div className="p-6 pt-4">
+            <div className="grid gap-[20px]">
+              {/* Top row of cards */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-[20px]">
+                <TotalUsageCard />
+                <TodaysUsageCard selectedDateRange={dateRange} />
+                <TopKnowbyCard selectedDateRange={dateRange} />
+              </div>
+
+              {/* Knowby Stats + Heatmap */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-[20px]">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Knowby Stats</CardTitle>
+                    <CardDescription>Overview of Knowby activity and usage</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <KnowbyStats />
+                  </CardContent>
+                </Card>
+
+                <Card className="bg-card text-card-foreground flex flex-col rounded-xl border">
+                  <CardHeader>
+                    <CardTitle>Calendar Heatmap</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <ViewsCalendarHeatmap />
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Insights */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-[20px]">
+                <ModularGraphCard />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Tabs>
   );
 }

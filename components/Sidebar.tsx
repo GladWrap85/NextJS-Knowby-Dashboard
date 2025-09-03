@@ -306,15 +306,15 @@ export default function Sidebar() {
   return (
     <>
       <aside
-        className={`h-screen flex flex-col items bg-sidebar border-r shadow-sm transition-all duration-300 ${expanded ? 'w-[230px]' : 'w-[75px]'}`}
+        className={`h-screen flex flex-col items bg-sidebar border-r shadow-sm transition-all duration-300 ${expanded ? 'w-[207px]' : 'w-[68px]'}`}
       >
-        {/* 🔙 Logo block (unchanged) */}
+        {/* Logo block */}
         <div className="p-3 flex items-center justify-start">
           <div
             className="relative overflow-hidden transition-all duration-300"
-            style={{ width: expanded ? '142px' : '64px', height: '50px' }}
+            style={{ width: expanded ? '128px' : '58px', height: '45px' }}
           >
-            <div style={{ width: '142px', height: '50px' }}>
+            <div style={{ width: '123px', height: '45px' }}>
               <img
                 src="./ffs_logo_full.png"
                 alt="Logo Light"
@@ -331,11 +331,13 @@ export default function Sidebar() {
           </div>
         </div>
 
-        {/* Menu items (unchanged) */}
-        <div className="px-2 mt-8 w-full flex flex-col items-center">
+        {/* Menu items */}
+        <div className="mt-8">
           <Command style={{ overflow: 'visible' }} className="bg-transparent">
-            <CommandList className="max-h-[calc(100vh-200px)]">
+            <CommandList className={cn(
+              `flex flex-col max-h-[calc(100vh-200px)]`, expanded ? 'px-2' : 'items-center')}>
               {menuList.map((menu, key) => (
+                // FIX: remove group horizontal padding that causes right shift
                 <CommandGroup key={key} heading={expanded ? menu.group : undefined}>
                   {menu.items.map((item) => {
                     const Icon = item.icon
@@ -362,18 +364,18 @@ export default function Sidebar() {
                                {isRefresh && scraperLoading ? (
                                  <Loader2 
                                    className="animate-spin text-white"
-                                   style={{
-                                     width: expanded ? '16px' : '20px',
-                                     height: expanded ? '16px' : '20px',
-                                   }}
+                                    style={{
+                                      width: expanded ? '14px' : '18px',
+                                      height: expanded ? '14px' : '18px',
+                                    }}
                                  />
                                ) : isRefresh && scraperSuccess ? (
                                  <CheckCircle 
                                    className="text-white"
-                                   style={{
-                                     width: expanded ? '16px' : '20px',
-                                     height: expanded ? '16px' : '20px',
-                                   }}
+                                    style={{
+                                      width: expanded ? '14px' : '18px',
+                                      height: expanded ? '14px' : '18px',
+                                    }}
                                  />
                                ) : (
                                  <Icon
@@ -387,8 +389,8 @@ export default function Sidebar() {
                                        : 'text-muted-foreground group-hover:text-[var(--accent-foreground)]'
                                    )}
                                    style={{
-                                     width: expanded ? '16px' : '20px',
-                                     height: expanded ? '16px' : '20px',
+                                     width: expanded ? '14px' : '18px',
+                                     height: expanded ? '14px' : '18px',
                                    }}
                                  />
                                )}

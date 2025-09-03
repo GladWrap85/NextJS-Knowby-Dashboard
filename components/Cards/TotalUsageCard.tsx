@@ -126,7 +126,7 @@ export default function TotalUsageCard() {
             </div>
             <div className="flex items-baseline gap-2">
               <div className="text-4xl font-bold leading-none">{roundedDisplayRate}</div>
-              <p className="text-xs text-muted-foreground">completion rate</p>
+              <p className="text-xs text-muted-foreground">Completion Rate</p>
             </div>
           </div>
         </div>
