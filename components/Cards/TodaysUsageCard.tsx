@@ -424,7 +424,7 @@ export default function TodaysUsageCard({ selectedDateRange }: TodaysUsageCardPr
 
   return (
     <TooltipProvider>
-      <Card className="flex flex-col p-6 rounded-xl h-fit gap-3">
+      <Card className="flex flex-col p-4 rounded-xl h-fit gap-3">
         {/* Card header */}
         <div className="flex items-start gap-4">
           <div className="shrink-0 flex items-center justify-center w-16 h-16 rounded-lg text-white bg-gradient-to-b from-purple-500 to-purple-700">
