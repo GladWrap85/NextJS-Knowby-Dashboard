@@ -46,7 +46,6 @@ export default function Home() {
           </CardContent>
         </Card>
 
-        <ModularGraphCard />
       </div>
 
       {/* Calendar Heatmap + Dialog Card */}
