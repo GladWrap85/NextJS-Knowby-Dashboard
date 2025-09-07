@@ -24,8 +24,11 @@ import {
 } from "@/components/ui/popover";
 import { DatePickerWithRange } from "@/components/DateRangePicker"; // your component
 import { Calendar as CalendarIcon } from "lucide-react";
+// --- NEW: pull raw data to compute all-time span
+import { useKnowbyData } from "@/lib/KnowbyDataProvider";
+import { parse } from "date-fns";
 
-type Period = "daily" | "weekly" | "monthly" | "yearly" | "range";
+type Period = "daily" | "weekly" | "monthly" | "yearly" | "all-time" | "range"; // --- NEW: add "all-time"
 
 export default function Home() {
   const { dateRange, setDateRange } = useDateRange();
@@ -37,6 +40,33 @@ export default function Home() {
     return { from: startOfWeek(now, { weekStartsOn: 1 }), to: endOfWeek(now, { weekStartsOn: 1 }) };
   });
 
+  // --- NEW: compute all-time min/max from sample/real data
+  const { completions, views } = useKnowbyData();
+  const allTimeRange = useMemo<DateRange>(() => {
+    // dates are dd/MM/yyyy in your CSVs
+    const toDate = (s?: string) => (s ? parse(s, "dd/MM/yyyy", new Date()) : null);
+    let min: Date | null = null;
+    let max: Date | null = null;
+
+    for (const r of completions) {
+      const d = toDate((r as any)?.date); if (!d) continue;
+      if (!min || d < min) min = d;
+      if (!max || d > max) max = d;
+    }
+    for (const r of views) {
+      const d = toDate((r as any)?.date); if (!d) continue;
+      if (!min || d < min) min = d;
+      if (!max || d > max) max = d;
+    }
+
+    // fallback to current year if data is empty
+    if (!min || !max) {
+      const now = new Date();
+      return { from: startOfYear(now), to: endOfYear(now) };
+    }
+    return { from: min, to: max };
+  }, [completions, views]);
+
   const computedRange = useMemo<DateRange>(() => {
     const now = new Date();
     switch (period) {
@@ -44,9 +74,10 @@ export default function Home() {
       case "weekly": return { from: startOfWeek(now, { weekStartsOn: 1 }), to: endOfWeek(now, { weekStartsOn: 1 }) };
       case "monthly": return { from: startOfMonth(now), to: endOfMonth(now) };
       case "yearly": return { from: startOfYear(now), to: endOfYear(now) };
+      case "all-time": return allTimeRange; // --- NEW
       case "range": return customRange;
     }
-  }, [period, customRange]);
+  }, [period, customRange, allTimeRange]); // --- NEW: depend on allTimeRange
 
   // Push chosen window globally
   useEffect(() => {
@@ -78,6 +109,7 @@ export default function Home() {
                 <TabsTrigger value="weekly">Weekly</TabsTrigger>
                 <TabsTrigger value="monthly">Monthly</TabsTrigger>
                 <TabsTrigger value="yearly">Yearly</TabsTrigger>
+                <TabsTrigger value="all-time">All Time</TabsTrigger> {/* already present; now functional */}
 
                 {/* Range picker inside tabs */}
                 <Popover open={rangeOpen} onOpenChange={setRangeOpen}>
@@ -120,9 +152,25 @@ export default function Home() {
           <div className="p-6 pt-4">
             <div className="grid gap-[20px]">
               {/* Top row of cards */}
+              <div className="grid grid-cols-2 lg:grid-cols-6 gap-[20px]">
+                <Card className="flex flex-col items-center justify-center p-3 gap-0  ">
+                  <span className="text-2xl font-bold">125</span>
+                  <span className="text-xs text-gray-500 dark:text  -gray-400">Active Members</span>
+                </Card>
+                <Card className="flex flex-col items-center justify-center p-3 gap-0  ">
+                  <span className="text-2xl font-bold">47</span>
+                  <span className="text-xs text-gray-500 dark:text  -gray-400">Knowbys</span>
+                </Card>
+                <Card></Card>
+                <Card></Card>
+                <Card></Card>
+                <Card></Card>
+              </div>
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-[20px]">
-                <TotalUsageCard />
-                <TodaysUsageCard selectedDateRange={dateRange} />
+                {/* <TotalUsageCard /> */}
+                <div className="col-span-2">
+                  <TodaysUsageCard selectedDateRange={dateRange} />
+                </div>
                 <TopKnowbyCard selectedDateRange={dateRange} />
               </div>
 
@@ -150,7 +198,7 @@ export default function Home() {
 
               {/* Insights */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-[20px]">
-                <ModularGraphCard />
+                <ModularGraphCard selectedDateRange={dateRange} />
               </div>
             </div>
           </div>
