@@ -131,7 +131,7 @@ export default function TopKnowbyCard({ selectedDateRange }: TopKnowbyCardProps)
   // Loading skeleton (first load only)
   if (status === "loading") {
     return (
-      <Card className="flex flex-col p-6 rounded-xl gap-3">
+      <Card className="flex flex-col p-4 rounded-xl gap-3">
         <div className="flex items-center gap-4">
           <div className="shrink-0 w-16 h-16 rounded-lg bg-muted animate-pulse" />
           <div className="flex-1 space-y-2">
@@ -168,7 +168,7 @@ export default function TopKnowbyCard({ selectedDateRange }: TopKnowbyCardProps)
         {/* ======= TABLE ======= */}
         <CardContent className="p-0">
           <div className="overflow-x-auto">
-            <table className="w-full text-xs font-semibold">
+            <table className="w-full text-xs">
               <thead>
                 <tr className="text-muted-foreground">
                   <th className="text-left text-xs py-2 pl-6">Knowby</th>
@@ -188,9 +188,9 @@ export default function TopKnowbyCard({ selectedDateRange }: TopKnowbyCardProps)
                       key={r.knowby + idx}
                       className={idx % 2 ? "bg-muted/30" : "bg-transparent"}
                     >
-                      <td className="py-2 pl-6">
+                      <td className="py-2 pl-6 pt-0 pb-0">
                         <div className="flex items-center gap-2">
-                          <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-muted text-[11px] font-semibold">
+                          <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-muted text-xs font-semibold">
                             {idx + 1}
                           </span>
                           <span className="inline-block truncate max-w-[24ch]" title={r.knowby}>
@@ -211,7 +211,7 @@ export default function TopKnowbyCard({ selectedDateRange }: TopKnowbyCardProps)
 
         {/* Footer summary */}
         <div className="pl-6 pr-6">
-          <CardFooter className="flex items-center justify-between text-muted-foreground text-sm px-0 pt-2">
+          <CardFooter className="flex items-center justify-between text-muted-foreground text-sm px-0">
             <Tooltip>
               <TooltipTrigger asChild>
                 <div className="flex items-center gap-1.5">
