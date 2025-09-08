@@ -23,7 +23,7 @@ import {
   PopoverContent
 } from "@/components/ui/popover";
 import { DatePickerWithRange } from "@/components/DateRangePicker"; // your component
-import { Calendar as CalendarIcon } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, Calendar as CalendarIcon } from "lucide-react";
 // --- NEW: pull raw data to compute all-time span
 import { useKnowbyData } from "@/lib/KnowbyDataProvider";
 import { parse } from "date-fns";
@@ -100,16 +100,16 @@ export default function Home() {
   return (
     <Tabs value={period} onValueChange={(v) => setPeriod(v as Period)} className="w-full">
       <div className="relative">
-        <div className="relative mt-10 rounded-xl border bg-card shadow-md">
+        <div className="relative mt-10 rounded-xl border bg-background shadow-md">
           {/* curved “cradle” around the tabs */}
-          <div className="absolute -top-9 right-0">
-            <div className="rounded-t-2xl border border-b-0 bg-card">
+          <div className="absolute -top-11.5 right-3">
+            <div className="rounded-t-2xl border border-b-0 bg-background p-1">
               <TabsList className="bg-transparent rounded-t-2xl px-2 py-1 flex gap-1">
-                <TabsTrigger value="daily">Daily</TabsTrigger>
-                <TabsTrigger value="weekly">Weekly</TabsTrigger>
-                <TabsTrigger value="monthly">Monthly</TabsTrigger>
-                <TabsTrigger value="yearly">Yearly</TabsTrigger>
-                <TabsTrigger value="all-time">All Time</TabsTrigger> {/* already present; now functional */}
+                <TabsTrigger value="daily" className="cursor-pointer data-[state=active]:bg-input hover:bg-card">Daily</TabsTrigger>
+                <TabsTrigger value="weekly" className="cursor-pointer data-[state=active]:bg-input hover:bg-card">Weekly</TabsTrigger>
+                <TabsTrigger value="monthly" className="cursor-pointer data-[state=active]:bg-input hover:bg-card">Monthly</TabsTrigger>
+                <TabsTrigger value="yearly" className="cursor-pointer data-[state=active]:bg-input hover:bg-card">Yearly</TabsTrigger>
+                <TabsTrigger value="all-time" className="cursor-pointer data-[state=active]:bg-input hover:bg-card">All Time</TabsTrigger>
 
                 {/* Range picker inside tabs */}
                 <Popover open={rangeOpen} onOpenChange={setRangeOpen}>
@@ -144,28 +144,76 @@ export default function Home() {
           </div>
 
           {/* Current range label */}
-          <div className="flex justify-end pt-5 px-6 text-xs text-muted-foreground">
+          <div className="flex justify-end pt-2 pb-3 px-6 text-xs text-muted-foreground">
             {mounted ? label : "\u00A0" /* keep layout without showing mismatched text */}
           </div>
 
           {/* CONTENT (one block that reacts to global dateRange) */}
-          <div className="p-6 pt-4">
+          <div className="p-6 pt-0">
             <div className="grid gap-[20px]">
               {/* Top row of cards */}
-              <div className="grid grid-cols-2 lg:grid-cols-6 gap-[20px]">
-                <Card className="flex flex-col items-center justify-center p-3 gap-0  ">
-                  <span className="text-2xl font-bold">125</span>
-                  <span className="text-xs text-gray-500 dark:text  -gray-400">Active Members</span>
+              <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+                {/* Active Members */}
+                <Card className="flex flex-col justify-center p-4 py-0 bg-background border-none shadow-none gap-2">
+                  <span className="text-xs text-muted-foreground">Active Members</span>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-2xl font-semibold tabular-nums">125</span>
+                    <span className="flex items-center gap-1 text-xs text-green-500">
+                      <ArrowUpRight className="h-3 w-3" />
+                      5.0%
+                    </span>
+                  </div>
                 </Card>
-                <Card className="flex flex-col items-center justify-center p-3 gap-0  ">
-                  <span className="text-2xl font-bold">47</span>
-                  <span className="text-xs text-gray-500 dark:text  -gray-400">Knowbys</span>
+
+                {/* Knowbys */}
+                <Card className="flex flex-col justify-center p-4 py-0 bg-background border-none shadow-none gap-2">
+                  <span className="text-xs text-muted-foreground">Knowbys</span>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-2xl font-semibold tabular-nums">47</span>
+                    <span className="flex items-center gap-1 text-xs text-red-500">
+                      <ArrowDownRight className="h-3 w-3" />
+                      1.2%
+                    </span>
+                  </div>
                 </Card>
-                <Card></Card>
-                <Card></Card>
-                <Card></Card>
-                <Card></Card>
+
+                {/* Views */}
+                <Card className="flex flex-col justify-center p-4 py-0 bg-background border-none shadow-none gap-2">
+                  <span className="text-xs text-muted-foreground">Views</span>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-2xl font-semibold tabular-nums">5,291</span>
+                    <span className="flex items-center gap-1 text-xs text-green-500">
+                      <ArrowUpRight className="h-3 w-3" />
+                      0.8%
+                    </span>
+                  </div>
+                </Card>
+
+                {/* Completions */}
+                <Card className="flex flex-col justify-center p-4 py-0 bg-background border-none shadow-none gap-2">
+                  <span className="text-xs text-muted-foreground">Completions</span>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-2xl font-semibold tabular-nums">127</span>
+                    <span className="flex items-center gap-1 text-xs text-green-500">
+                      <ArrowUpRight className="h-3 w-3" />
+                      2.4%
+                    </span>
+                  </div>
+                </Card>
+
+                {/* Completion Rate */}
+                <Card className="flex flex-col justify-center p-4 py-0 bg-background border-none shadow-none gap-2">
+                  <span className="text-xs text-muted-foreground">Completion Rate</span>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-2xl font-semibold tabular-nums">10%</span>
+                    <span className="flex items-center gap-1 text-xs text-green-500">
+                      <ArrowUpRight className="h-3 w-3" />
+                      5.0%
+                    </span>
+                  </div>
+                </Card>
               </div>
+              
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-[20px]">
                 {/* <TotalUsageCard /> */}
                 <div className="col-span-2">
@@ -173,7 +221,6 @@ export default function Home() {
                 </div>
                 <TopKnowbyCard selectedDateRange={dateRange} />
               </div>
-
               {/* Knowby Stats + Heatmap */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-[20px]">
                 <Card>

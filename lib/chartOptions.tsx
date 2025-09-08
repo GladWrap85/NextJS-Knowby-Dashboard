@@ -47,9 +47,7 @@ export const topChartOptions = (isDark: boolean): ApexOptions => ({
     },
   },
   legend: {
-    position: "top",
-    floating: true,
-    labels: { colors: isDark ? "#aaa" : "" },
+    show: false
   },
 });
 

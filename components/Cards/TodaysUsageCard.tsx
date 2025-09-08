@@ -424,42 +424,59 @@ export default function TodaysUsageCard({ selectedDateRange }: TodaysUsageCardPr
 
   return (
     <TooltipProvider>
-      <Card className="flex flex-col p-6 rounded-xl h-fit gap-3">
+      <Card className="flex flex-col p-6 rounded-xl h-fit gap-3 border-none shadow-none">
         {/* Card header */}
-        <div className="flex items-start gap-4">
-          <div className="shrink-0 flex items-center justify-center w-16 h-16 rounded-lg text-white bg-gradient-to-b from-purple-500 to-purple-700">
-            <TrendingUp className="h-8 w-8" />
-          </div>
-          <div className="flex flex-col gap-0 w-full min-w-0">
-            <div className="flex items-center justify-between">
-              {/* ---- NEW: dynamic title based on the active time window ---- */}
-              <h3 className="text-lg font-semibold">{titleText}</h3>
-              {isRefreshing && (
-                <span className="text-xs text-muted-foreground">Refreshing…</span>
-              )}
+        <div className="flex items-start justify-between">
+          {/* LEFT SIDE */}
+          <div className="flex items-start gap-4">
+            <div className="shrink-0 flex items-center justify-center w-16 h-16 rounded-lg text-white bg-gradient-to-b from-purple-500 to-purple-700">
+              <TrendingUp className="h-8 w-8" />
             </div>
-            <div className="flex items-baseline gap-3">
-              <div className="text-4xl font-bold leading-none">
-                {sevenDayCompletionRate !== null ? `${Math.round(sevenDayCompletionRate)}%` : "--%"}
+
+            <div className="flex flex-col gap-0 w-full min-w-0">
+              <div className="flex items-center justify-between">
+                {/* ---- dynamic title ---- */}
+                <h3 className="text-lg font-semibold">{titleText}</h3>
+                {isRefreshing && (
+                  <span className="text-xs text-muted-foreground">Refreshing…</span>
+                )}
               </div>
-              <div className="flex items-center gap-2">
-                <p className="text-xs text-muted-foreground">Completion Rate</p>
-                {/* --- NEW: comparison badge --- */}
-                {deltaBadge}
+
+              <div className="flex items-baseline gap-3">
+                <div className="text-4xl font-bold leading-none">
+                  {sevenDayCompletionRate !== null
+                    ? `${Math.round(sevenDayCompletionRate)}%`
+                    : "--%"}
+                </div>
+                <div className="flex items-center gap-1">
+                  <p className="text-xs text-muted-foreground">Completion Rate</p>
+                  {deltaBadge}
+                </div>
               </div>
+            </div>
+          </div>
+          <div className="flex gap-4 items-center pt-2">
+            <div className="flex items-center gap-1">
+              <span className="w-3 h-3 rounded-sm bg-blue-500"></span>
+              <span className="text-xs text-muted-foreground">Views</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="w-3 h-3 rounded-sm bg-green-500"></span>
+              <span className="text-xs text-muted-foreground">Completions</span>
             </div>
           </div>
         </div>
 
+
         <hr className="border-border" />
         {/* Apex chart */}
-        <CardContent className="p-0 overflow-hidden">
-          <div className="h-[145px]">
+        <CardContent className="p-0 overflow-hidden flex-1">
+          <div className="h-[175px] -mt-5">
             <Chart
               options={options}
               series={series}
               type="area"
-              height={150}
+              height="100%"
             />
           </div>
         </CardContent>
