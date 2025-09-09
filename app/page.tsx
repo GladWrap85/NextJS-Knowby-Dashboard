@@ -158,7 +158,7 @@ export default function Home() {
                   <span className="text-xs text-muted-foreground">Active Members</span>
                   <div className="flex items-baseline gap-2">
                     <span className="text-2xl font-semibold tabular-nums">125</span>
-                    <span className="flex items-center gap-1 text-xs text-green-500">
+                    <span className="flex items-center gap-1 text-xs text-green-600 bg-green-500/30 dark:text-green-500 dark:bg-emerald-950 p-0.5 rounded">
                       <ArrowUpRight className="h-3 w-3" />
                       5.0%
                     </span>
@@ -170,7 +170,7 @@ export default function Home() {
                   <span className="text-xs text-muted-foreground">Knowbys</span>
                   <div className="flex items-baseline gap-2">
                     <span className="text-2xl font-semibold tabular-nums">47</span>
-                    <span className="flex items-center gap-1 text-xs text-red-500">
+                    <span className="flex items-center gap-1 text-xs text-red-600 bg-rose-500/30 dark:text-red-500 dark:bg-rose-950 p-0.5 rounded">
                       <ArrowDownRight className="h-3 w-3" />
                       1.2%
                     </span>
@@ -182,7 +182,7 @@ export default function Home() {
                   <span className="text-xs text-muted-foreground">Views</span>
                   <div className="flex items-baseline gap-2">
                     <span className="text-2xl font-semibold tabular-nums">5,291</span>
-                    <span className="flex items-center gap-1 text-xs text-green-500">
+                    <span className="flex items-center gap-1 text-xs text-green-600 bg-green-500/30 dark:text-green-500 dark:bg-emerald-950 p-0.5 rounded">
                       <ArrowUpRight className="h-3 w-3" />
                       0.8%
                     </span>
@@ -194,7 +194,7 @@ export default function Home() {
                   <span className="text-xs text-muted-foreground">Completions</span>
                   <div className="flex items-baseline gap-2">
                     <span className="text-2xl font-semibold tabular-nums">127</span>
-                    <span className="flex items-center gap-1 text-xs text-green-500">
+                    <span className="flex items-center gap-1 text-xs text-green-600 bg-green-500/30 dark:text-green-500 dark:bg-emerald-950 p-0.5 rounded">
                       <ArrowUpRight className="h-3 w-3" />
                       2.4%
                     </span>
@@ -206,7 +206,7 @@ export default function Home() {
                   <span className="text-xs text-muted-foreground">Completion Rate</span>
                   <div className="flex items-baseline gap-2">
                     <span className="text-2xl font-semibold tabular-nums">10%</span>
-                    <span className="flex items-center gap-1 text-xs text-green-500">
+                    <span className="flex items-center gap-1 text-xs text-green-600 bg-green-500/30 dark:text-green-500 dark:bg-emerald-950 p-0.5 rounded">
                       <ArrowUpRight className="h-3 w-3" />
                       5.0%
                     </span>
@@ -216,7 +216,7 @@ export default function Home() {
               
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-[20px]">
                 {/* <TotalUsageCard /> */}
-                <div className="col-span-2">
+                <div className="col-span-1 md:col-span-1 lg:col-span-2">
                   <TodaysUsageCard selectedDateRange={dateRange} />
                 </div>
                 <TopKnowbyCard selectedDateRange={dateRange} />
