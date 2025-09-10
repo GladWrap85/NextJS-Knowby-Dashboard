@@ -339,7 +339,7 @@ export default function KnowbyStats() {
     >
       {/* DialogTrigger asChild lets us use the div for the tile as the clickable trigger for the popup*/}
       <DialogTrigger asChild>
-        <div className="relative bg-muted/50 p-6 rounded-lg cursor-pointer hover:bg-muted transition border shadow-md">
+        <div className="relative bg-muted/50 p-6 rounded-lg cursor-pointer hover:bg-muted  border shadow-md">
           {/* Number + optional chart in same row */}
           <div className="flex justify-between mb-2">
             <div className="text-3xl font-bold">{value}</div>

@@ -23,7 +23,7 @@ import {
   PopoverContent
 } from "@/components/ui/popover";
 import { DatePickerWithRange } from "@/components/DateRangePicker"; // your component
-import { ArrowDownRight, ArrowUpRight, Calendar as CalendarIcon } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, BookOpen, Calendar as CalendarIcon, CheckCheck, Eye, Percent, User } from "lucide-react";
 // --- NEW: pull raw data to compute all-time span
 import { useKnowbyData } from "@/lib/KnowbyDataProvider";
 import { parse } from "date-fns";
@@ -117,8 +117,8 @@ export default function Home() {
                     <button
                       type="button"
                       onClick={() => setPeriod("range")}
-                      className={`inline-flex items-center h-8 rounded-md px-3 text-sm border transition
-                        ${period === "range" ? "bg-background shadow-sm" : "bg-transparent hover:bg-muted"}
+                      className={`inline-flex items-center h-7 rounded-md px-3 text-sm transition
+                        ${period === "range" ? "bg-input/30 border border-input shadow-sm text-white" : "bg-transparent hover:bg-card"}
                       `}
                       title="Custom date range"
                     >
@@ -144,72 +144,99 @@ export default function Home() {
           </div>
 
           {/* Current range label */}
-          <div className="flex justify-end pt-2 pb-3 px-6 text-xs text-muted-foreground">
+          <div className="flex justify-end pt-2 pb-2 px-6 text-xs text-muted-foreground">
             {mounted ? label : "\u00A0" /* keep layout without showing mismatched text */}
           </div>
 
-          {/* CONTENT (one block that reacts to global dateRange) */}
+          {/* PAGE CONTENT (block that reacts to global dateRange) */}
           <div className="p-6 pt-0">
             <div className="grid gap-[20px]">
+
               {/* Top row of cards */}
-              <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+              <div className="grid grid-cols-2 lg:grid-cols-5 gap-6">
+
                 {/* Active Members */}
-                <Card className="flex flex-col justify-center p-4 py-0 bg-background border-none shadow-none gap-2">
-                  <span className="text-xs text-muted-foreground">Active Members</span>
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-2xl font-semibold tabular-nums">125</span>
-                    <span className="flex items-center gap-1 text-xs text-green-600 bg-green-500/30 dark:text-green-500 dark:bg-emerald-950 p-0.5 rounded">
-                      <ArrowUpRight className="h-3 w-3" />
-                      5.0%
-                    </span>
+                <Card className="flex flex-row items-center p-4 bg-card border-none shadow-none gap-3 bg-gradient-to-br from-blue-900/30 to-blue-500/10">
+                  <div className="flex items-center justify-center w-10 h-10 rounded-full bg-teal-600/20 text-teal-500">
+                    <User className="h-5 w-5" />
+                  </div>
+                  <div className="flex flex-col justify-center gap-2">
+                    <span className="text-xs text-muted-foreground">Active Members</span>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-2xl font-semibold tabular-nums">125</span>
+                      <span className="flex items-center gap-1 text-xs text-green-600 bg-green-500/30 dark:text-green-500 dark:bg-emerald-950 p-0.5 rounded">
+                        <ArrowUpRight className="h-3 w-3" />
+                        5.0%
+                      </span>
+                    </div>
                   </div>
                 </Card>
 
                 {/* Knowbys */}
-                <Card className="flex flex-col justify-center p-4 py-0 bg-background border-none shadow-none gap-2">
-                  <span className="text-xs text-muted-foreground">Knowbys</span>
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-2xl font-semibold tabular-nums">47</span>
-                    <span className="flex items-center gap-1 text-xs text-red-600 bg-rose-500/30 dark:text-red-500 dark:bg-rose-950 p-0.5 rounded">
-                      <ArrowDownRight className="h-3 w-3" />
-                      1.2%
-                    </span>
+                <Card className="flex flex-row items-center p-4 bg-card border-none shadow-none gap-3 bg-gradient-to-br from-blue-900/30 to-blue-500/10">
+                  <div className="flex items-center justify-center w-10 h-10 rounded-full bg-indigo-600/20 text-indigo-500">
+                    <BookOpen className="h-5 w-5" />
+                  </div>
+                  <div className="flex flex-col justify-center gap-2">
+                    <span className="text-xs text-muted-foreground">Knowbys</span>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-2xl font-semibold tabular-nums">47</span>
+                      <span className="flex items-center gap-1 text-xs text-red-600 bg-rose-500/30 dark:text-redd-500 dark:bg-rose-950 p-0.5 rounded">
+                        <ArrowUpRight className="h-3 w-3" />
+                        1.2%
+                      </span>
+                    </div>
                   </div>
                 </Card>
 
                 {/* Views */}
-                <Card className="flex flex-col justify-center p-4 py-0 bg-background border-none shadow-none gap-2">
-                  <span className="text-xs text-muted-foreground">Views</span>
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-2xl font-semibold tabular-nums">5,291</span>
-                    <span className="flex items-center gap-1 text-xs text-green-600 bg-green-500/30 dark:text-green-500 dark:bg-emerald-950 p-0.5 rounded">
-                      <ArrowUpRight className="h-3 w-3" />
-                      0.8%
-                    </span>
+                <Card className="flex flex-row items-center p-4 bg-card border-none shadow-none gap-3 bg-gradient-to-br from-blue-900/30 to-blue-500/10">
+                  <div className="flex items-center justify-center w-10 h-10 rounded-full bg-blue-600/20 text-blue-500">
+                    <Eye className="h-5 w-5" />
+                  </div>
+                  <div className="flex flex-col justify-center gap-2">
+                    <span className="text-xs text-muted-foreground">Views</span>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-2xl font-semibold tabular-nums">5,291</span>
+                      <span className="flex items-center gap-1 text-xs text-green-600 bg-green-500/30 dark:text-green-500 dark:bg-emerald-950 p-0.5 rounded">
+                        <ArrowUpRight className="h-3 w-3" />
+                        0.8%
+                      </span>
+                    </div>
                   </div>
                 </Card>
 
                 {/* Completions */}
-                <Card className="flex flex-col justify-center p-4 py-0 bg-background border-none shadow-none gap-2">
-                  <span className="text-xs text-muted-foreground">Completions</span>
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-2xl font-semibold tabular-nums">127</span>
-                    <span className="flex items-center gap-1 text-xs text-green-600 bg-green-500/30 dark:text-green-500 dark:bg-emerald-950 p-0.5 rounded">
-                      <ArrowUpRight className="h-3 w-3" />
-                      2.4%
-                    </span>
+                <Card className="flex flex-row items-center p-4 bg-card border-none shadow-none gap-3 bg-gradient-to-br from-blue-900/30 to-blue-500/10">
+                  <div className="flex items-center justify-center w-10 h-10 rounded-full bg-green-600/20 text-green-500">
+                    <CheckCheck className="h-5 w-5" />
+                  </div>
+                  <div className="flex flex-col justify-center gap-2">
+                    <span className="text-xs text-muted-foreground">Completions</span>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-2xl font-semibold tabular-nums">127</span>
+                      <span className="flex items-center gap-1 text-xs text-green-600 bg-green-500/30 dark:text-green-500 dark:bg-emerald-950 p-0.5 rounded">
+                        <ArrowUpRight className="h-3 w-3" />
+                        2.4%
+                      </span>
+                    </div>
                   </div>
                 </Card>
 
                 {/* Completion Rate */}
-                <Card className="flex flex-col justify-center p-4 py-0 bg-background border-none shadow-none gap-2">
-                  <span className="text-xs text-muted-foreground">Completion Rate</span>
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-2xl font-semibold tabular-nums">10%</span>
-                    <span className="flex items-center gap-1 text-xs text-green-600 bg-green-500/30 dark:text-green-500 dark:bg-emerald-950 p-0.5 rounded">
-                      <ArrowUpRight className="h-3 w-3" />
-                      5.0%
-                    </span>
+                <Card className="flex flex-row items-center p-4 bg-card border-none shadow-none gap-3 bg-gradient-to-br from-blue-900/30 to-blue-500/10">
+                  <div className="flex items-center justify-center w-10 h-10 rounded-full bg-purple-600/20 text-purple-500">
+                    <Percent className="h-5 w-5" />
+                  </div>
+                  <div className="flex flex-col justify-center gap-2">
+                    <span className="text-xs text-muted-foreground">Completion Rate</span>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-2xl font-semibold tabular-nums">10%</span>
+                      <span className="flex items-center gap-1 text-xs text-green-600 bg-green-500/30 dark:text-green-500 dark:bg-emerald-950 p-0.5 rounded">
+                        <ArrowUpRight className="h-3 w-3" />
+                        5.0%
+                      </span>
+                    </div>
                   </div>
                 </Card>
               </div>
