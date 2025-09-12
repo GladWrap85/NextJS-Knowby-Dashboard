@@ -290,7 +290,7 @@ export default function TodaysUsageCard({ selectedDateRange }: TodaysUsageCardPr
       const curRate = totalV > 0 ? parseFloat(((totalC / totalV) * 100).toFixed(2)) : null;
       setSevenDayCompletionRate(curRate);
 
-      // --- NEW: compute previous-period totals & delta ---
+      // --- compute previous-period totals & delta ---
       const prevFrom = new Date(previousRange.from.setHours(0, 0, 0, 0));
       const prevTo = new Date(previousRange.to.setHours(23, 59, 59, 999));
 
@@ -416,7 +416,7 @@ export default function TodaysUsageCard({ selectedDateRange }: TodaysUsageCardPr
           "text-xs font-medium inline-flex items-center gap-1 " +
           (deltaRate > 0 ? "text-green-600" : deltaRate < 0 ? "text-red-600" : "text-muted-foreground")
         }
-        title={`Prev rate: ${prevRate ?? "--"}%`}
+        title={`Prev rate: ${prevRate ?? "--"}%\nDifference: ${deltaRate > 0 ? "+" : ""}${deltaRate}%`}
       >
         {deltaRate > 0 ? "▲" : deltaRate < 0 ? "▼" : "•"} {Math.abs(deltaRate).toFixed(2)}% <span className="text-muted-foreground">vs {compareLabel}</span>
       </span>
@@ -424,7 +424,7 @@ export default function TodaysUsageCard({ selectedDateRange }: TodaysUsageCardPr
 
   return (
     <TooltipProvider>
-      <Card className="flex flex-col p-6 rounded-xl h-fit gap-3 border-none shadow-none w-full bg-gradient-to-br from-blue-900/30 to-blue-500/10">
+      <Card className="flex flex-col p-6 rounded-xl h-fit gap-3 dark:border-none shadow-none w-full bg-card dark:bg-gradient-to-br dark:from-blue-900/30 dark:to-blue-500/10 min-h-[365px]">
         {/* Card header */}
         <div className="flex items-start justify-between">
           {/* LEFT SIDE */}
