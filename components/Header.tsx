@@ -66,7 +66,7 @@ export default function Header() {
   };
 
   return (
-    <div className="grid grid-cols-2 gap-4 p-2 border-b">
+    <div className="grid grid-cols-2 gap-4 p-2 border-b bg-sidebar shadow-gray-300/20 dark:shadow-gray-800/20 shadow-xl">
       <div className="flex items-center">
         <Button className="relative w-8 h-8 hover:!bg-accent dark:!bg-secondary dark:!text-secondary-foreground dark:hover:!bg-secondary/80 dark:border-transparent" onClick={toggle} variant={"outline"} size="icon">
           {expanded ? <ChevronFirst /> : <ChevronLast />}

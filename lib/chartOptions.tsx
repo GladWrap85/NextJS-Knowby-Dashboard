@@ -54,7 +54,7 @@ export const topChartOptions = (isDark: boolean): ApexOptions => ({
 
 export const sparklineChartOptions: ApexOptions = {
     chart: { type: "area", sparkline: { enabled: true } },
-    stroke: { curve: "smooth", width: 2 },
+    stroke: { curve: "smooth", width: 1.5 },
     fill: {
       type: "gradient",
       gradient: { shadeIntensity: 1, opacityFrom: 1, opacityTo: 0, stops: [0, 100] },

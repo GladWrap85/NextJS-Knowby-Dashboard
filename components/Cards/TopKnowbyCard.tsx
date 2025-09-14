@@ -11,7 +11,7 @@ import {
 } from "date-fns";
 import { DateRange } from "react-day-picker";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
-import { Eye, CheckCircle, TrendingUp } from "lucide-react";
+import { Eye, CheckCircle, TrendingUp, BookOpen } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
@@ -148,11 +148,11 @@ export default function TopKnowbyCard({ selectedDateRange }: TopKnowbyCardProps)
 
   return (
     <TooltipProvider>
-      <Card className="flex flex-col p-6 rounded-xl h-fit gap-3 dark:border-none shadow-none bg-card dark:bg-gradient-to-br dark:from-blue-900/30 dark:to-blue-500/10 min-h-[365px]">
+      <Card className="flex flex-col p-6 rounded-3xl h-fit gap-3 border-none shadow-xl/2 bg-card dark:bg-gradient-to-br dark:from-blue-900/30 dark:to-blue-500/10 min-h-[365px]">
         {/* Header */}
         <div className="flex items-start gap-4">
-          <div className="shrink-0 flex items-center justify-center w-16 h-16 rounded-lg text-white bg-gradient-to-b from-blue-500 to-blue-700">
-            <TrendingUp className="h-8 w-8" />
+          <div className="shrink-0 flex items-center justify-center w-16 h-16 rounded-full text-white bg-gradient-to-b from-indigo-500 to-indigo-700">
+            <BookOpen className="h-8 w-8" />
           </div>
           <div className="flex flex-col gap-2 w-full min-w-0">
             <div className="flex items-start">

@@ -7,7 +7,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { useDarkMode } from "@/components/NivoWrapper";
-import { Eye, CheckCircle, TrendingUp } from "lucide-react";
+import { Eye, CheckCircle, TrendingUp, Activity } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
@@ -67,6 +67,9 @@ export default function TodaysUsageCard({ selectedDateRange }: TodaysUsageCardPr
   const isDark = useDarkMode();
   // Default to today if no date range is selected
   const [today] = useState(() => new Date());
+
+  const [showCompare, setShowCompare] = useState(false);
+  const [prevDailyData, setPrevDailyData] = useState<DailyRow[]>([]);
 
   // Calculate the start and end dates
   const endDate = selectedDateRange?.to ?? today;
@@ -294,6 +297,100 @@ export default function TodaysUsageCard({ selectedDateRange }: TodaysUsageCardPr
       const prevFrom = new Date(previousRange.from.setHours(0, 0, 0, 0));
       const prevTo = new Date(previousRange.to.setHours(23, 59, 59, 999));
 
+      // --- build previous-period rows, then align them to current x-axis ---
+      const prevDateCounts: Record<string, { completions: number; views: number }> = {};
+      // generate prev labels using the same bucketing rules, so arrays are the same length
+      const prevLabels: string[] = (() => {
+        if (bucketMode === "daily") {
+          return eachDayOfInterval({
+            start: new Date(prevFrom),
+            end: new Date(prevTo),
+          }).map(d => format(d, "dd/MM/yyyy"));
+        } else if (bucketMode === "monthly") {
+          const startM = startOfMonth(prevFrom);
+          const endM = endOfMonth(prevTo);
+          const labels: string[] = [];
+          let cur = startOfMonth(startM);
+          while (cur <= endM) {
+            labels.push(format(cur, "MMM yyyy"));
+            cur = addMonths(cur, 1);
+          }
+          return labels;
+        } else {
+          const startY = startOfYear(prevFrom);
+          const endY = endOfYear(prevTo);
+          const labels: string[] = [];
+          let cur = startOfYear(startY);
+          while (cur <= endY) {
+            labels.push(format(cur, "yyyy"));
+            cur = addYears(cur, 1);
+          }
+          return labels;
+        }
+      })();
+
+      // zero-fill counts for previous labels
+      for (const label of prevLabels) prevDateCounts[label] = { completions: 0, views: 0 };
+
+      // helper for prev bucketing
+      const prevKeyFor = (d: Date) => {
+        if (bucketMode === "daily") return format(d, "dd/MM/yyyy");
+        if (bucketMode === "monthly") return format(d, "MMM yyyy");
+        return format(d, "yyyy");
+      };
+
+      // aggregate completions into previous period buckets
+      for (const row of completions) {
+        const ds = row?.date as string | undefined;
+        if (!ds) continue;
+        const d = parse(ds, "dd/MM/yyyy", new Date());
+        if (!isWithinInterval(d, { start: prevFrom, end: prevTo })) continue;
+        const key = prevKeyFor(d);
+        if (prevDateCounts[key]) prevDateCounts[key].completions += 1;
+      }
+
+      // aggregate views into previous period buckets
+      for (const row of views) {
+        const ds = row?.date as string | undefined;
+        if (!ds) continue;
+        const d = parse(ds, "dd/MM/yyyy", new Date());
+        if (!isWithinInterval(d, { start: prevFrom, end: prevTo })) continue;
+        const key = prevKeyFor(d);
+        if (prevDateCounts[key]) prevDateCounts[key].views += 1;
+      }
+
+      // build previous rows (native timestamps of that period)
+      const prevRowsNative: DailyRow[] = prevLabels.map((label) => {
+        let ts: number;
+        if (bucketMode === "daily") {
+          ts = parse(label, "dd/MM/yyyy", new Date()).getTime();
+        } else if (bucketMode === "monthly") {
+          ts = parse(`01 ${label}`, "dd MMM yyyy", new Date()).getTime();
+        } else {
+          ts = parse(`01 Jan ${label}`, "dd MMM yyyy", new Date()).getTime();
+        }
+        return {
+          date: bucketMode === "daily" ? format(new Date(ts), "EEE") : label,
+          ts,
+          Completions: prevDateCounts[label]?.completions ?? 0,
+          Views: prevDateCounts[label]?.views ?? 0,
+        };
+      });
+
+      // align previous rows to the *current* x-axis so the two lines overlap by position
+      const prevRowsAligned: DailyRow[] = rows.map((curRow, i) => {
+        const src = prevRowsNative[i];
+        return {
+          date: curRow.date,     // display label aligned to current bucket
+          ts: curRow.ts,         // <--- critical: use current ts for overlay
+          Completions: src ? src.Completions : 0,
+          Views: src ? src.Views : 0,
+        };
+      });
+
+      setPrevDailyData(prevRowsAligned);
+
+
       let pC = 0, pV = 0;
       for (const row of completions) {
         const ds = row?.date as string | undefined; if (!ds) continue;
@@ -307,6 +404,7 @@ export default function TodaysUsageCard({ selectedDateRange }: TodaysUsageCardPr
       }
       const pRate = pV > 0 ? parseFloat(((pC / pV) * 100).toFixed(2)) : null;
 
+      
       setPrevRate(pRate);
       setCompareLabel(previousRange.label);
       setDeltaRate(curRate != null && pRate != null ? parseFloat((curRate - pRate).toFixed(2)) : null);
@@ -336,13 +434,21 @@ export default function TodaysUsageCard({ selectedDateRange }: TodaysUsageCardPr
   // ----------- DATA PREPARATION -----------
 
   // Prepare the series data for the chart
-  const series = useMemo(
-    () => [
+  const series = useMemo(() => {
+    const base = [
       { name: "Views", data: dailyData.map((r) => [r.ts, r.Views]) as [number, number][] },
       { name: "Completions", data: dailyData.map((r) => [r.ts, r.Completions]) as [number, number][] },
-    ],
-    [dailyData]
-  );
+    ];
+
+    if (showCompare && prevDailyData.length) {
+      base.push(
+        { name: `Views (${compareLabel})`, data: prevDailyData.map((r) => [r.ts, r.Views]) as [number, number][] },
+        { name: `Completions (${compareLabel})`, data: prevDailyData.map((r) => [r.ts, r.Completions]) as [number, number][] },
+      );
+    }
+
+    return base;
+  }, [dailyData, prevDailyData, showCompare, compareLabel]);
 
   // Calculate the total completions and views for footer
   const totalCompletions = dailyData.reduce((sum, d) => sum + d.Completions, 0);
@@ -424,13 +530,13 @@ export default function TodaysUsageCard({ selectedDateRange }: TodaysUsageCardPr
 
   return (
     <TooltipProvider>
-      <Card className="flex flex-col p-6 rounded-xl h-fit gap-3 dark:border-none shadow-none w-full bg-card dark:bg-gradient-to-br dark:from-blue-900/30 dark:to-blue-500/10 min-h-[365px]">
+      <Card className="flex flex-col p-6 rounded-3xl h-fit gap-3 border-none shadow-xl/2 w-full bg-card dark:bg-gradient-to-br dark:from-blue-900/30 dark:to-blue-500/10 min-h-[365px]">
         {/* Card header */}
         <div className="flex items-start justify-between">
           {/* LEFT SIDE */}
           <div className="flex items-start gap-4">
-            <div className="shrink-0 flex items-center justify-center w-16 h-16 rounded-lg text-white bg-gradient-to-b from-purple-500 to-purple-700">
-              <TrendingUp className="h-8 w-8" />
+            <div className="shrink-0 flex items-center justify-center w-16 h-16 rounded-full text-white bg-gradient-to-b from-rose-400 to-rose-700">
+              <Activity className="h-8 w-8" />
             </div>
 
             <div className="flex flex-col gap-0 w-full min-w-0">
@@ -455,16 +561,28 @@ export default function TodaysUsageCard({ selectedDateRange }: TodaysUsageCardPr
               </div>
             </div>
           </div>
-          <div className="flex gap-4 items-center pt-2">
-            <div className="flex items-center gap-1">
-              <span className="w-3 h-3 rounded-sm bg-blue-500"></span>
-              <span className="text-xs text-muted-foreground">Views</span>
+          <div className="flex flex-col items-end gap-2 pt-2">
+            <div className="flex gap-4 items-center">
+              <div className="flex items-center gap-1">
+                <span className="w-3 h-3 rounded-sm bg-blue-500"></span>
+                <span className="text-xs text-muted-foreground">Views</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="w-3 h-3 rounded-sm bg-green-500"></span>
+                <span className="text-xs text-muted-foreground">Completions</span>
+              </div>
             </div>
-            <div className="flex items-center gap-1">
-              <span className="w-3 h-3 rounded-sm bg-green-500"></span>
-              <span className="text-xs text-muted-foreground">Completions</span>
-            </div>
+
+            <button
+              type="button"
+              onClick={() => setShowCompare(v => !v)}
+              className="text-xs px-2 py-1 rounded-md border hover:bg-muted transition-colors"
+              title={`Toggle comparison with ${compareLabel}`}
+            >
+              {showCompare ? "Hide Compare" : `Compare ${compareLabel}`}
+            </button>
           </div>
+
         </div>
 
 
