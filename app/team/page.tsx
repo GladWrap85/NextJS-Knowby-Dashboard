@@ -36,15 +36,6 @@ export default function Home() {
 
       {/* Knowby Stats + ModularGraphCard */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-[20px]">
-        <Card>
-          <CardHeader>
-            <CardTitle>Knowby Stats</CardTitle>
-            <CardDescription>Overview of Knowby activity and usage</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <KnowbyStats />
-          </CardContent>
-        </Card>
 
       </div>
 
