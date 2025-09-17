@@ -588,8 +588,8 @@ export default function TodaysUsageCard({ selectedDateRange }: TodaysUsageCardPr
 
         <hr className="border-border" />
         {/* Apex chart */}
-        <CardContent className="p-0 overflow-hidden flex-1">
-          <div className="h-[175px] -mt-5">
+        <CardContent className="p-0 flex-1">
+          <div className="h-[205px] -mt-5">
             <Chart
               options={options}
               series={series}
@@ -600,12 +600,11 @@ export default function TodaysUsageCard({ selectedDateRange }: TodaysUsageCardPr
         </CardContent>
 
         <div className="pl-6 pr-6">
-          <div className="flex justify-center">
-            {/* ---- NEW: dynamic subtitle based on bucket/period ---- */}
+          {/* <div className="flex justify-center">
             <p className="text-xs font-semibold">{subtitleText}</p>
-          </div>
+          </div> */}
           {/* Footer with tooltips for views and completions */}
-          <CardFooter className="flex items-center justify-between text-muted-foreground text-sm px-0 pt-2">
+          <CardFooter className="flex items-center justify-center gap-56 text-muted-foreground text-sm px-0 pt-2">
             <Tooltip>
               <TooltipTrigger asChild>
                 <div className="flex items-center gap-1.5">

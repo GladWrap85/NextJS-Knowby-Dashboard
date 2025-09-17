@@ -186,11 +186,11 @@ export default function TopKnowbyCard({ selectedDateRange }: TopKnowbyCardProps)
                   rows.map((r, idx) => (
                     <tr
                       key={r.knowby + idx}
-                      className={idx % 2 ? "bg-muted/30" : "bg-transparent"}
+                      className={idx % 2 ? "bg-muted/30 dark:bg-card/50" : "bg-transparent"}
                     >
                       <td className="py-2 pl-6 pt-0 pb-0">
                         <div className="flex items-center gap-2">
-                          <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-muted text-xs font-semibold">
+                          <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-muted dark:bg-card text-xs font-semibold">
                             {idx + 1}
                           </span>
                           <span className="inline-block truncate max-w-[24ch]" title={r.knowby}>

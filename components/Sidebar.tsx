@@ -415,6 +415,9 @@ export default function Sidebar() {
             </CommandList>
           </Command>
         </div>
+        <div className="flex justify-center mt-auto mb-2">
+          <span className="text-xs text-muted-foreground opacity-70">v0.9.5</span>
+        </div>
       </aside>
 
       {/* Global dialog */}

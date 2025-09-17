@@ -8,7 +8,7 @@ export const topChartOptions = (isDark: boolean): ApexOptions => ({
     zoom: { enabled: false }
   },
   dataLabels: { enabled: false },
-  stroke: { curve: "smooth", width: 2 },
+  stroke: { curve: "smooth", width: 1.5 },
   markers: { size: 0 },
   xaxis: {
     type: "datetime",
@@ -35,7 +35,8 @@ export const topChartOptions = (isDark: boolean): ApexOptions => ({
   },
   grid: {
     strokeDashArray: 2,
-    borderColor: isDark ? "#444" : "#aaa",
+    borderColor: isDark ? "#454d61" : "#d6d6d6",
+    
   },
   fill: {
     type: "gradient",

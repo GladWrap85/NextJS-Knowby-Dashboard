@@ -1,6 +1,5 @@
 'use client';
 
-import TotalUsageCard from "@/components/Cards/TotalUsageCard";
 import TodaysUsageCard from "@/components/Cards/TodaysUsageCard";
 import TopKnowbyCard from "@/components/Cards/TopKnowbyCard";
 import ModularGraphCard from "@/components/Cards/InsightsCard";
@@ -22,14 +21,13 @@ import {
   PopoverTrigger,
   PopoverContent
 } from "@/components/ui/popover";
-import { DatePickerWithRange } from "@/components/DateRangePicker"; // your component
-import { ArrowDownRight, ArrowUpRight, BookOpen, Calendar as CalendarIcon, CheckCheck, Eye, Percent, User } from "lucide-react";
-// --- NEW: pull raw data to compute all-time span
+import { DatePickerWithRange } from "@/components/DateRangePicker";
+import { Calendar as CalendarIcon, LayoutDashboard, User } from "lucide-react";
 import { useKnowbyData } from "@/lib/KnowbyDataProvider";
 import { parse } from "date-fns";
 import TopMetricsRow from "@/components/Cards/TopMetricsRow";
 
-type Period = "daily" | "weekly" | "monthly" | "yearly" | "all-time" | "range"; // --- NEW: add "all-time"
+type Period = "daily" | "weekly" | "monthly" | "yearly" | "all-time" | "range";
 
 export default function Home() {
   const { dateRange, setDateRange } = useDateRange();
@@ -103,14 +101,14 @@ export default function Home() {
       <div className="relative">
         <div className="relative mt-10 rounded-xl border bg-background shadow-md">
           {/* curved “cradle” around the tabs */}
-          <div className="absolute -top-11.5 right-3">
-            <div className="rounded-t-2xl border border-b-0 bg-background p-1">
+          <div className="absolute -top-9.5 right-3">
+            <div className="rounded-t-2xl border border-b-0 bg-background p-0">
               <TabsList className="bg-transparent rounded-t-2xl px-2 py-1 flex gap-1">
                 {/* <TabsTrigger value="daily" className="cursor-pointer data-[state=active]:bg-input hover:bg-card">Daily</TabsTrigger> */}
-                <TabsTrigger value="weekly" className="cursor-pointer data-[state=active]:bg-input hover:bg-card">Weekly</TabsTrigger>
-                <TabsTrigger value="monthly" className="cursor-pointer data-[state=active]:bg-input hover:bg-card">Monthly</TabsTrigger>
-                <TabsTrigger value="yearly" className="cursor-pointer data-[state=active]:bg-input hover:bg-card">Yearly</TabsTrigger>
-                <TabsTrigger value="all-time" className="cursor-pointer data-[state=active]:bg-input hover:bg-card">All Time</TabsTrigger>
+                <TabsTrigger value="weekly" className="cursor-pointer data-[state=active]:bg-input data-[state=active]:border data-[state=active]:border-gray-300 hover:bg-card">Weekly</TabsTrigger>
+                <TabsTrigger value="monthly" className="cursor-pointer data-[state=active]:bg-input data-[state=active]:border data-[state=active]:border-gray-300 hover:bg-card">Monthly</TabsTrigger>
+                <TabsTrigger value="yearly" className="cursor-pointer data-[state=active]:bg-input data-[state=active]:border data-[state=active]:border-gray-300 hover:bg-card">Yearly</TabsTrigger>
+                <TabsTrigger value="all-time" className="cursor-pointer data-[state=active]:bg-input data-[state=active]:border data-[state=active]:border-gray-300 hover:bg-card">All Time</TabsTrigger>
 
                 {/* Range picker inside tabs */}
                 <Popover open={rangeOpen} onOpenChange={setRangeOpen}>
