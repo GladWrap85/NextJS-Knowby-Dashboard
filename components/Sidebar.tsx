@@ -20,8 +20,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Loader2, CheckCircle, AlertCircle, ExternalLink } from 'lucide-react'
 
@@ -72,10 +73,14 @@ export default function Sidebar() {
   const [isLoading, setIsLoading] = useState(false)
   const [accountStatus, setAccountStatus] = useState<'idle' | 'success' | 'error'>('idle')
   const [accountMessage, setAccountMessage] = useState('')
+  const abortControllerRef = useRef<AbortController | null>(null)
 
   // --- Scraper functionality state ---
   const [scraperLoading, setScraperLoading] = useState(false)
   const [scraperSuccess, setScraperSuccess] = useState(false)
+
+  // --- Refresh error state ---
+  const [refreshError, setRefreshError] = useState<string | null>(null)
 
   // Handle the header extraction process
   const handleExtractHeaders = async () => {
@@ -83,10 +88,15 @@ export default function Sidebar() {
     setAccountStatus('idle')
     setAccountMessage('')
 
+    // AbortController for this request
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
+
     try {
       // Call the API to extract headers
       const response = await fetch('/api/extract-headers', {
         method: 'POST',
+        signal: abortController.signal,
       })
 
       const data = await response.json()
@@ -98,11 +108,17 @@ export default function Sidebar() {
         setAccountStatus('error')
         setAccountMessage(data.error || 'Failed to extract headers')
       }
-    } catch (error) {
-      setAccountStatus('error')
-      setAccountMessage('An error occurred while extracting headers')
+    } catch (error: any) {
+      if (error.name === 'AbortError') {
+        setAccountStatus('idle');
+        setAccountMessage('Header extraction was cancelled.');
+      } else {
+        setAccountStatus('error')
+        setAccountMessage('An error occurred while extracting headers')
+      }
     } finally {
       setIsLoading(false)
+      abortControllerRef.current = null;
     }
   }
 
@@ -120,22 +136,21 @@ export default function Sidebar() {
       const data = await response.json()
 
       if (response.ok) {
-        // Show success state briefly
-        setScraperSuccess(true)
-        // Refresh the data after successful scraping
-        reload()
-        
-        // Reset success state after 2 seconds
-        setTimeout(() => {
-          setScraperSuccess(false)
-        }, 2000)
+            setScraperSuccess(true)
+            toast.success('Scraper ran successfully!')
+            // Refresh the data after successful scraping
+            reload()
+            // Reset success state after 2 seconds
+            setTimeout(() => {
+              setScraperSuccess(false)
+            }, 2000)
       } else {
-        console.error('Scraper failed:', data.message)
-        // Could add toast notification here
+        console.warn('Scraper failed:', data.message)
+        toast.error(data.message || 'Failed to refresh data. Please Update Headers.')
       }
-    } catch (error) {
-      console.error('An error occurred while running the scraper:', error)
-      // Could add toast notification here
+    } catch (error: any) {
+      console.warn('An error occurred while running the scraper:', error)
+      toast.error(error?.message || 'An unexpected error occurred during refresh.')
     } finally {
       setScraperLoading(false)
     }
@@ -419,10 +434,8 @@ export default function Sidebar() {
       <Dialog
         open={open}
         onOpenChange={(v) => {
-          // closing without clicking save discards staged changes (we re-init on next open)
           setOpen(v)
           if (!v) {
-            // Optional: reset staged state immediately on close for cleanliness
             setPendingSource(source)
           }
         }}
@@ -438,14 +451,20 @@ export default function Sidebar() {
               <div className="mt-2">{active.body}</div>
 
               <DialogFooter className="flex gap-2">
-                <Button variant="ghost" onClick={() => setOpen(false)}>
-                  Close
-                </Button>
                 <Button
-                  onClick={() => {
-                    active.onOk?.()
-                    if (activeKey === 'Refresh') return
-                  }}
+                   onClick={() => {
+                     active.onOk?.()
+                     if (activeKey === 'Account') {
+                       // Cancel extract headers if running
+                       if (abortControllerRef.current) {
+                         abortControllerRef.current.abort();
+                       }
+                       setAccountStatus('idle');
+                       setAccountMessage('');
+                       setIsLoading(false);
+                     }
+                     if (activeKey === 'Refresh') return
+                   }}
                   disabled={
                     (activeKey === 'Refresh' && (status === 'loading' || status === 'refreshing')) ||
                     (activeKey === 'Settings' && !hasUnsaved)

@@ -53,19 +53,25 @@ export async function POST(request: NextRequest) {
     console.log('Navigating to Knowby...')
     await page.goto('https://knowby.pro/', { 
       waitUntil: 'networkidle0',
-      timeout: 30000 
+      timeout: 30000
     })
+    console.log('Chromium launched')
+    console.log('New page created')
     
     // Wait for page to load
     await new Promise(resolve => setTimeout(resolve, 2000))
     
     // Wait for user to log in and capture headers
     console.log('Waiting for authentication...')
-    const maxWaitTime = 5 * 60 * 1000 // 5 minutes
+  const maxWaitTime = 5 * 60 * 1000 // 5 minutes
     const startTime = Date.now()
     
     while (!gotHeaders && (Date.now() - startTime) < maxWaitTime) {
       await new Promise(resolve => setTimeout(resolve, 1000))
+        const waited = Date.now() - startTime;
+        if (waited > 3 * 60 * 1000 && waited < 3 * 60 * 1000 + 1000) {
+          console.log('Still waiting for authentication... (over 3 minutes)');
+        }
     }
     
     // Process captured headers and save to files
@@ -73,6 +79,7 @@ export async function POST(request: NextRequest) {
       
       // Save headers to keys.py for web scraper compatibility
       const keysPath = path.join(process.cwd(), 'python-scripts', 'keys.py')
+      console.log('Authentication wait finished, gotHeaders:', gotHeaders)
       const keysContent = 
       `AUTHORIZATION = "${extractedHeaders.AUTHORIZATION}"
 X_MEMBER_ID = "${extractedHeaders.X_MEMBER_ID}"

@@ -3,6 +3,7 @@ import pandas as pd
 from datetime import datetime
 import os
 import sys
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # Scraper.py - Pulls data from Knowby API and saves to CSV files for dashboard usage.
 
@@ -58,28 +59,44 @@ def main():
         base_completion_url = "https://knowby-pro-backend-prod-qt5p6426oq-ts.a.run.app/api/knowbycompletion/latest/"
         params = "?skip=0&take=25"  # Get up to 25 records per knowby
 
-        # Loop through each knowby to fetch its views and completions
-        for _, row in df_published_clean.iterrows():
+        # Helper functions for parallel requests
+        def fetch_views(row):
             instruction_id = row["id"]
             title = row["title"]
-            
-            # Fetch the latest views data for this knowby
             url_views = f"{base_view_url}{instruction_id}{params}"
             res_views = requests.get(url_views, headers=headers)
+            result = []
             if res_views.status_code == 200:
                 views_data = res_views.json().get("collection", [])
                 for view in views_data:
-                    view["instruction"] = title  # Add knowby title for context
-                    all_views.append(view)
-            
-            # Fetch completions data for this knowby
+                    view["instruction"] = title
+                    result.append(view)
+            return result
+
+        def fetch_completions(row):
+            instruction_id = row["id"]
+            title = row["title"]
             url_completions = f"{base_completion_url}{instruction_id}{params}"
             res_completions = requests.get(url_completions, headers=headers)
+            result = []
             if res_completions.status_code == 200:
                 completions_data = res_completions.json().get("collection", [])
                 for completion in completions_data:
-                    completion["instruction"] = title  # Add the knowby title for context
-                    all_completions.append(completion)
+                    completion["instruction"] = title
+                    result.append(completion)
+            return result
+
+        # Using ThreadPoolExecutor to fetch all views and completions in parallel
+        with ThreadPoolExecutor(max_workers=10) as executor:
+            # Submit all view requests
+            view_futures = [executor.submit(fetch_views, row) for _, row in df_published_clean.iterrows()]
+            for future in as_completed(view_futures):
+                all_views.extend(future.result())
+
+            # Submit all completion requests
+            completion_futures = [executor.submit(fetch_completions, row) for _, row in df_published_clean.iterrows()]
+            for future in as_completed(completion_futures):
+                all_completions.extend(future.result())
 
         # Helper function to convert Unix timestamps to dates (DD/MM/YYYY format)
         def convert_timestamp_to_date(timestamp):
