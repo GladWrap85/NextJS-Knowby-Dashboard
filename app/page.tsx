@@ -163,7 +163,7 @@ export default function Home() {
               </div>
               {/* Knowby Stats + Heatmap */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-[20px]">
-                <Card className="max-h-[280px] rounded-3xl shadow-none border-none shadow-xl/2">
+                <Card className="max-h-[280px] rounded-3xl shadow-none border-0 dark:border dark:border-slate-700 shadow-xl/2">
                   <CardHeader>
                     <CardTitle>Knowby Stats</CardTitle>
                     <CardDescription>Overview of Knowby activity and usage</CardDescription>
@@ -173,7 +173,7 @@ export default function Home() {
                   </CardContent>
                 </Card>
 
-                <Card className="bg-card text-card-foreground flex flex-col rounded-3xl border-none shadow-xl/2">
+                <Card className="bg-card text-card-foreground flex flex-col rounded-3xl border-0 dark:border dark:border-slate-700 shadow-xl/2">
                   <CardHeader>
                     <CardTitle>Calendar Heatmap</CardTitle>
                   </CardHeader>
