@@ -213,7 +213,11 @@ export default function TopMetricsRow({ selectedDateRange }: Props) {
           <span className="text-xs text-muted-foreground">Active Members</span>
           <div className="flex items-baseline gap-2">
             <span className="text-2xl font-semibold tabular-nums dark:text-white">
-              {isLoading ? "—" : activeMembers.toLocaleString()}
+              {isLoading ? (
+                <div className="h-6 w-12 bg-muted rounded animate-pulse" />
+              ) : (
+                activeMembers.toLocaleString()
+              )}
             </span>
             <DeltaBadge delta={deltaMembers} />
           </div>
@@ -229,7 +233,11 @@ export default function TopMetricsRow({ selectedDateRange }: Props) {
           <span className="text-xs text-muted-foreground">Knowbys</span>
           <div className="flex items-baseline gap-2">
             <span className="text-2xl font-semibold tabular-nums dark:text-white">
-              {isLoading ? "—" : knowbys.toLocaleString()}
+              {isLoading ? (
+                <div className="h-6 w-12 bg-muted rounded animate-pulse" />
+              ) : (
+                knowbys.toLocaleString()
+              )}
             </span>
             <DeltaBadge delta={deltaKnowbys} />
           </div>
@@ -245,7 +253,11 @@ export default function TopMetricsRow({ selectedDateRange }: Props) {
           <span className="text-xs text-muted-foreground">Views</span>
           <div className="flex items-baseline gap-2">
             <span className="text-2xl font-semibold tabular-nums dark:text-white">
-              {isLoading ? "—" : vCount.toLocaleString()}
+              {isLoading ? (
+                <div className="h-6 w-12 bg-muted rounded animate-pulse" />
+              ) : (
+                vCount.toLocaleString()
+              )}
             </span>
             <DeltaBadge delta={deltaViews} />
           </div>
@@ -261,7 +273,11 @@ export default function TopMetricsRow({ selectedDateRange }: Props) {
           <span className="text-xs text-muted-foreground">Completions</span>
           <div className="flex items-baseline gap-2">
             <span className="text-2xl font-semibold tabular-nums dark:text-white">
-              {isLoading ? "—" : cCount.toLocaleString()}
+              {isLoading ? (
+                <div className="h-6 w-12 bg-muted rounded animate-pulse" />
+              ) : (
+                cCount.toLocaleString()
+              )}
             </span>
             <DeltaBadge delta={deltaCompletions} />
           </div>
@@ -277,7 +293,11 @@ export default function TopMetricsRow({ selectedDateRange }: Props) {
           <span className="text-xs text-muted-foreground">Completion Rate</span>
           <div className="flex items-baseline gap-2">
             <span className="text-2xl font-semibold tabular-nums dark:text-white">
-              {isLoading ? "—" : pct((compRate || 0))}
+              {isLoading ? (
+                <div className="h-6 w-12 bg-muted rounded animate-pulse" />
+              ) : (
+                pct((compRate || 0))
+              )}
             </span>
             <DeltaBadge delta={deltaRate ?? null} isRate />
           </div>
