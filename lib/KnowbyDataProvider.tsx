@@ -12,36 +12,84 @@ import {
 } from "react";
 import Papa from "papaparse";
 
+/** Data source selector */
 export type DataSource = "sample" | "real";
-type CsvRow = Record<string, any>;
 type Status = "loading" | "ready" | "refreshing" | "error";
 
+/** ---- Row types mapped to your CSV shapes ----
+ * Keep optional fields optional to match real-world CSV variance.
+ * Dates stay as strings (dd/MM/yyyy) to match your existing code.
+ */
+export interface CompletionData {
+  organisation_name?: string;
+  knowby_id: string;
+  knowby_name?: string;
+  member_id?: string;
+  member_name?: string;
+  date: string; // dd/MM/yyyy
+}
+
+export interface ViewData {
+  organisation_name?: string;
+  knowby_id?: string;
+  knowby_name?: string;
+  member_id?: string;
+  member_name?: string;
+  date: string; // dd/MM/yyyy
+  // If your views.csv has other columns (e.g. event_type), add them here as optional
+}
+
+/** Endpoints for each mode (unchanged) */
 export const ENDPOINTS: Record<DataSource, { completions: string; views: string }> = {
   sample: { completions: "/completions.csv", views: "/views.csv" },
   real: { completions: "/scrapercompletions.csv", views: "/scraperviews.csv" },
 };
 
+/** Context shape now exposes strongly-typed arrays */
 type KnowbyCtx = {
-  // current mode
   source: DataSource;
-  // smooth switch (keeps cached data visible, refreshes in bg)
   switchSource: (next: DataSource) => void;
-  // manual refresh of current source
   reload: () => void;
-
-  // parsed arrays (shared by all cards)
-  completions: CsvRow[];
-  views: CsvRow[];
-
-  // status & errors
+  completions: CompletionData[];
+  views: ViewData[];
   status: Status;
   error: unknown;
   lastUpdated: number | null;
 };
 
-type CacheEntry = { c: CsvRow[]; v: CsvRow[]; t: number };
-
+type CacheEntry = { c: CompletionData[]; v: ViewData[]; t: number };
 const Ctx = createContext<KnowbyCtx | null>(null);
+
+/** ---- Lightweight row "normalisers" (for safety) ----
+ * These ensure we at least have strings for keys we care about.
+ * They also coerce undefined to '' where it helps consistency.
+ */
+function asCompletionRow(row: any): CompletionData | null {
+  const knowby_id = String(row?.knowby_id ?? "").trim();
+  const date = String(row?.date ?? "").trim();
+  if (!knowby_id || !date) return null;
+  return {
+    organisation_name: row?.organisation_name ?? undefined,
+    knowby_id,
+    knowby_name: row?.knowby_name ?? undefined,
+    member_id: row?.member_id ?? undefined,
+    member_name: row?.member_name ?? undefined,
+    date,
+  };
+}
+
+function asViewRow(row: any): ViewData | null {
+  const date = String(row?.date ?? "").trim();
+  if (!date) return null;
+  return {
+    organisation_name: row?.organisation_name ?? undefined,
+    knowby_id: row?.knowby_id ?? undefined,
+    knowby_name: row?.knowby_name ?? undefined,
+    member_id: row?.member_id ?? undefined,
+    member_name: row?.member_name ?? undefined,
+    date,
+  };
+}
 
 export function KnowbyDataProvider({ children }: { children: React.ReactNode }) {
   // pick initial mode: localStorage -> env -> 'sample'
@@ -53,15 +101,15 @@ export function KnowbyDataProvider({ children }: { children: React.ReactNode }) 
 
   // persist + optional legacy event
   useEffect(() => {
-    try { localStorage.setItem("ffs:dataMode", source); } catch { }
+    try { localStorage.setItem("ffs:dataMode", source); } catch { /* no-op */ }
     if (typeof window !== "undefined") {
       window.dispatchEvent(new CustomEvent("ffs:dataMode-change", { detail: { dataMode: source } }));
     }
   }, [source]);
 
   // shared state
-  const [completions, setCompletions] = useState<CsvRow[]>([]);
-  const [views, setViews] = useState<CsvRow[]>([]);
+  const [completions, setCompletions] = useState<CompletionData[]>([]);
+  const [views, setViews] = useState<ViewData[]>([]);
   const [status, setStatus] = useState<Status>("loading");
   const [error, setError] = useState<unknown>(null);
   const [lastUpdated, setLastUpdated] = useState<number | null>(null);
@@ -69,16 +117,28 @@ export function KnowbyDataProvider({ children }: { children: React.ReactNode }) 
   const abortRef = useRef<AbortController | null>(null);
   const cacheRef = useRef<Partial<Record<DataSource, CacheEntry>>>({});
 
-  // low-level fetcher for a given source
+  // low-level fetcher for a given source (now returns typed rows)
   const fetchFor = useCallback(
     async (src: DataSource, signal?: AbortSignal) => {
       const { completions: compUrl, views: viewUrl } = ENDPOINTS[src];
+
       const [compText, viewText] = await Promise.all([
         fetch(compUrl, { signal }).then((r) => r.text()),
         fetch(viewUrl, { signal }).then((r) => r.text()),
       ]);
-      const c = Papa.parse(compText, { header: true, skipEmptyLines: true }).data as CsvRow[];
-      const v = Papa.parse(viewText, { header: true, skipEmptyLines: true }).data as CsvRow[];
+
+      const rawC = Papa.parse(compText, { header: true, skipEmptyLines: true }).data as any[];
+      const rawV = Papa.parse(viewText, { header: true, skipEmptyLines: true }).data as any[];
+
+      // map → type-safe arrays; drop clearly invalid rows
+      const c: CompletionData[] = rawC
+        .map(asCompletionRow)
+        .filter((r): r is CompletionData => r !== null);
+
+      const v: ViewData[] = rawV
+        .map(asViewRow)
+        .filter((r): r is ViewData => r !== null);
+
       return { c, v };
     },
     []

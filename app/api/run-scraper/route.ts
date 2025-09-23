@@ -6,6 +6,7 @@ import { spawn } from 'child_process';
 export const runtime = 'nodejs';
 
 export async function POST(_req: NextRequest): Promise<Response> {
+
   try {
     // Run scraper.py using child_process.spawn()
     // This launches a separate Python process.

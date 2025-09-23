@@ -8,7 +8,7 @@ export const topChartOptions = (isDark: boolean): ApexOptions => ({
     zoom: { enabled: false }
   },
   dataLabels: { enabled: false },
-  stroke: { curve: "smooth", width: 2 },
+  stroke: { curve: "smooth", width: 1.5 },
   markers: { size: 0 },
   xaxis: {
     type: "datetime",
@@ -35,7 +35,8 @@ export const topChartOptions = (isDark: boolean): ApexOptions => ({
   },
   grid: {
     strokeDashArray: 2,
-    borderColor: isDark ? "#444" : "#aaa",
+    borderColor: isDark ? "#454d61" : "#d6d6d6",
+    
   },
   fill: {
     type: "gradient",
@@ -47,16 +48,14 @@ export const topChartOptions = (isDark: boolean): ApexOptions => ({
     },
   },
   legend: {
-    position: "top",
-    floating: true,
-    labels: { colors: isDark ? "#aaa" : "" },
+    show: false
   },
 });
 
 
 export const sparklineChartOptions: ApexOptions = {
     chart: { type: "area", sparkline: { enabled: true } },
-    stroke: { curve: "smooth", width: 2 },
+    stroke: { curve: "smooth", width: 1.5 },
     fill: {
       type: "gradient",
       gradient: { shadeIntensity: 1, opacityFrom: 1, opacityTo: 0, stops: [0, 100] },
