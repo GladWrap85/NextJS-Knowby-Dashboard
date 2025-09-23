@@ -52,9 +52,9 @@ export default function Header() {
       const response = await fetch("/api/run-scraper", { method: "POST" });
       const data = await response.json();
       if (response.ok) {
-        setScraperSuccess(true);
+      setScraperSuccess(true);
         reload(); // refresh data in the app
-        setTimeout(() => setScraperSuccess(false), 2000);
+      setTimeout(() => setScraperSuccess(false), 2000);
       } else {
         console.error("Scraper failed:", data.message);
       }
@@ -66,9 +66,9 @@ export default function Header() {
   };
 
   return (
-    <div className="grid grid-cols-2 gap-4 p-2 border-b bg-sidebar shadow-gray-300/20 dark:shadow-gray-800/20 shadow-xl">
+    <div className="sticky top-0 z-50 grid grid-cols-2 items-center gap-4 px-3 h-12 backdrop-blur-md shadow-md">
       <div className="flex items-center">
-        <Button className="relative w-8 h-8 hover:!bg-accent dark:!bg-secondary dark:!text-secondary-foreground dark:hover:!bg-secondary/80 dark:border-transparent" onClick={toggle} variant={"outline"} size="icon">
+        <Button className="relative cursor-pointer w-8 h-8 hover:!bg-accent dark:!bg-secondary dark:!text-secondary-foreground dark:hover:!bg-secondary/80 dark:border-transparent" onClick={toggle} variant={"outline"} size="icon">
           {expanded ? <ChevronFirst /> : <ChevronLast />}
         </Button>
         <span className="text-xl font-bold pl-4">Dashboard</span>
@@ -78,7 +78,7 @@ export default function Header() {
           onClick={handleRunScraper}
           disabled={scraperLoading}
           className={cn(
-            "gap-2 w-[120px] justify-center text-white transition-colors duration-300",
+            "gap-2 w-[120px] justify-center text-white transition-colors duration-300 cursor-pointer",
             scraperLoading || scraperSuccess
               ? "pointer-events-none opacity-90"
               : "",
@@ -107,7 +107,7 @@ export default function Header() {
             onSelect={setDateRange}
           /> */}
           <DropdownMenuTrigger asChild>
-            <Button className="relative hover:!bg-accent w-8 h-8 dark:!bg-secondary dark:!text-secondary-foreground dark:hover:!bg-secondary/80 dark:border-transparent" variant="outline" size="icon">
+            <Button className="cursor-pointer relative hover:!bg-accent w-8 h-8 dark:!bg-secondary dark:!text-secondary-foreground dark:hover:!bg-secondary/80 dark:border-transparent" variant="outline" size="icon">
               <div className={`absolute -top-2 -right-1 h-3 w-3 rounded-full my-1 ${notifications.find((x: any) => x.read === true) ? 'bg-green-500' : 'bg-neutral-200'}`}></div>
               <BellIcon className="h-4 w-4" />
             </Button>

@@ -99,16 +99,16 @@ export default function Home() {
   return (
     <Tabs value={period} onValueChange={(v) => setPeriod(v as Period)} className="w-full">
       <div className="relative">
-        <div className="relative mt-10 rounded-xl border bg-background shadow-md">
+        <div className="relative mt-10 bg-background">
           {/* curved “cradle” around the tabs */}
           <div className="absolute -top-9.5 right-3">
-            <div className="rounded-t-2xl border border-b-0 bg-background p-0">
-              <TabsList className="bg-transparent rounded-t-2xl px-2 py-1 flex gap-1">
+            <div className="rounded-xl border bg-card p-0">
+              <TabsList className="bg-transparent px-1.5 py-1 flex gap-1">
                 {/* <TabsTrigger value="daily" className="cursor-pointer data-[state=active]:bg-input hover:bg-card">Daily</TabsTrigger> */}
-                <TabsTrigger value="weekly" className="cursor-pointer data-[state=active]:bg-input data-[state=active]:border data-[state=active]:border-gray-300 hover:bg-card">Weekly</TabsTrigger>
-                <TabsTrigger value="monthly" className="cursor-pointer data-[state=active]:bg-input data-[state=active]:border data-[state=active]:border-gray-300 hover:bg-card">Monthly</TabsTrigger>
-                <TabsTrigger value="yearly" className="cursor-pointer data-[state=active]:bg-input data-[state=active]:border data-[state=active]:border-gray-300 hover:bg-card">Yearly</TabsTrigger>
-                <TabsTrigger value="all-time" className="cursor-pointer data-[state=active]:bg-input data-[state=active]:border data-[state=active]:border-gray-300 hover:bg-card">All Time</TabsTrigger>
+                <TabsTrigger value="weekly" className="cursor-pointer data-[state=active]:bg-input data-[state=active]:border data-[state=active]:border-gray-300 hover:bg-input">Weekly</TabsTrigger>
+                <TabsTrigger value="monthly" className="cursor-pointer data-[state=active]:bg-input data-[state=active]:border data-[state=active]:border-gray-300 hover:bg-input">Monthly</TabsTrigger>
+                <TabsTrigger value="yearly" className="cursor-pointer data-[state=active]:bg-input data-[state=active]:border data-[state=active]:border-gray-300 hover:bg-input">Yearly</TabsTrigger>
+                <TabsTrigger value="all-time" className="cursor-pointer data-[state=active]:bg-input data-[state=active]:border data-[state=active]:border-gray-300 hover:bg-input">All Time</TabsTrigger>
 
                 {/* Range picker inside tabs */}
                 <Popover open={rangeOpen} onOpenChange={setRangeOpen}>
@@ -116,7 +116,7 @@ export default function Home() {
                     <button
                       type="button"
                       onClick={() => setPeriod("range")}
-                      className={`inline-flex items-center h-7 rounded-md px-3 text-sm transition dark:text-muted-foreground text-black text-semibold
+                      className={`inline-flex items-center h-7 rounded-md px-3 text-sm transition hover:bg-input dark:text-muted-foreground text-black text-semibold
                         ${period === "range" ? "bg-input dark:bg-input/30 border border-input shadow-sm dark:text-white text-black" : "bg-transparent hover:bg-card"}
                       `}
                       title="Custom date range"
@@ -142,6 +142,18 @@ export default function Home() {
             </div>
           </div>
 
+          <Tabs defaultValue="dashboard">       
+            <div className="absolute -top-9.5 left-3">
+              <div className="rounded-t-2xl border border-b-0 bg-background p-0">
+                <TabsList className="bg-transparent rounded-t-2xl px-2 py-1 flex gap-1">
+                  {/* <TabsTrigger value="daily" className="cursor-pointer data-[state=active]:bg-input hover:bg-card">Daily</TabsTrigger> */}
+                  <TabsTrigger value="dashboard" className="cursor-pointer data-[state=active]:bg-input data-[state=active]:border data-[state=active]:border-gray-300 hover:bg-card"><LayoutDashboard/> Dashboard</TabsTrigger>
+                  <TabsTrigger value="users" className="cursor-pointer data-[state=active]:bg-input data-[state=active]:border data-[state=active]:border-gray-300 hover:bg-card"><User/> User Performance</TabsTrigger>
+                </TabsList>
+              </div>
+            </div>
+          </Tabs>
+
           {/* Current range label */}
           <div className="flex justify-end pt-2 pb-2 px-6 text-xs text-muted-foreground">
             {mounted ? label : "\u00A0" /* keep layout without showing mismatched text */}
@@ -163,15 +175,7 @@ export default function Home() {
               </div>
               {/* Knowby Stats + Heatmap */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-[20px]">
-                <Card className="max-h-[280px] rounded-3xl shadow-none border-none shadow-xl/2">
-                  <CardHeader>
-                    <CardTitle>Knowby Stats</CardTitle>
-                    <CardDescription>Overview of Knowby activity and usage</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <KnowbyStats selectedDateRange={dateRange} />
-                  </CardContent>
-                </Card>
+                <KnowbyStats selectedDateRange={dateRange} />
 
                 <Card className="bg-card text-card-foreground flex flex-col rounded-3xl border-none shadow-xl/2">
                   <CardHeader>
