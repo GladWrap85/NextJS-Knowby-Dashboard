@@ -36,6 +36,7 @@ import dynamic from "next/dynamic";
 import { topChartOptions } from "@/lib/chartOptions";
 import { ApexOptions } from "apexcharts";
 import { useKnowbyData } from "@/lib/KnowbyDataProvider"; // <-- use shared data
+import { Button } from "../ui/button";
 const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
 
@@ -530,7 +531,7 @@ export default function TodaysUsageCard({ selectedDateRange }: TodaysUsageCardPr
 
   return (
     <TooltipProvider>
-      <Card className="flex flex-col p-6 rounded-3xl h-fit gap-3 border-none shadow-xl/2 w-full bg-card dark:bg-gradient-to-br dark:from-blue-900/30 dark:to-blue-500/10 min-h-[365px]">
+      <Card className="flex flex-col p-6 rounded-3xl h-fit gap-3 border-0 dark:border dark:border-slate-700 shadow-xl/2 dark:shadow-lg dark:shadow-gray-900/50 w-full bg-card min-h-[365px]">
         {/* Card header */}
         <div className="flex items-start justify-between">
           {/* LEFT SIDE */}
@@ -542,14 +543,14 @@ export default function TodaysUsageCard({ selectedDateRange }: TodaysUsageCardPr
             <div className="flex flex-col gap-0 w-full min-w-0">
               <div className="flex items-center justify-between">
                 {/* ---- dynamic title ---- */}
-                <h3 className="text-lg font-semibold">{titleText}</h3>
+                <h3 className="text-lg font-semibold dark:text-white">{titleText}</h3>
                 {isRefreshing && (
                   <span className="text-xs text-muted-foreground">Refreshing…</span>
                 )}
               </div>
 
               <div className="flex items-baseline gap-3">
-                <div className="text-4xl font-bold leading-none">
+                <div className="text-4xl font-bold leading-none dark:text-white">
                   {sevenDayCompletionRate !== null
                     ? `${Math.round(sevenDayCompletionRate)}%`
                     : "--%"}
@@ -573,14 +574,14 @@ export default function TodaysUsageCard({ selectedDateRange }: TodaysUsageCardPr
               </div>
             </div>
 
-            <button
-              type="button"
+            <Button
+              type="button" variant={"secondary"}
               onClick={() => setShowCompare(v => !v)}
-              className="text-xs px-2 py-1 rounded-md border hover:bg-muted transition-colors"
+              className="text-xs h-8 w-auto rounded-md border hover:bg-muted transition-colors"
               title={`Toggle comparison with ${compareLabel}`}
             >
               {showCompare ? "Hide Compare" : `Compare ${compareLabel}`}
-            </button>
+            </Button>
           </div>
 
         </div>

@@ -176,8 +176,8 @@ export default function Home() {
               {/* Knowby Stats + Heatmap */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-[20px]">
                 <KnowbyStats selectedDateRange={dateRange} />
-
-                <Card className="bg-card text-card-foreground flex flex-col rounded-3xl border-none shadow-xl/2">
+                
+                <Card className="bg-card text-card-foreground flex flex-col rounded-3xl border-0 dark:border dark:border-slate-700 shadow-xl/2">
                   <CardHeader>
                     <CardTitle>Calendar Heatmap</CardTitle>
                   </CardHeader>

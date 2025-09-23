@@ -205,14 +205,14 @@ export default function TopMetricsRow({ selectedDateRange }: Props) {
   return (
     <div className="grid grid-cols-2 lg:grid-cols-5 gap-6">
       {/* Active Members */}
-      <Card className="flex flex-row items-center p-4 bg-card shadow-xl/2 gap-3 dark:bg-gradient-to-br dark:from-blue-900/30 dark:to-blue-500/10 border-0 border-b-teal-500/50 border-b-2 rounded-3xl">
+      <Card className="flex flex-row items-center p-4 bg-card shadow-xl/2 dark:shadow-lg dark:shadow-gray-900/50 gap-3 border-0 border-b-teal-500/50 border-b-2 rounded-3xl">
         <div className="flex items-center justify-center w-10 h-10 rounded-full bg-teal-600/20 text-teal-500">
           <User className="h-5 w-5" />
         </div>
         <div className="flex flex-col justify-center gap-2">
           <span className="text-xs text-muted-foreground">Active Members</span>
           <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-semibold tabular-nums">
+            <span className="text-2xl font-semibold tabular-nums dark:text-white">
               {isLoading ? "—" : activeMembers.toLocaleString()}
             </span>
             <DeltaBadge delta={deltaMembers} />
@@ -221,14 +221,14 @@ export default function TopMetricsRow({ selectedDateRange }: Props) {
       </Card>
 
       {/* Knowbys */}
-      <Card className="flex flex-row items-center p-4 bg-card shadow-xl/2 gap-3 dark:bg-gradient-to-br dark:from-blue-900/30 dark:to-blue-500/10 border-0 border-b-indigo-500/50 border-b-2 rounded-3xl">
+      <Card className="flex flex-row items-center p-4 bg-card shadow-xl/2 dark:shadow-lg dark:shadow-gray-900/50 gap-3 border-0 border-b-indigo-500/50 border-b-2 rounded-3xl">
         <div className="flex items-center justify-center w-10 h-10 rounded-full bg-indigo-600/20 text-indigo-500">
           <BookOpen className="h-5 w-5" />
         </div>
         <div className="flex flex-col justify-center gap-2">
           <span className="text-xs text-muted-foreground">Knowbys</span>
           <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-semibold tabular-nums">
+            <span className="text-2xl font-semibold tabular-nums dark:text-white">
               {isLoading ? "—" : knowbys.toLocaleString()}
             </span>
             <DeltaBadge delta={deltaKnowbys} />
@@ -237,14 +237,14 @@ export default function TopMetricsRow({ selectedDateRange }: Props) {
       </Card>
 
       {/* Views */}
-      <Card className="flex flex-row items-center p-4 bg-card shadow-xl/2 gap-3 dark:bg-gradient-to-br dark:from-blue-900/30 dark:to-blue-500/10 border-0 border-b-blue-500/50 border-b-2 rounded-3xl">
+      <Card className="flex flex-row items-center p-4 bg-card shadow-xl/2 dark:shadow-lg dark:shadow-gray-900/50 gap-3 border-0 border-b-blue-500/50 border-b-2 rounded-3xl">
         <div className="flex items-center justify-center w-10 h-10 rounded-full bg-blue-600/20 text-blue-500">
           <Eye className="h-5 w-5" />
         </div>
         <div className="flex flex-col justify-center gap-2">
           <span className="text-xs text-muted-foreground">Views</span>
           <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-semibold tabular-nums">
+            <span className="text-2xl font-semibold tabular-nums dark:text-white">
               {isLoading ? "—" : vCount.toLocaleString()}
             </span>
             <DeltaBadge delta={deltaViews} />
@@ -253,14 +253,14 @@ export default function TopMetricsRow({ selectedDateRange }: Props) {
       </Card>
 
       {/* Completions */}
-      <Card className="flex flex-row items-center p-4 bg-card shadow-xl/2 gap-3 dark:bg-gradient-to-br dark:from-blue-900/30 dark:to-blue-500/10 border-0 border-b-green-500/50 border-b-2 rounded-3xl">
+      <Card className="flex flex-row items-center p-4 bg-card shadow-xl/2 dark:shadow-lg dark:shadow-gray-900/50 gap-3 border-0 border-b-green-500/50 border-b-2 rounded-3xl">
         <div className="flex items-center justify-center w-10 h-10 rounded-full bg-green-600/20 text-green-500">
           <CheckCheck className="h-5 w-5" />
         </div>
         <div className="flex flex-col justify-center gap-2">
           <span className="text-xs text-muted-foreground">Completions</span>
           <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-semibold tabular-nums">
+            <span className="text-2xl font-semibold tabular-nums dark:text-white">
               {isLoading ? "—" : cCount.toLocaleString()}
             </span>
             <DeltaBadge delta={deltaCompletions} />
@@ -269,14 +269,14 @@ export default function TopMetricsRow({ selectedDateRange }: Props) {
       </Card>
 
       {/* Completion Rate */}
-      <Card className="flex flex-row items-center p-4 bg-card shadow-xl/2 gap-3 dark:bg-gradient-to-br dark:from-blue-900/30 dark:to-blue-500/10 border-0 border-b-purple-500/50 border-b-2 rounded-3xl">
+      <Card className="flex flex-row items-center p-4 bg-card shadow-xl/2 dark:shadow-lg dark:shadow-gray-900/50 gap-3 border-0 border-b-purple-500/50 border-b-2 rounded-3xl">
         <div className="flex items-center justify-center w-10 h-10 rounded-full bg-purple-600/20 text-purple-500">
           <Percent className="h-5 w-5" />
         </div>
         <div className="flex flex-col justify-center gap-2">
           <span className="text-xs text-muted-foreground">Completion Rate</span>
           <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-semibold tabular-nums">
+            <span className="text-2xl font-semibold tabular-nums dark:text-white">
               {isLoading ? "—" : pct((compRate || 0))}
             </span>
             <DeltaBadge delta={deltaRate ?? null} isRate />

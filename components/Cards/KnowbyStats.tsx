@@ -14,6 +14,7 @@ import { ChevronDown } from "lucide-react";
 import { useKnowbyData } from "@/lib/KnowbyDataProvider";
 import { DateRange } from "react-day-picker";
 import { parse, isWithinInterval, subDays, startOfDay, endOfDay } from "date-fns";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "../ui/card";
 
 const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
@@ -189,6 +190,12 @@ export default function KnowbyStats({ selectedDateRange }: Props) {
   );
 
   return (
+    <Card className="max-h-[280px] rounded-3xl shadow-none  border-0 dark:border dark:border-slate-700 shadow-xl/2">
+      <CardHeader>
+        <CardTitle>Knowby Stats</CardTitle>
+        <CardDescription>Overview of Knowby activity and usage</CardDescription>
+      </CardHeader>
+      <CardContent>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 h-[280px]">
           <StatTile
             popupId="active"
@@ -247,5 +254,7 @@ export default function KnowbyStats({ selectedDateRange }: Props) {
             }
           />
         </div>
+      </CardContent>
+    </Card>
   );
 }

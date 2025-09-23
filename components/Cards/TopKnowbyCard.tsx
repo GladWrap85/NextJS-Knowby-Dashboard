@@ -148,7 +148,7 @@ export default function TopKnowbyCard({ selectedDateRange }: TopKnowbyCardProps)
 
   return (
     <TooltipProvider>
-      <Card className="flex flex-col p-6 rounded-3xl h-fit gap-3 border-none shadow-xl/2 bg-card dark:bg-gradient-to-br dark:from-blue-900/30 dark:to-blue-500/10 min-h-[365px]">
+      <Card className="flex flex-col p-6 rounded-3xl h-fit gap-3 border-0 dark:border dark:border-slate-700 shadow-xl/2 dark:shadow-lg dark:shadow-gray-900/50 bg-card min-h-[365px]">
         {/* Header */}
         <div className="flex items-start gap-4">
           <div className="shrink-0 flex items-center justify-center w-16 h-16 rounded-full text-white bg-gradient-to-b from-indigo-500 to-indigo-700">
@@ -156,7 +156,7 @@ export default function TopKnowbyCard({ selectedDateRange }: TopKnowbyCardProps)
           </div>
           <div className="flex flex-col gap-2 w-full min-w-0">
             <div className="flex items-start">
-              <h3 className="text-lg font-semibold shrink-0">Top Knowbys</h3>
+              <h3 className="text-lg font-semibold shrink-0 dark:text-white">Top Knowbys</h3>
               <div className="ml-auto flex gap-1 flex-shrink-0">{/* no per-card tabs */}</div>
             </div>
             <div className="text-xs text-muted-foreground">{caption}</div>
@@ -186,11 +186,11 @@ export default function TopKnowbyCard({ selectedDateRange }: TopKnowbyCardProps)
                   rows.map((r, idx) => (
                     <tr
                       key={r.knowby + idx}
-                      className={idx % 2 ? "bg-muted/30 dark:bg-card/50" : "bg-transparent"}
+                      className={idx % 2 ? "bg-background" : "bg-transparent"}
                     >
                       <td className="py-2 pl-6 pt-0 pb-0">
                         <div className="flex items-center gap-2">
-                          <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-muted dark:bg-card text-xs font-semibold">
+                          <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-muted dark:bg-background text-xs font-semibold">
                             {idx + 1}
                           </span>
                           <span className="inline-block truncate max-w-[24ch]" title={r.knowby}>
