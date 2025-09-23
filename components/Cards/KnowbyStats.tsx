@@ -6,8 +6,9 @@ import {
   DialogContent,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog"; // ShadCN dialog
+} from "@/components/ui/dialog";
 import StatsTable from "@/components/Cards/StatsTable";
+import StatsPopupGraph from "@/components/Cards/StatsPopupGraph";
 import dynamic from "next/dynamic";
 import type { ApexOptions } from "apexcharts";
 import { ChevronDown } from "lucide-react";
@@ -27,12 +28,11 @@ import {
   CardDescription,
   CardContent,
 } from "../ui/card";
+import { KnowbyMeta } from "@/src/types/knowby";
 
 const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
-type Props = {
-  selectedDateRange: DateRange | undefined;
-};
+type Props = { selectedDateRange: DateRange | undefined };
 
 const baseChartOptions: ApexOptions = {
   chart: { type: "area", sparkline: { enabled: true } },
@@ -42,43 +42,37 @@ const baseChartOptions: ApexOptions = {
   yaxis: { show: false },
 };
 
-// helper to parse dd/MM/yyyy strings from your CSVs
-function parseCsvDate(ds?: string): Date | null {
-  if (!ds) return null;
-  return parse(ds, "dd/MM/yyyy", new Date());
+function parseCsvDate(dateStr: string | undefined): Date | null {
+  if (!dateStr) return null;
+  const [dd, mm, yyyy] = dateStr.split("/").map(Number);
+  if (!dd || !mm || !yyyy) return null;
+  return new Date(yyyy, mm - 1, dd);
 }
 
 export default function KnowbyStats({ selectedDateRange }: Props) {
-  const { views, completions, status } = useKnowbyData();
+  const { completions, views, knowbys } = useKnowbyData();
   const [activePopup, setActivePopup] = useState<null | string>(null);
 
-  // guard defaults
   const now = new Date();
   const rawFrom = selectedDateRange?.from ?? subDays(now, 30);
   const rawTo = selectedDateRange?.to ?? now;
-
-  // normalize so we include the whole 'to' day
   const from = startOfDay(rawFrom);
   const to = endOfDay(rawTo);
 
-  // helper already present
-  function parseCsvDate(ds?: string): Date | null {
-    if (!ds) return null;
-    return parse(ds, "dd/MM/yyyy", new Date());
-  }
-
-  // *** NEW: filtered slices used everywhere below ***
+  // Filter data for selected range
   const filteredCompletions = completions.filter((r) => {
-    const d = parseCsvDate((r as any)?.date);
+    const d = parseCsvDate(r.date);
     return d && isWithinInterval(d, { start: from, end: to });
   });
-
   const filteredViews = views.filter((r) => {
-    const d = parseCsvDate((r as any)?.date);
+    const d = parseCsvDate(r.date);
+    return d && isWithinInterval(d, { start: from, end: to });
+  });
+  const filteredKnowbys = knowbys.filter((k) => {
+    const d = parseCsvDate(k.created_at);
     return d && isWithinInterval(d, { start: from, end: to });
   });
 
-  // compute stats + trend arrays
   const {
     activeMembers,
     newKnowbys,
@@ -95,70 +89,130 @@ export default function KnowbyStats({ selectedDateRange }: Props) {
   } = useMemo(() => {
     const memberSet = new Set<string>();
 
-    const trendDays = 30;
+    // Number of days in the selected range
+    const daysInRange =
+      Math.ceil((to.getTime() - from.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+
     const activeCounts: number[] = [];
     const newCounts: number[] = [];
     const viewedCounts: number[] = [];
     const unusedCounts: number[] = [];
 
-    // build per-day buckets using the already-filtered arrays
-    for (let i = 0; i < trendDays; i++) {
-      const day = subDays(to, trendDays - 1 - i);
+    for (let i = 0; i < daysInRange; i++) {
+      const day = subDays(to, daysInRange - 1 - i);
       const start = startOfDay(day);
       const end = endOfDay(day);
 
-      const cDay = filteredCompletions.filter((r) => {
-        const d = parseCsvDate((r as any)?.date);
+      // Active members on this day
+      const dayCompletions = filteredCompletions.filter((c) => {
+        const d = parseCsvDate(c.date);
         return d && isWithinInterval(d, { start, end });
       });
-      const vDay = filteredViews.filter((r) => {
-        const d = parseCsvDate((r as any)?.date);
-        return d && isWithinInterval(d, { start, end });
-      });
+      activeCounts.push(new Set(dayCompletions.map((c) => c.member_id)).size);
 
-      activeCounts.push(new Set(cDay.map((r) => (r as any).member_id)).size);
-      newCounts.push(0);
-      viewedCounts.push(vDay.length);
-      unusedCounts.push(0);
+      // New Knowbys on this day
+      const dayKnowbys = filteredKnowbys.filter((k) => {
+        const d = parseCsvDate(k.created_at);
+        return d && isWithinInterval(d, { start, end });
+      });
+      newCounts.push(dayKnowbys.length);
+
+      // Recently viewed on this day
+      const dayViews = filteredViews.filter((v) => {
+        const d = parseCsvDate(v.date);
+        return d && isWithinInterval(d, { start, end });
+      });
+      viewedCounts.push(dayViews.length);
+
+      // Unused Knowbys
+      const dayUnused = knowbys.filter((k) => {
+        const last = parseCsvDate(k.last_viewed);
+        return !last || last < start;
+      });
+      unusedCounts.push(dayUnused.length);
     }
 
-    // summary numbers from filtered arrays
-    filteredCompletions.forEach((r) => memberSet.add((r as any).member_id));
+    // Total active members in range
+    filteredCompletions.forEach((r) => memberSet.add(r.member_id ?? ""));
+
+    // Unused Knowbys table
+    const unusedFiltered = knowbys.filter((k) => {
+      const last = parseCsvDate(k.last_viewed);
+      return !last || last < from || last > to;
+    });
+
+    // Prepare table data
+    const recentlyViewedForTable = filteredViews.map((v) => ({
+      knowby_id: v.knowby_id ?? "",
+      member_id: v.member_id,
+      date: v.date,
+      organisation_name: v.organisation,
+      member_name: v.member_name,
+      knowby_name: v.knowby_name,
+    }));
+
+    const newKnowbysForTable: KnowbyMeta[] = filteredKnowbys.map((k) => ({
+      knowby_id: k.knowby_id,
+      organisation: k.organisation ?? "Unknown",
+      title: k.title ?? "",
+      description: k.description ?? "",
+      created_at: k.created_at,
+      created_by_member_id: k.created_by_member_id ?? "",
+      member_name: k.member_name ?? "",
+      status: k.status ?? "",
+      visibility: k.visibility ?? "",
+      views: k.views !== undefined ? String(k.views) : "0",
+      last_viewed: k.last_viewed ?? "",
+    }));
+
+    const unusedKnowbysForTable: KnowbyMeta[] = unusedFiltered.map((k) => ({
+      knowby_id: k.knowby_id,
+      organisation: k.organisation ?? "Unknown",
+      title: k.title ?? "",
+      description: k.description ?? "",
+      created_at: k.created_at,
+      created_by_member_id: k.created_by_member_id ?? "",
+      member_name: k.member_name ?? "",
+      status: k.status ?? "",
+      visibility: k.visibility ?? "",
+      views: k.views !== undefined ? String(k.views) : "0",
+      last_viewed: k.last_viewed ?? "",
+    }));
 
     return {
       activeMembers: memberSet.size,
-      newKnowbys: 0,
+      newKnowbys: filteredKnowbys.length,
       recentlyViewed: filteredViews.length,
-      unusedKnowbys: 0,
+      unusedKnowbys: unusedFiltered.length,
 
-      // *** IMPORTANT: pass filtered arrays to tables ***
       activeMembersData: filteredCompletions,
-      newKnowbysData: [],
-      recentlyViewedData: filteredViews, // was: views (unfiltered)
-      unusedKnowbysData: [],
+      newKnowbysData: newKnowbysForTable,
+      recentlyViewedData: recentlyViewedForTable,
+      unusedKnowbysData: unusedKnowbysForTable,
 
       activeTrend: activeCounts,
       knowbyTrend: newCounts,
       viewedTrend: viewedCounts,
       unusedTrend: unusedCounts,
     };
-  }, [from, to, filteredCompletions, filteredViews]);
+  }, [from, to, filteredCompletions, filteredViews, filteredKnowbys, knowbys]);
 
-  // reusable tile
   const StatTile = ({
     label,
     value,
     description,
     popupId,
-    popupContent,
-    chartSeries,
+    chartSeries, // sparkline numeric array for the tile
+    popupGraph, // full chart ReactNode
+    popupTable, // table ReactNode
   }: {
     label: string;
     value: number;
     description: string;
     popupId: string;
-    popupContent: React.ReactNode;
-    chartSeries: (number | null)[];
+    chartSeries: number[];
+    popupGraph?: React.ReactNode;
+    popupTable?: React.ReactNode;
   }) => (
     <Dialog
       open={activePopup === popupId}
@@ -167,7 +221,10 @@ export default function KnowbyStats({ selectedDateRange }: Props) {
       <DialogTrigger asChild>
         <div className="relative bg-muted/50 p-3 rounded-md cursor-pointer hover:bg-muted border shadow-sm flex flex-col justify-between h-[130px]">
           <ChevronDown className="absolute top-2 right-2 h-4 w-4 text-muted-foreground" />
+
           <div className="text-2xl font-bold">{value}</div>
+
+          {/* Sparkline preview */}
           <div className="w-full h-[40px]">
             {chartSeries && chartSeries.length > 0 ? (
               <Chart
@@ -182,6 +239,7 @@ export default function KnowbyStats({ selectedDateRange }: Props) {
               </div>
             )}
           </div>
+
           <div>
             <div className="text-xs font-medium">{label}</div>
             <div className="text-[10px] text-muted-foreground truncate">
@@ -190,17 +248,28 @@ export default function KnowbyStats({ selectedDateRange }: Props) {
           </div>
         </div>
       </DialogTrigger>
+
+      {/* Popup content */}
       <DialogContent className="w-full sm:max-w-[600px] md:max-w-[800px] lg:max-w-[1000px]">
         <h2 className="text-xl font-bold mb-2">{label}</h2>
         <DialogTitle />
         <p className="text-sm text-muted-foreground mb-4">{description}</p>
-        <div className="overflow-scroll max-h-[500px]">{popupContent}</div>
+
+        <div className="flex flex-col gap-4">
+          {/* Full chart */}
+          <div className="w-full">{popupGraph ?? null}</div>
+
+          {/* Scrollable table */}
+          <div className="flex-1 h-auto max-h-[25vh] overflow-y-auto">
+            {popupTable ?? null}
+          </div>
+        </div>
       </DialogContent>
     </Dialog>
   );
 
   return (
-    <Card className="max-h-[280px] rounded-3xl shadow-none  border-0 dark:border dark:border-slate-700 shadow-xl/2">
+    <Card className="max-h-[280px] rounded-3xl shadow-none border-0 dark:border dark:border-slate-700 shadow-xl/2">
       <CardHeader>
         <CardTitle>Knowby Stats</CardTitle>
         <CardDescription>Overview of Knowby activity and usage</CardDescription>
@@ -213,7 +282,16 @@ export default function KnowbyStats({ selectedDateRange }: Props) {
             value={activeMembers}
             description="Members with completions in the selected range."
             chartSeries={activeTrend}
-            popupContent={
+            popupGraph={
+              <StatsPopupGraph
+                chartSeries={activeTrend.map((y, i) => ({
+                  x: i.toString(),
+                  y,
+                }))}
+                chartLabel="Active Members"
+              />
+            }
+            popupTable={
               <StatsTable
                 data={activeMembersData}
                 caption="Members with completions in the selected period"
@@ -221,13 +299,23 @@ export default function KnowbyStats({ selectedDateRange }: Props) {
               />
             }
           />
+
           <StatTile
             popupId="new"
             label="New Knowbys"
             value={newKnowbys}
             description="Knowbys created in the selected range."
             chartSeries={knowbyTrend}
-            popupContent={
+            popupGraph={
+              <StatsPopupGraph
+                chartSeries={knowbyTrend.map((y, i) => ({
+                  x: i.toString(),
+                  y,
+                }))}
+                chartLabel="New Knowbys"
+              />
+            }
+            popupTable={
               <StatsTable
                 data={newKnowbysData}
                 caption="Most recently created knowbys"
@@ -235,13 +323,23 @@ export default function KnowbyStats({ selectedDateRange }: Props) {
               />
             }
           />
+
           <StatTile
             popupId="viewed"
             label="Recently Viewed"
             value={recentlyViewed}
             description="Views in the selected range."
             chartSeries={viewedTrend}
-            popupContent={
+            popupGraph={
+              <StatsPopupGraph
+                chartSeries={viewedTrend.map((y, i) => ({
+                  x: i.toString(),
+                  y,
+                }))}
+                chartLabel="Recently Viewed"
+              />
+            }
+            popupTable={
               <StatsTable
                 data={recentlyViewedData}
                 caption="Knowbys viewed in the selected period"
@@ -249,13 +347,23 @@ export default function KnowbyStats({ selectedDateRange }: Props) {
               />
             }
           />
+
           <StatTile
             popupId="unused"
             label="Unused Knowbys"
             value={unusedKnowbys}
-            description="Not used in the selected range."
+            description="Knowbys not viewed in the selected range."
             chartSeries={unusedTrend}
-            popupContent={
+            popupGraph={
+              <StatsPopupGraph
+                chartSeries={unusedTrend.map((y, i) => ({
+                  x: i.toString(),
+                  y,
+                }))}
+                chartLabel="Unused Knowbys"
+              />
+            }
+            popupTable={
               <StatsTable
                 data={unusedKnowbysData}
                 caption="Knowbys that haven’t been viewed recently"
