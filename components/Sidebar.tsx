@@ -67,7 +67,7 @@ export default function Sidebar() {
 
   const hasUnsaved = activeKey === 'Settings' && pendingSource !== source
   // ================================================================
-      
+
   // --- Account functionality state ---
   const [isLoading, setIsLoading] = useState(false)
   const [accountStatus, setAccountStatus] = useState<'idle' | 'success' | 'error'>('idle')
@@ -110,7 +110,7 @@ export default function Sidebar() {
   const handleRunScraper = async () => {
     setScraperLoading(true)
     setScraperSuccess(false)
-    
+
     try {
       // Call the API to run the scraper
       const response = await fetch('/api/run-scraper', {
@@ -124,7 +124,7 @@ export default function Sidebar() {
         setScraperSuccess(true)
         // Refresh the data after successful scraping
         reload()
-        
+
         // Reset success state after 2 seconds
         setTimeout(() => {
           setScraperSuccess(false)
@@ -159,7 +159,7 @@ export default function Sidebar() {
           </div>
         ),
         okText: 'Go to dashboard',
-        onOk: () => setOpen(false), 
+        onOk: () => setOpen(false),
       },
       Account: {
         title: 'Account',
@@ -176,8 +176,8 @@ export default function Sidebar() {
               </div>
             </div>
 
-            <Button 
-              onClick={handleExtractHeaders} 
+            <Button
+              onClick={handleExtractHeaders}
               disabled={isLoading}
               className="w-full"
             >
@@ -216,7 +216,7 @@ export default function Sidebar() {
           </div>
         ),
         okText: 'Close',
-        onOk: () => setOpen(false), 
+        onOk: () => setOpen(false),
       },
       Settings: {
         title: 'Settings',
@@ -290,13 +290,13 @@ export default function Sidebar() {
 
   function handleOpenDialog(item: MenuItem, e?: React.MouseEvent) {
     if (e) e.preventDefault() // stop navigation; open modal instead
-    
+
     // Special handling for Refresh - run scraper directly
     if (item.text === 'Refresh') {
       handleRunScraper()
       return
     }
-    
+
     setActiveKey(item.text)
     setOpen(true)
   }
@@ -349,59 +349,59 @@ export default function Sidebar() {
                         <TooltipTrigger asChild>
                           {/* Keep Link for semantics; prevent default in onClick */}
                           <Link href={item.link} onClick={(e) => handleOpenDialog(item, e)}>
-                                                         <CommandItem
-                               className={cn(
-                                 'group cursor-pointer transition-all duration-300 rounded-md',
-                                 expanded
-                                   ? 'flex items-center gap-2 px-3 py-2 justify-start hover:bg-[var(--accent)]'
-                                   : 'w-12 h-12 flex items-center justify-center hover:bg-[var(--accent)]',
-                                 !expanded && isRefresh
-                                   ? scraperSuccess
-                                     ? 'bg-gradient-to-br from-green-600 to-green-400'
-                                     : 'bg-gradient-to-br from-blue-700 to-blue-500 hover:from-blue-800 hover:to-blue-600'
-                                   : '',
-                                 (scraperLoading || scraperSuccess) && 'pointer-events-none opacity-75'
-                               )}
-                             >
-                               {isRefresh && scraperLoading ? (
-                                 <Loader2 
-                                   className="animate-spin text-white"
-                                    style={{
-                                      width: expanded ? '14px' : '18px',
-                                      height: expanded ? '14px' : '18px',
-                                    }}
-                                 />
-                               ) : isRefresh && scraperSuccess ? (
-                                 <CheckCircle 
-                                   className="text-white"
-                                    style={{
-                                      width: expanded ? '14px' : '18px',
-                                      height: expanded ? '14px' : '18px',
-                                    }}
-                                 />
-                               ) : (
-                                 <Icon
-                                   className={cn(
-                                     'transition-all duration-300',
-                                     expanded
-                                       ? 'text-muted-foreground group-hover:text-[var(--accent-foreground)]'
-                                       : '',
-                                     !expanded && isRefresh
-                                       ? 'text-white'
-                                       : 'text-muted-foreground group-hover:text-[var(--accent-foreground)]'
-                                   )}
-                                   style={{
-                                     width: expanded ? '14px' : '18px',
-                                     height: expanded ? '14px' : '18px',
-                                   }}
-                                 />
-                               )}
-                               {expanded && (
-                                 <span className="text-sm transition-opacity duration-200 group-hover:text-[var(--accent-foreground)]">
-                                   {isRefresh && scraperLoading ? 'Running...' : isRefresh && scraperSuccess ? 'Success!' : item.text}
-                                 </span>
-                               )}
-                             </CommandItem>
+                            <CommandItem
+                              className={cn(
+                                'group cursor-pointer transition-all duration-300 rounded-md',
+                                expanded
+                                  ? 'flex items-center gap-2 px-3 py-2 justify-start hover:bg-[var(--accent)]'
+                                  : 'w-12 h-12 flex items-center justify-center hover:bg-[var(--accent)]',
+                                !expanded && isRefresh
+                                  ? scraperSuccess
+                                    ? 'bg-gradient-to-br from-green-600 to-green-400'
+                                    : 'bg-gradient-to-br from-blue-700 to-blue-500 hover:from-blue-800 hover:to-blue-600'
+                                  : '',
+                                (scraperLoading || scraperSuccess) && 'pointer-events-none opacity-75'
+                              )}
+                            >
+                              {isRefresh && scraperLoading ? (
+                                <Loader2
+                                  className="animate-spin text-white"
+                                  style={{
+                                    width: expanded ? '14px' : '18px',
+                                    height: expanded ? '14px' : '18px',
+                                  }}
+                                />
+                              ) : isRefresh && scraperSuccess ? (
+                                <CheckCircle
+                                  className="text-white"
+                                  style={{
+                                    width: expanded ? '14px' : '18px',
+                                    height: expanded ? '14px' : '18px',
+                                  }}
+                                />
+                              ) : (
+                                <Icon
+                                  className={cn(
+                                    'transition-all duration-300',
+                                    expanded
+                                      ? 'text-muted-foreground group-hover:text-[var(--accent-foreground)]'
+                                      : '',
+                                    !expanded && isRefresh
+                                      ? 'text-white'
+                                      : 'text-muted-foreground group-hover:text-[var(--accent-foreground)]'
+                                  )}
+                                  style={{
+                                    width: expanded ? '14px' : '18px',
+                                    height: expanded ? '14px' : '18px',
+                                  }}
+                                />
+                              )}
+                              {expanded && (
+                                <span className="text-sm transition-opacity duration-200 group-hover:text-[var(--accent-foreground)]">
+                                  {isRefresh && scraperLoading ? 'Running...' : isRefresh && scraperSuccess ? 'Success!' : item.text}
+                                </span>
+                              )}
+                            </CommandItem>
                           </Link>
                         </TooltipTrigger>
                         <TooltipContent side="right" className={`${expanded ? 'hidden' : ''} z-[9999]`}>

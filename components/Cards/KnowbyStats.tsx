@@ -14,6 +14,7 @@ import { ChevronDown } from "lucide-react";
 import { useKnowbyData } from "@/lib/KnowbyDataProvider";
 import { DateRange } from "react-day-picker";
 import { parse, isWithinInterval, subDays, startOfDay, endOfDay } from "date-fns";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "../ui/card";
 
 const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
@@ -189,63 +190,71 @@ export default function KnowbyStats({ selectedDateRange }: Props) {
   );
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 h-[280px]">
-      <StatTile
-        popupId="active"
-        label="Active Members"
-        value={activeMembers}
-        description="Members with completions in the selected range."
-        chartSeries={activeTrend}
-        popupContent={
-          <StatsTable
-            data={activeMembersData}
-            caption="Members with completions in the selected period"
-            type="active"
+    <Card className="max-h-[280px] rounded-3xl shadow-none  border-0 dark:border dark:border-slate-700 shadow-xl/2">
+      <CardHeader>
+        <CardTitle>Knowby Stats</CardTitle>
+        <CardDescription>Overview of Knowby activity and usage</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 h-[280px]">
+          <StatTile
+            popupId="active"
+            label="Active Members"
+            value={activeMembers}
+            description="Members with completions in the selected range."
+            chartSeries={activeTrend}
+            popupContent={
+              <StatsTable
+                data={activeMembersData}
+                caption="Members with completions in the selected period"
+                type="active"
+              />
+            }
           />
-        }
-      />
-      <StatTile
-        popupId="new"
-        label="New Knowbys"
-        value={newKnowbys}
-        description="Knowbys created in the selected range."
-        chartSeries={knowbyTrend}
-        popupContent={
-          <StatsTable
-            data={newKnowbysData}
-            caption="Most recently created knowbys"
-            type="new"
+          <StatTile
+            popupId="new"
+            label="New Knowbys"
+            value={newKnowbys}
+            description="Knowbys created in the selected range."
+            chartSeries={knowbyTrend}
+            popupContent={
+              <StatsTable
+                data={newKnowbysData}
+                caption="Most recently created knowbys"
+                type="new"
+              />
+            }
           />
-        }
-      />
-      <StatTile
-        popupId="viewed"
-        label="Recently Viewed"
-        value={recentlyViewed}
-        description="Views in the selected range."
-        chartSeries={viewedTrend}
-        popupContent={
-          <StatsTable
-            data={recentlyViewedData}
-            caption="Knowbys viewed in the selected period"
-            type="viewed"
+          <StatTile
+            popupId="viewed"
+            label="Recently Viewed"
+            value={recentlyViewed}
+            description="Views in the selected range."
+            chartSeries={viewedTrend}
+            popupContent={
+              <StatsTable
+                data={recentlyViewedData}
+                caption="Knowbys viewed in the selected period"
+                type="viewed"
+              />
+            }
           />
-        }
-      />
-      <StatTile
-        popupId="unused"
-        label="Unused Knowbys"
-        value={unusedKnowbys}
-        description="Not used in the selected range."
-        chartSeries={unusedTrend}
-        popupContent={
-          <StatsTable
-            data={unusedKnowbysData}
-            caption="Knowbys that haven’t been viewed recently"
-            type="unused"
+          <StatTile
+            popupId="unused"
+            label="Unused Knowbys"
+            value={unusedKnowbys}
+            description="Not used in the selected range."
+            chartSeries={unusedTrend}
+            popupContent={
+              <StatsTable
+                data={unusedKnowbysData}
+                caption="Knowbys that haven’t been viewed recently"
+                type="unused"
+              />
+            }
           />
-        }
-      />
-    </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
