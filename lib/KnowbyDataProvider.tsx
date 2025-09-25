@@ -11,6 +11,7 @@ import {
   useState,
 } from "react";
 import Papa from "papaparse";
+import { showRefreshNotification } from "./dataChangeDetection";
 
 export type DataSource = "sample" | "real";
 type CsvRow = Record<string, any>;
@@ -137,6 +138,9 @@ export function KnowbyDataProvider({ children }: { children: React.ReactNode }) 
       setViews(v);
       setLastUpdated(Date.now());
       setStatus("ready");
+      
+      // Show notification for real data refresh
+      showRefreshNotification(c, v, cur);
     } catch (e: any) {
       if (e?.name !== "AbortError") {
         setError(e);
