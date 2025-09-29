@@ -10,7 +10,7 @@ import {
 import StatsTable from "@/components/Cards/StatsTable";
 import dynamic from "next/dynamic";
 import type { ApexOptions } from "apexcharts";
-import { ChevronDown } from "lucide-react";
+import { BarChart3, ChevronDown } from "lucide-react";
 import { useKnowbyData } from "@/lib/KnowbyDataProvider";
 import { DateRange } from "react-day-picker";
 import {
@@ -220,13 +220,25 @@ export default function KnowbyStats({ selectedDateRange }: Props) {
   );
 
   return (
-    <Card className="max-h-[280px] rounded-3xl shadow-none  border-0 dark:border dark:border-slate-700 shadow-xl/2">
-      <CardHeader>
-        <CardTitle>Knowby Stats</CardTitle>
-        <CardDescription>Overview of Knowby activity and usage</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 h-[280px]">
+    <Card className="relative isolate overflow-hidden rounded-3xl p-5 md:p-6 border-0 shadow-xl/2 bg-card dark:border dark:border-slate-700 gap-2">
+      {/* Header */}
+      <div className="flex items-center gap-3">
+        <div className="shrink-0 flex h-10 w-10 items-center justify-center rounded-full text-white bg-gradient-to-b from-orange-500 to-orange-700">
+          <BarChart3 className="h-5 w-5" />
+        </div>
+        <div className="flex flex-col">
+          <h3 className="text-lg text-white font-semibold">Knowby Stats</h3>
+          <span className="text-xs text-muted-foreground">
+            Overview of Knowby activity and usage
+          </span>
+        </div>
+
+        <div className="ml-auto flex items-center gap-2 text-xs" />
+      </div>
+
+      {/* Body */}
+      <div className="mt-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <StatTile
             popupId="active"
             label="Active Members"
@@ -235,7 +247,6 @@ export default function KnowbyStats({ selectedDateRange }: Props) {
             chartSeries={activeTrend}
             popupContent={
               <StatsTable
-                // NEW: pass precomputed rows so the table renders instantly
                 rows={activeRows}
                 type="active"
                 caption="Members with completions in the selected period"
@@ -285,7 +296,7 @@ export default function KnowbyStats({ selectedDateRange }: Props) {
             }
           />
         </div>
-      </CardContent>
+      </div>
     </Card>
   );
 }

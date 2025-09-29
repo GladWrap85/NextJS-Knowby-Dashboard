@@ -26,10 +26,12 @@ export interface CompletionData {
   knowby_name?: string;
   member_id?: string;
   member_name?: string;
-  date: string;           // dd/MM/yyyy (original)
-  parsedDate?: Date;      // added: parsed once
-  ts?: number;            // added: parsedDate.getTime()
-  ymd?: string;           // added: 'YYYY-MM-DD' key
+  date: string;                 // dd/MM/yyyy (original)
+  time?: string;                // HH:mm:ss (optional)
+  datetime?: string;            // ISO string (optional, if you ever add it)
+  parsedDateTime?: Date;        // added: parsed once (date+time)
+  ts?: number;                  // added: parsedDateTime.getTime()
+  ymd?: string;                 // added: 'YYYY-MM-DD' key
 }
 
 export interface ViewData {
@@ -38,10 +40,12 @@ export interface ViewData {
   knowby_name?: string;
   member_id?: string;
   member_name?: string;
-  date: string;           // dd/MM/yyyy (original)
-  parsedDate?: Date;      // added
-  ts?: number;            // added
-  ymd?: string;           // added
+  date: string;                 // dd/MM/yyyy (original)
+  time?: string;                // HH:mm:ss (optional)
+  datetime?: string;            // ISO string (optional)
+  parsedDateTime?: Date;        // added
+  ts?: number;                  // added
+  ymd?: string;                 // added
 }
 
 /** Endpoints for each mode (unchanged) */
@@ -66,24 +70,56 @@ type CacheEntry = { c: CompletionData[]; v: ViewData[]; t: number };
 const Ctx = createContext<KnowbyCtx | null>(null);
 
 /** ---- Helpers ---- */
-function parseDDMMYYYY(d: string): { parsedDate: Date; ts: number; ymd: string } | null {
-  // Expect dd/MM/yyyy; be defensive for odd rows
-  const [dd, mm, yyyy] = d.split("/").map((x) => parseInt(String(x).trim(), 10));
+function parseDDMMYYYY_withTime(
+  dateStr: string | undefined,
+  timeStr?: string,
+  isoDateTimeStr?: string
+): { parsedDateTime: Date; ts: number; ymd: string } | null {
+  if (!dateStr) return null;
+
+  // 1) If an ISO datetime is provided, prefer it (and keep it local by constructing Date directly)
+  if (isoDateTimeStr) {
+    const d = new Date(isoDateTimeStr);
+    if (!isNaN(d.getTime())) {
+      const y = d.getFullYear(), m = d.getMonth() + 1, day = d.getDate();
+      return {
+        parsedDateTime: d,
+        ts: d.getTime(),
+        ymd: `${y}-${String(m).padStart(2, "0")}-${String(day).padStart(2, "0")}`,
+      };
+    }
+  }
+
+  // 2) Parse dd/MM/yyyy
+  const [dd, mm, yyyy] = String(dateStr).split("/").map((x) => parseInt(String(x).trim(), 10));
   if (!yyyy || !mm || !dd) return null;
-  // Construct local date at midnight to avoid tz drift
-  const parsedDate = new Date(yyyy, mm - 1, dd);
-  const ts = parsedDate.getTime();
-  const ymd = `${yyyy}-${String(mm).padStart(2, "0")}-${String(dd).padStart(2, "0")}`;
-  return { parsedDate, ts, ymd };
+
+  // Build local date; avoid TZ drift by using y,m-1,dd directly
+  const d = new Date(yyyy, mm - 1, dd);
+
+  // 3) If time exists, set hours/min/sec; else leave midnight
+  if (timeStr) {
+    const [hh = "0", min = "0", ss = "0"] = timeStr.split(":");
+    d.setHours(parseInt(hh, 10) || 0, parseInt(min, 10) || 0, parseInt(ss, 10) || 0, 0);
+  }
+
+  return {
+    parsedDateTime: d,
+    ts: d.getTime(),
+    ymd: `${yyyy}-${String(mm).padStart(2, "0")}-${String(dd).padStart(2, "0")}`,
+  };
 }
 
-/** Lightweight row "normalisers" (now attach parsed fields) */
+
 function asCompletionRow(row: any): CompletionData | null {
   const knowby_id = String(row?.knowby_id ?? "").trim();
   const dateStr = String(row?.date ?? "").trim();
   if (!knowby_id || !dateStr) return null;
 
-  const parsed = parseDDMMYYYY(dateStr);
+  const timeStr = row?.time ? String(row.time).trim() : undefined;
+  const isoStr = row?.datetime ? String(row.datetime).trim() : undefined;
+
+  const parsed = parseDDMMYYYY_withTime(dateStr, timeStr, isoStr);
   if (!parsed) return null;
 
   return {
@@ -93,7 +129,9 @@ function asCompletionRow(row: any): CompletionData | null {
     member_id: row?.member_id ?? undefined,
     member_name: row?.member_name ?? undefined,
     date: dateStr,
-    parsedDate: parsed.parsedDate,
+    time: timeStr,
+    datetime: isoStr,
+    parsedDateTime: parsed.parsedDateTime,
     ts: parsed.ts,
     ymd: parsed.ymd,
   };
@@ -103,7 +141,10 @@ function asViewRow(row: any): ViewData | null {
   const dateStr = String(row?.date ?? "").trim();
   if (!dateStr) return null;
 
-  const parsed = parseDDMMYYYY(dateStr);
+  const timeStr = row?.time ? String(row.time).trim() : undefined;
+  const isoStr = row?.datetime ? String(row.datetime).trim() : undefined;
+
+  const parsed = parseDDMMYYYY_withTime(dateStr, timeStr, isoStr);
   if (!parsed) return null;
 
   return {
@@ -113,11 +154,14 @@ function asViewRow(row: any): ViewData | null {
     member_id: row?.member_id ?? undefined,
     member_name: row?.member_name ?? undefined,
     date: dateStr,
-    parsedDate: parsed.parsedDate,
+    time: timeStr,
+    datetime: isoStr,
+    parsedDateTime: parsed.parsedDateTime,
     ts: parsed.ts,
     ymd: parsed.ymd,
   };
 }
+
 
 export function KnowbyDataProvider({ children }: { children: React.ReactNode }) {
   // pick initial mode: localStorage -> env -> 'sample'

@@ -36,24 +36,40 @@ type Mode = "weekly" | "monthly" | "yearly" | "all";
 /* ---------- small helpers ---------- */
 
 const parseCache = new Map<string, Date>();
-function parseCsvDate(ds?: string): Date | null {
-  if (!ds) return null;
-  let d = parseCache.get(ds);
-  if (!d) {
-    d = parse(ds, "dd/MM/yyyy", new Date());
-    parseCache.set(ds, d);
+function parseCsvDateTime(
+  dateStr?: string,
+  timeStr?: string,
+  isoDateTimeStr?: string
+): Date | null {
+  // Prefer ISO datetime if present (e.g. from the provider)
+  if (isoDateTimeStr) {
+    const d = new Date(isoDateTimeStr);
+    if (!isNaN(d.getTime())) return d;
+  }
+  if (!dateStr) return null;
+
+  // Parse dd/MM/yyyy -> local date
+  const [dd, mm, yyyy] = String(dateStr).split("/").map((x) => parseInt(String(x).trim(), 10));
+  if (!yyyy || !mm || !dd) return null;
+  const d = new Date(yyyy, mm - 1, dd);
+
+  // Apply time if available (HH:mm or HH:mm:ss)
+  if (timeStr) {
+    const [hh = "0", m = "0", s = "0"] = String(timeStr).split(":");
+    d.setHours(parseInt(hh, 10) || 0, parseInt(m, 10) || 0, parseInt(s, 10) || 0, 0);
   }
   return d;
 }
+
 const dayKey = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 const hourKey = (d: Date) => `${dayKey(d)}|${String(d.getHours()).padStart(2, "0")}`;
 
-// 9 equal bins across 24h (~160 min each)
-const WEEKLY_BINS = 9;
+// 8 equal bins across 24h (= 180 min each)
+const WEEKLY_BINS = 8;
 type TimeBin = { startMin: number; endMin: number; label: string };
 
-// e.g. 0 -> "00:00", 160 -> "02:40"
+// e.g. 0 -> "00:00", 180 -> "03:00"
 function fmtHM(totalMin: number) {
   const m = Math.min(totalMin, 24 * 60); // clamp at 24:00
   const hh = Math.floor(m / 60);
@@ -62,7 +78,7 @@ function fmtHM(totalMin: number) {
 }
 
 function buildTimeBins(n = WEEKLY_BINS): TimeBin[] {
-  const minutesPerBin = (24 * 60) / n; // 1440 / 9 = 160
+  const minutesPerBin = (24 * 60) / n; // 1440 / 8 = 180
   const bins: TimeBin[] = [];
   for (let i = 0; i < n; i++) {
     const startMin = Math.round(i * minutesPerBin);
@@ -73,7 +89,6 @@ function buildTimeBins(n = WEEKLY_BINS): TimeBin[] {
 }
 
 const TIME_BINS = buildTimeBins(WEEKLY_BINS);
-
 
 function clampRange(from: Date, to: Date) {
   const start = new Date(from.getFullYear(), from.getMonth(), from.getDate(), 0, 0, 0, 0);
@@ -102,14 +117,14 @@ function cellColor(value: number, max: number) {
 
 export default function UsageHeatmap({ selectedDateRange }: Props) {
   /* --- ALWAYS call hooks in the same order (no early return before these) --- */
-  const { views, completions } = useKnowbyData();            // <- useContext runs every render
+  const { views, completions } = useKnowbyData();
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
   const [metric, setMetric] = useState<Metric>("views");
 
   // Use stable fallback dates so hook computations don’t depend on runtime time.
-  const rawFrom = selectedDateRange?.from ?? new Date(0);    // epoch -> stable on SSR & CSR
-  const rawTo   = selectedDateRange?.to   ?? new Date(0);
+  const rawFrom = selectedDateRange?.from ?? new Date(0);
+  const rawTo = selectedDateRange?.to ?? new Date(0);
   const { start, end } = clampRange(rawFrom, rawTo);
   const ready = mounted && !!selectedDateRange?.from && !!selectedDateRange?.to;
   const mode: Mode = resolveMode(start, end);
@@ -139,8 +154,18 @@ export default function UsageHeatmap({ selectedDateRange }: Props) {
       }
     };
 
-    for (const r of views) push(parseCsvDate((r as any)?.date), "v");
-    for (const r of completions) push(parseCsvDate((r as any)?.date), "c");
+    for (const r of views) {
+      const d =
+        (r as any)?.parsedDateTime
+        ?? parseCsvDateTime((r as any)?.date, (r as any)?.time, (r as any)?.datetime);
+      push(d, "v");
+    }
+    for (const r of completions) {
+      const d =
+        (r as any)?.parsedDateTime
+        ?? parseCsvDateTime((r as any)?.date, (r as any)?.time, (r as any)?.datetime);
+      push(d, "c");
+    }
 
     return { dayViews, dayComps, hourViews, hourComps };
   }, [views, completions, start.getTime(), end.getTime(), ready]);
@@ -163,7 +188,7 @@ export default function UsageHeatmap({ selectedDateRange }: Props) {
     if (!ready) return { days: [] as Date[], grid: [] as number[][], max: 0, bins: TIME_BINS };
 
     const days = eachDayOfInterval({ start, end }).slice(0, 14);
-    const rows = TIME_BINS.length;
+    const rows = TIME_BINS.length; // now 8
     const grid: number[][] = Array.from({ length: rows }, () => Array(days.length).fill(0));
     let max = 0;
 
@@ -187,7 +212,6 @@ export default function UsageHeatmap({ selectedDateRange }: Props) {
 
     return { days, grid, max, bins: TIME_BINS };
   }, [start.getTime(), end.getTime(), metric, counts, ready]);
-
 
   const months = useMemo(() => {
     if (!ready) return [] as { monthStart: Date; days: Date[]; max: number }[];
@@ -254,11 +278,11 @@ export default function UsageHeatmap({ selectedDateRange }: Props) {
       <Card className="relative isolate overflow-hidden rounded-3xl p-5 md:p-6 border-0 shadow-xl/2 bg-card dark:border dark:border-slate-700 gap-2">
         {/* Header */}
         <div className="flex items-center gap-3">
-          <div className="shrink-0 flex h-10 w-10 items-center justify-center rounded-full text-white bg-gradient-to-b from-amber-500 to-orange-500 dark:from-rose-500 dark:to-rose-600">
+          <div className="shrink-0 flex h-10 w-10 items-center justify-center rounded-full text-white bg-gradient-to-b from-teal-500 to-teal-700">
             <CalendarIcon className="h-5 w-5" />
           </div>
           <div className="flex flex-col">
-            <h3 className="text-base md:text-lg font-semibold">Usage Heatmap</h3>
+            <h3 className="text-base md:text-lg dark:text-white font-semibold">Usage Heatmap</h3>
             <span className="text-xs text-muted-foreground">
               {format(start, "d MMM yyyy")} – {format(end, "d MMM yyyy")}
             </span>
@@ -303,16 +327,12 @@ export default function UsageHeatmap({ selectedDateRange }: Props) {
               <div
                 className="grid"
                 style={{
-                  // +1 for time label column
                   gridTemplateColumns: `auto repeat(${weekly.days.length}, minmax(1.5rem, 1fr))`,
                   gridTemplateRows: `auto repeat(${weekly.bins.length}, 1fr)`,
                   gap: 4,
                 }}
               >
-                {/* top-left blank cell */}
                 <div />
-
-                {/* day headers */}
                 {weekly.days.map((d, c) => (
                   <div
                     key={`head-${c}`}
@@ -322,8 +342,6 @@ export default function UsageHeatmap({ selectedDateRange }: Props) {
                     {format(d, "EEE d")}
                   </div>
                 ))}
-
-                {/* time labels (first column) */}
                 {weekly.bins.map((b, r) => (
                   <div
                     key={`lbl-${r}`}
@@ -333,8 +351,6 @@ export default function UsageHeatmap({ selectedDateRange }: Props) {
                     {b.label}
                   </div>
                 ))}
-
-                {/* heatmap cells */}
                 {weekly.days.map((d, c) =>
                   weekly.bins.map((bin, r) => {
                     const v = weekly.grid[r][c];
@@ -374,7 +390,7 @@ export default function UsageHeatmap({ selectedDateRange }: Props) {
                   <div className="text-xs text-muted-foreground">Sun – Sat</div>
                 </div>
                 <div className="grid grid-cols-7 gap-1">
-                  {["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].map((d) => (
+                  {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
                     <div key={d} className="text-[11px] text-center text-muted-foreground mb-1">{d}</div>
                   ))}
                   {days.map((d) => {
@@ -402,7 +418,7 @@ export default function UsageHeatmap({ selectedDateRange }: Props) {
           </div>
         )}
 
-        {/* YEARLY + ALL: GitHub-style */}
+        {/* YEARLY + ALL: width-fitting micro-cells (no overflow, no extra height) */}
         {(mode === "yearly" || mode === "all") && (
           <div className="space-y-6">
             {yearly.map((y) => (
@@ -413,7 +429,21 @@ export default function UsageHeatmap({ selectedDateRange }: Props) {
                     {format(y.start, "d MMM")} – {format(y.end, "d MMM")}
                   </div>
                 </div>
-                <div className="inline-grid gap-1" style={{ gridTemplateRows: "repeat(7,1fr)", gridTemplateColumns: `repeat(${y.weeks}, 1fr)` }}>
+
+                {/* 
+                  Width-fitting grid:
+                  - Columns: repeat(weeks, 1fr) -> always fits container width
+                  - Rows: fixed tiny height per weekday (no extra vertical space)
+                  - Gap: minimal (0.125rem) to keep legibility at tiny widths
+                  - Cells: full column width, height ~6px (h-1.5), rounded for a modern “spark-heatmap” look
+                */}
+                <div
+                  className="grid gap-[2px]"
+                  style={{
+                    gridTemplateRows: "repeat(7, 12px)", // ~h-1.5 each row; keep card height constant
+                    gridTemplateColumns: `repeat(${y.weeks}, 1fr)`,
+                  }}
+                >
                   {Array.from({ length: 7 }, (_, r) =>
                     Array.from({ length: y.weeks }, (_, c) => {
                       const day = addDays(y.start, c * 7 + r);
@@ -421,7 +451,10 @@ export default function UsageHeatmap({ selectedDateRange }: Props) {
                       return (
                         <Tooltip key={`${r}-${c}`}>
                           <TooltipTrigger asChild>
-                            <div className={`h-3.5 w-3.5 rounded-[6px] ${cellColor(v, y.max)} ring-1 ring-black/10 dark:ring-white/10`} />
+                            <div
+                              className={`w-full h-[12px] rounded-[2px] ${cellColor(v, y.max)} ring-0`}
+                            // No fixed width -> column width defines it, preventing overflow
+                            />
                           </TooltipTrigger>
                           <TooltipContent className="text-xs">
                             {format(day, "EEE d MMM yyyy")} — {v} {metric === "completions" ? "completion(s)" : metric === "views" ? "view(s)" : "event(s)"}

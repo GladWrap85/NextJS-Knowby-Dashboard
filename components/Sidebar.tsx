@@ -28,6 +28,7 @@ import { Loader2, CheckCircle, AlertCircle, ExternalLink } from 'lucide-react'
 // 👉 keep your original import path if this is where it lives
 import { useKnowbyData } from '@/lib/KnowbyDataProvider'
 import ScraperButton from './ScraperButton'
+import VersionPill from './VersionPill'
 
 type MenuItem = {
   link: string
@@ -416,7 +417,7 @@ export default function Sidebar() {
           </Command>
         </div>
         <div className="flex justify-center mt-auto mb-2">
-          <span className="text-xs text-muted-foreground opacity-70">v0.9.5</span>
+          <VersionPill />
         </div>
       </aside>
 

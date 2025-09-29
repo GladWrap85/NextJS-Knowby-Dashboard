@@ -576,8 +576,8 @@ export default function TodaysUsageCard({ selectedDateRange }: TodaysUsageCardPr
 
             <button
               onClick={() => setShowCompare(v => !v)}
-              className={`inline-flex text-xs font-semibold items-center gap-1 rounded-full px-2.5 py-1 ring-1 transition
-              ${"bg-rose-100 text-rose-700 ring-rose-200 hover:bg-rose-200 dark:bg-rose-500/20 dark:text-rose-300 dark:ring-white/10 hover:dark:bg-rose-500/50"}`}
+              className={`inline-flex text-xs font-semibold items-center gap-1 rounded-full px-2.5 py-1 ring-1
+              ${"bg-indigo-100 text-indigo-700 ring-indigo-200 hover:bg-indigo-200 dark:bg-indigo-500/20 dark:text-indigo-300 dark:ring-white/10 hover:dark:bg-indigo-500/50"}`}
               title={`Toggle comparison with ${compareLabel}`}
             >
               <LucideGitCompareArrows className="h-3.5 w-3.5" />
