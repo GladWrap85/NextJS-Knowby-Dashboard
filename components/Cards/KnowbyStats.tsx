@@ -6,14 +6,19 @@ import {
   DialogContent,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog"; // ShadCN dialog
+} from "@/components/ui/dialog";
 import StatsTable from "@/components/Cards/StatsTable";
 import dynamic from "next/dynamic";
 import type { ApexOptions } from "apexcharts";
 import { ChevronDown } from "lucide-react";
 import { useKnowbyData } from "@/lib/KnowbyDataProvider";
 import { DateRange } from "react-day-picker";
-import { parse, isWithinInterval, subDays, startOfDay, endOfDay } from "date-fns";
+import {
+  subDays,
+  startOfDay,
+  endOfDay,
+  format,
+} from "date-fns";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "../ui/card";
 
 const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
@@ -30,111 +35,138 @@ const baseChartOptions: ApexOptions = {
   yaxis: { show: false },
 };
 
-// helper to parse dd/MM/yyyy strings from your CSVs
-function parseCsvDate(ds?: string): Date | null {
-  if (!ds) return null;
-  return parse(ds, "dd/MM/yyyy", new Date());
+// Fallback date parser + cache in case provider rows don't have ts/parsedDate yet.
+const dateCache = new Map<string, number>(); // key: dd/MM/yyyy, val: ts (local midnight)
+function tsFromDDMMYYYY(ds?: string): number {
+  if (!ds) return 0;
+  const hit = dateCache.get(ds);
+  if (hit) return hit;
+  const [dd, mm, yyyy] = ds.split("/").map((x) => parseInt(x, 10));
+  if (!yyyy || !mm || !dd) return 0;
+  const d = new Date(yyyy, mm - 1, dd);
+  const ts = d.getTime();
+  dateCache.set(ds, ts);
+  return ts;
 }
 
 export default function KnowbyStats({ selectedDateRange }: Props) {
-  const { views, completions, status } = useKnowbyData();
+  const { views, completions } = useKnowbyData();
   const [activePopup, setActivePopup] = useState<null | string>(null);
 
-  // guard defaults
+  // Normalize range to full days
   const now = new Date();
   const rawFrom = selectedDateRange?.from ?? subDays(now, 30);
   const rawTo = selectedDateRange?.to ?? now;
+  const fromTs = startOfDay(rawFrom).getTime();
+  const toTs = endOfDay(rawTo).getTime();
 
-  // normalize so we include the whole 'to' day
-  const from = startOfDay(rawFrom);
-  const to = endOfDay(rawTo);
+  // Filter once using numeric comparisons (prefer provider's ts if present)
+  const filteredCompletions = useMemo(() => {
+    return completions.filter((r: any) => {
+      const ts = (r.ts as number | undefined) ?? tsFromDDMMYYYY(r?.date);
+      return ts >= fromTs && ts <= toTs;
+    });
+  }, [completions, fromTs, toTs]);
 
-  // helper already present
-  function parseCsvDate(ds?: string): Date | null {
-    if (!ds) return null;
-    return parse(ds, "dd/MM/yyyy", new Date());
-  }
+  const filteredViews = useMemo(() => {
+    return views.filter((r: any) => {
+      const ts = (r.ts as number | undefined) ?? tsFromDDMMYYYY(r?.date);
+      return ts >= fromTs && ts <= toTs;
+    });
+  }, [views, fromTs, toTs]);
 
-  // *** NEW: filtered slices used everywhere below ***
-  const filteredCompletions = completions.filter(r => {
-    const d = parseCsvDate((r as any)?.date);
-    return d && isWithinInterval(d, { start: from, end: to });
-  });
-
-  const filteredViews = views.filter(r => {
-    const d = parseCsvDate((r as any)?.date);
-    return d && isWithinInterval(d, { start: from, end: to });
-  });
-
-
-  // compute stats + trend arrays
+  // Build trends in single passes (no per-day rescans)
   const {
     activeMembers,
     newKnowbys,
     recentlyViewed,
     unusedKnowbys,
-    activeMembersData,
-    newKnowbysData,
-    recentlyViewedData,
-    unusedKnowbysData,
     activeTrend,
     knowbyTrend,
     viewedTrend,
     unusedTrend,
+    // Precomputed table rows (so StatsTable doesn't have to aggregate)
+    activeRows,
+    viewedRows,
+    newKnowbysRows,
+    unusedKnowbysRows,
   } = useMemo(() => {
-    const memberSet = new Set<string>();
-
     const trendDays = 30;
-    const activeCounts: number[] = [];
-    const newCounts: number[] = [];
-    const viewedCounts: number[] = [];
-    const unusedCounts: number[] = [];
+    const dayMs = 24 * 60 * 60 * 1000;
+    const dailyActive = Array(trendDays).fill(0);
+    const dailyViewed = Array(trendDays).fill(0);
+    const memberSet = new Set<string>();
+    const toDayStart = startOfDay(new Date(toTs)).getTime();
+    const firstDayStart = toDayStart - (trendDays - 1) * dayMs;
 
-    // build per-day buckets using the already-filtered arrays
-    for (let i = 0; i < trendDays; i++) {
-      const day = subDays(to, trendDays - 1 - i);
-      const start = startOfDay(day);
-      const end = endOfDay(day);
+    // Active members + daily active completions counts
+    filteredCompletions.forEach((r: any) => {
+      const ts = (r.ts as number | undefined) ?? tsFromDDMMYYYY(r?.date);
+      const idx = Math.floor((ts - firstDayStart) / dayMs);
+      if (idx >= 0 && idx < trendDays) dailyActive[idx] += 1;
+      if (r.member_id) memberSet.add(r.member_id);
+    });
 
-      const cDay = filteredCompletions.filter(r => {
-        const d = parseCsvDate((r as any)?.date);
-        return d && isWithinInterval(d, { start, end });
+    // Daily views counts
+    filteredViews.forEach((r: any) => {
+      const ts = (r.ts as number | undefined) ?? tsFromDDMMYYYY(r?.date);
+      const idx = Math.floor((ts - firstDayStart) / dayMs);
+      if (idx >= 0 && idx < trendDays) dailyViewed[idx] += 1;
+    });
+
+    // Table rows: pre-aggregate once
+    // 1) Active: completions grouped by member
+    const activeMap: Record<string, { member_name: string; count: number }> = {};
+    filteredCompletions.forEach((d: any) => {
+      const id = d.member_id ?? "(unknown)";
+      if (!activeMap[id]) activeMap[id] = { member_name: d.member_name ?? "(unknown)", count: 0 };
+      activeMap[id].count += 1;
+    });
+    const activeRows = Object.entries(activeMap)
+      .map(([member_id, info]) => ({ member_id, member_name: info.member_name, count: info.count }))
+      .sort((a, b) => b.count - a.count);
+
+    // 2) Viewed: most recent view per knowby + counts
+    const viewedMap: Record<string, { lastTs: number; views: number }> = {};
+    filteredViews.forEach((v: any) => {
+      const key = v.knowby_name ?? "(unknown)";
+      const ts = (v.ts as number | undefined) ?? tsFromDDMMYYYY(v?.date);
+      const cur = viewedMap[key] ?? { lastTs: 0, views: 0 };
+      viewedMap[key] = { lastTs: Math.max(cur.lastTs, ts), views: cur.views + 1 };
+    });
+    const viewedRows = Object.entries(viewedMap)
+      .map(([title, info]) => ({
+        title,
+        last_viewed: format(new Date(info.lastTs), "dd/MM/yyyy"),
+        views: info.views,
+      }))
+      .sort((a, b) => {
+        // sort by most recent, then by views desc
+        const aTs = tsFromDDMMYYYY(a.last_viewed);
+        const bTs = tsFromDDMMYYYY(b.last_viewed);
+        return bTs - aTs || b.views - a.views;
       });
-      const vDay = filteredViews.filter(r => {
-        const d = parseCsvDate((r as any)?.date);
-        return d && isWithinInterval(d, { start, end });
-      });
 
-      activeCounts.push(new Set(cDay.map(r => (r as any).member_id)).size);
-      newCounts.push(0);
-      viewedCounts.push(vDay.length);
-      unusedCounts.push(0);
-    }
-
-    // summary numbers from filtered arrays
-    filteredCompletions.forEach(r => memberSet.add((r as any).member_id));
+    // 3) New knowbys / Unused — placeholders (no creation metadata in current CSVs)
+    const newKnowbysRows: any[] = [];
+    const unusedKnowbysRows: any[] = [];
 
     return {
       activeMembers: memberSet.size,
       newKnowbys: 0,
       recentlyViewed: filteredViews.length,
       unusedKnowbys: 0,
-
-      // *** IMPORTANT: pass filtered arrays to tables ***
-      activeMembersData: filteredCompletions,
-      newKnowbysData: [],
-      recentlyViewedData: filteredViews,   // was: views (unfiltered)
-      unusedKnowbysData: [],
-
-      activeTrend: activeCounts,
-      knowbyTrend: newCounts,
-      viewedTrend: viewedCounts,
-      unusedTrend: unusedCounts,
+      activeTrend: dailyActive,
+      knowbyTrend: Array(trendDays).fill(0),
+      viewedTrend: dailyViewed,
+      unusedTrend: Array(trendDays).fill(0),
+      activeRows,
+      viewedRows,
+      newKnowbysRows,
+      unusedKnowbysRows,
     };
-  }, [from, to, filteredCompletions, filteredViews]);
+  }, [filteredCompletions, filteredViews, toTs]);
 
-
-  // reusable tile
   const StatTile = ({
     label,
     value,
@@ -148,11 +180,11 @@ export default function KnowbyStats({ selectedDateRange }: Props) {
     description: string;
     popupId: string;
     popupContent: React.ReactNode;
-    chartSeries: (number | null)[];
+    chartSeries: (number | null | number)[];
   }) => (
     <Dialog
       open={activePopup === popupId}
-      onOpenChange={open => setActivePopup(open ? popupId : null)}
+      onOpenChange={(open) => setActivePopup(open ? popupId : null)}
     >
       <DialogTrigger asChild>
         <div className="relative bg-muted/50 p-3 rounded-md cursor-pointer hover:bg-muted border shadow-sm flex flex-col justify-between h-[130px]">
@@ -174,9 +206,7 @@ export default function KnowbyStats({ selectedDateRange }: Props) {
           </div>
           <div>
             <div className="text-xs font-medium">{label}</div>
-            <div className="text-[10px] text-muted-foreground truncate">
-              {description}
-            </div>
+            <div className="text-[10px] text-muted-foreground truncate">{description}</div>
           </div>
         </div>
       </DialogTrigger>
@@ -205,9 +235,10 @@ export default function KnowbyStats({ selectedDateRange }: Props) {
             chartSeries={activeTrend}
             popupContent={
               <StatsTable
-                data={activeMembersData}
-                caption="Members with completions in the selected period"
+                // NEW: pass precomputed rows so the table renders instantly
+                rows={activeRows}
                 type="active"
+                caption="Members with completions in the selected period"
               />
             }
           />
@@ -219,9 +250,9 @@ export default function KnowbyStats({ selectedDateRange }: Props) {
             chartSeries={knowbyTrend}
             popupContent={
               <StatsTable
-                data={newKnowbysData}
-                caption="Most recently created knowbys"
+                rows={newKnowbysRows}
                 type="new"
+                caption="Most recently created knowbys"
               />
             }
           />
@@ -233,9 +264,9 @@ export default function KnowbyStats({ selectedDateRange }: Props) {
             chartSeries={viewedTrend}
             popupContent={
               <StatsTable
-                data={recentlyViewedData}
-                caption="Knowbys viewed in the selected period"
+                rows={viewedRows}
                 type="viewed"
+                caption="Knowbys viewed in the selected period"
               />
             }
           />
@@ -247,9 +278,9 @@ export default function KnowbyStats({ selectedDateRange }: Props) {
             chartSeries={unusedTrend}
             popupContent={
               <StatsTable
-                data={unusedKnowbysData}
-                caption="Knowbys that haven’t been viewed recently"
+                rows={unusedKnowbysRows}
                 type="unused"
+                caption="Knowbys that haven’t been viewed recently"
               />
             }
           />

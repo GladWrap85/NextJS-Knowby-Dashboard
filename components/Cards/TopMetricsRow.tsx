@@ -199,8 +199,29 @@ export default function TopMetricsRow({ selectedDateRange }: Props) {
   const deltaRate =
     compRate === 0 && prevCompRate === 0 ? null : compRate - prevCompRate; // percentage points
 
-  // Loading shimmer if provider is still loading
   const isLoading = status === "loading";
+
+  // Ghosted while loading
+  if (isLoading) {
+    return (
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-6">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <Card
+            key={i}
+            className="flex flex-row items-center p-4 bg-card shadow-xl/2 dark:shadow-lg dark:shadow-gray-900/50 gap-3 border-0 rounded-3xl"
+          >
+            {/* icon circle */}
+            <div className="w-10 h-10 rounded-full bg-muted animate-pulse" />
+            {/* label + value */}
+            <div className="flex flex-col justify-center gap-2 flex-1">
+              <div className="h-3 w-20 bg-muted rounded animate-pulse" />
+              <div className="h-6 w-16 bg-muted rounded animate-pulse" />
+            </div>
+          </Card>
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div className="grid grid-cols-2 lg:grid-cols-5 gap-6">
@@ -213,11 +234,7 @@ export default function TopMetricsRow({ selectedDateRange }: Props) {
           <span className="text-xs text-muted-foreground">Active Members</span>
           <div className="flex items-baseline gap-2">
             <span className="text-2xl font-semibold tabular-nums dark:text-white">
-              {isLoading ? (
-                <div className="h-6 w-12 bg-muted rounded animate-pulse" />
-              ) : (
-                activeMembers.toLocaleString()
-              )}
+              {activeMembers.toLocaleString()}
             </span>
             <DeltaBadge delta={deltaMembers} />
           </div>
@@ -233,11 +250,7 @@ export default function TopMetricsRow({ selectedDateRange }: Props) {
           <span className="text-xs text-muted-foreground">Knowbys</span>
           <div className="flex items-baseline gap-2">
             <span className="text-2xl font-semibold tabular-nums dark:text-white">
-              {isLoading ? (
-                <div className="h-6 w-12 bg-muted rounded animate-pulse" />
-              ) : (
-                knowbys.toLocaleString()
-              )}
+              {knowbys.toLocaleString()}
             </span>
             <DeltaBadge delta={deltaKnowbys} />
           </div>
@@ -253,11 +266,7 @@ export default function TopMetricsRow({ selectedDateRange }: Props) {
           <span className="text-xs text-muted-foreground">Views</span>
           <div className="flex items-baseline gap-2">
             <span className="text-2xl font-semibold tabular-nums dark:text-white">
-              {isLoading ? (
-                <div className="h-6 w-12 bg-muted rounded animate-pulse" />
-              ) : (
-                vCount.toLocaleString()
-              )}
+              {vCount.toLocaleString()}
             </span>
             <DeltaBadge delta={deltaViews} />
           </div>
@@ -273,11 +282,7 @@ export default function TopMetricsRow({ selectedDateRange }: Props) {
           <span className="text-xs text-muted-foreground">Completions</span>
           <div className="flex items-baseline gap-2">
             <span className="text-2xl font-semibold tabular-nums dark:text-white">
-              {isLoading ? (
-                <div className="h-6 w-12 bg-muted rounded animate-pulse" />
-              ) : (
-                cCount.toLocaleString()
-              )}
+              {cCount.toLocaleString()}
             </span>
             <DeltaBadge delta={deltaCompletions} />
           </div>
@@ -293,11 +298,7 @@ export default function TopMetricsRow({ selectedDateRange }: Props) {
           <span className="text-xs text-muted-foreground">Completion Rate</span>
           <div className="flex items-baseline gap-2">
             <span className="text-2xl font-semibold tabular-nums dark:text-white">
-              {isLoading ? (
-                <div className="h-6 w-12 bg-muted rounded animate-pulse" />
-              ) : (
-                pct((compRate || 0))
-              )}
+              {pct(compRate || 0)}
             </span>
             <DeltaBadge delta={deltaRate ?? null} isRate />
           </div>

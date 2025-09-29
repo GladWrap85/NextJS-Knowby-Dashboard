@@ -498,7 +498,7 @@ export default function TodaysUsageCard({ selectedDateRange }: TodaysUsageCardPr
     return (
       <Card className="flex flex-col p-6 rounded-xl h-fit gap-3">
         <div className="flex items-center gap-4">
-          <div className="shrink-0 w-16 h-16 rounded-lg bg-muted animate-pulse" />
+          <div className="shrink-0 w-16 h-16 rounded-full bg-muted animate-pulse" />
           <div className="flex-1 space-y-2">
             <div className="h-4 w-32 bg-muted rounded animate-pulse" />
             <div className="h-8 w-24 bg-muted rounded animate-pulse" />
