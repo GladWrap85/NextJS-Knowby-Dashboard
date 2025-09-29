@@ -7,7 +7,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { useDarkMode } from "@/components/NivoWrapper";
-import { Eye, CheckCircle, TrendingUp, Activity } from "lucide-react";
+import { Eye, CheckCircle, TrendingUp, Activity, LucideGitCompareArrows } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
@@ -574,14 +574,15 @@ export default function TodaysUsageCard({ selectedDateRange }: TodaysUsageCardPr
               </div>
             </div>
 
-            <Button
-              type="button" variant={"secondary"}
+            <button
               onClick={() => setShowCompare(v => !v)}
-              className="text-xs h-8 w-auto rounded-md border hover:bg-muted transition-colors"
+              className={`inline-flex text-xs font-semibold items-center gap-1 rounded-full px-2.5 py-1 ring-1 transition
+              ${"bg-rose-100 text-rose-700 ring-rose-200 hover:bg-rose-200 dark:bg-rose-500/20 dark:text-rose-300 dark:ring-white/10 hover:dark:bg-rose-500/50"}`}
               title={`Toggle comparison with ${compareLabel}`}
             >
+              <LucideGitCompareArrows className="h-3.5 w-3.5" />
               {showCompare ? "Hide Compare" : `Compare ${compareLabel}`}
-            </Button>
+            </button>
           </div>
 
         </div>

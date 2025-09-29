@@ -49,6 +49,32 @@ const dayKey = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 const hourKey = (d: Date) => `${dayKey(d)}|${String(d.getHours()).padStart(2, "0")}`;
 
+// 9 equal bins across 24h (~160 min each)
+const WEEKLY_BINS = 9;
+type TimeBin = { startMin: number; endMin: number; label: string };
+
+// e.g. 0 -> "00:00", 160 -> "02:40"
+function fmtHM(totalMin: number) {
+  const m = Math.min(totalMin, 24 * 60); // clamp at 24:00
+  const hh = Math.floor(m / 60);
+  const mm = m % 60;
+  return `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}`;
+}
+
+function buildTimeBins(n = WEEKLY_BINS): TimeBin[] {
+  const minutesPerBin = (24 * 60) / n; // 1440 / 9 = 160
+  const bins: TimeBin[] = [];
+  for (let i = 0; i < n; i++) {
+    const startMin = Math.round(i * minutesPerBin);
+    const endMin = i === n - 1 ? 24 * 60 : Math.round((i + 1) * minutesPerBin);
+    bins.push({ startMin, endMin, label: `${fmtHM(startMin)}–${fmtHM(endMin)}` });
+  }
+  return bins;
+}
+
+const TIME_BINS = buildTimeBins(WEEKLY_BINS);
+
+
 function clampRange(from: Date, to: Date) {
   const start = new Date(from.getFullYear(), from.getMonth(), from.getDate(), 0, 0, 0, 0);
   const end = new Date(to.getFullYear(), to.getMonth(), to.getDate(), 23, 59, 59, 999);
@@ -134,20 +160,34 @@ export default function UsageHeatmap({ selectedDateRange }: Props) {
 
   /* ---------- data shapes (guarded; cheap when !ready) ---------- */
   const weekly = useMemo(() => {
-    if (!ready) return { days: [] as Date[], grid: [] as number[][], max: 0 };
+    if (!ready) return { days: [] as Date[], grid: [] as number[][], max: 0, bins: TIME_BINS };
+
     const days = eachDayOfInterval({ start, end }).slice(0, 14);
-    const grid: number[][] = Array.from({ length: 24 }, () => Array(days.length).fill(0));
+    const rows = TIME_BINS.length;
+    const grid: number[][] = Array.from({ length: rows }, () => Array(days.length).fill(0));
     let max = 0;
+
+    // For each day/each bin, sum all hour buckets whose hour start falls inside the bin range
     for (let c = 0; c < days.length; c++) {
-      for (let h = 0; h < 24; h++) {
-        const t = new Date(days[c].getFullYear(), days[c].getMonth(), days[c].getDate(), h);
-        const v = hourCount(t);
-        grid[h][c] = v;
-        if (v > max) max = v;
+      const d = days[c];
+      for (let r = 0; r < rows; r++) {
+        const bin = TIME_BINS[r];
+        let sum = 0;
+        for (let h = 0; h < 24; h++) {
+          const hourStartMin = h * 60;
+          if (hourStartMin >= bin.startMin && hourStartMin < bin.endMin) {
+            const t = new Date(d.getFullYear(), d.getMonth(), d.getDate(), h);
+            sum += hourCount(t);
+          }
+        }
+        grid[r][c] = sum;
+        if (sum > max) max = sum;
       }
     }
-    return { days, grid, max };
+
+    return { days, grid, max, bins: TIME_BINS };
   }, [start.getTime(), end.getTime(), metric, counts, ready]);
+
 
   const months = useMemo(() => {
     if (!ready) return [] as { monthStart: Date; days: Date[]; max: number }[];
@@ -259,42 +299,65 @@ export default function UsageHeatmap({ selectedDateRange }: Props) {
         {/* WEEKLY (<=14 days): hours × day */}
         {mode === "weekly" && (
           <>
-            <div className="mb-2 flex items-center justify-between text-xs text-muted-foreground">
-              <span className="pl-10">Hourly activity</span>
-              <span>
-                {format(startOfWeek(start), "d MMM")} – {format(endOfWeek(end), "d MMM yyyy")}
-              </span>
-            </div>
-            <div className="grid grid-cols-[auto,1fr] gap-2">
-              <div className="grid grid-rows-24 gap-1 pr-2">
-                {Array.from({ length: 24 }, (_, h) => (
-                  <div key={h} className="h-6 text-[10px] text-muted-foreground/80">{h}:00</div>
+            <div className="overflow-x-auto rounded-2xl ring-1 ring-black/10 dark:ring-white/10 p-3 bg-white/60 dark:bg-black/10">
+              <div
+                className="grid"
+                style={{
+                  // +1 for time label column
+                  gridTemplateColumns: `auto repeat(${weekly.days.length}, minmax(1.5rem, 1fr))`,
+                  gridTemplateRows: `auto repeat(${weekly.bins.length}, 1fr)`,
+                  gap: 4,
+                }}
+              >
+                {/* top-left blank cell */}
+                <div />
+
+                {/* day headers */}
+                {weekly.days.map((d, c) => (
+                  <div
+                    key={`head-${c}`}
+                    className="text-center text-[11px] text-muted-foreground"
+                    style={{ gridColumn: c + 2, gridRow: 1 }}
+                  >
+                    {format(d, "EEE d")}
+                  </div>
                 ))}
-              </div>
-              <div className="overflow-x-auto rounded-2xl ring-1 ring-black/10 dark:ring-white/10 p-3 bg-white/60 dark:bg-black/10">
-                <div className="grid" style={{ gridTemplateColumns: `repeat(${weekly.days.length}, minmax(1.5rem,1fr))`, gap: 4 }}>
-                  {weekly.days.map((d, c) => (
-                    <div key={c} className="flex flex-col">
-                      <div className="mb-1 text-center text-[11px] text-muted-foreground">{format(d, "EEE d")}</div>
-                      <div className="grid grid-rows-24 gap-1">
-                        {Array.from({ length: 24 }, (_, r) => {
-                          const v = weekly.grid[r][c];
-                          const t = new Date(d.getFullYear(), d.getMonth(), d.getDate(), r);
-                          return (
-                            <Tooltip key={r}>
-                              <TooltipTrigger asChild>
-                                <div className={`h-6 w-6 rounded-md ${cellColor(v, weekly.max)} ring-1 ring-black/10 dark:ring-white/10`} />
-                              </TooltipTrigger>
-                              <TooltipContent className="text-xs">
-                                {format(t, "EEE d MMM, HH:00")} — {v} {metric === "completions" ? "completion(s)" : metric === "views" ? "view(s)" : "event(s)"}
-                              </TooltipContent>
-                            </Tooltip>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  ))}
-                </div>
+
+                {/* time labels (first column) */}
+                {weekly.bins.map((b, r) => (
+                  <div
+                    key={`lbl-${r}`}
+                    className="text-[10px] text-muted-foreground/80 flex items-center"
+                    style={{ gridColumn: 1, gridRow: r + 2 }}
+                  >
+                    {b.label}
+                  </div>
+                ))}
+
+                {/* heatmap cells */}
+                {weekly.days.map((d, c) =>
+                  weekly.bins.map((bin, r) => {
+                    const v = weekly.grid[r][c];
+                    const midMin = Math.floor((bin.startMin + bin.endMin) / 2);
+                    const hh = Math.floor(midMin / 60);
+                    const mm = midMin % 60;
+                    const t = new Date(d.getFullYear(), d.getMonth(), d.getDate(), hh, mm);
+                    return (
+                      <Tooltip key={`${c}-${r}`}>
+                        <TooltipTrigger asChild>
+                          <div
+                            className={`h-5 w-5 rounded-md ${cellColor(v, weekly.max)} ring-1 ring-black/10 dark:ring-white/10`}
+                            style={{ gridColumn: c + 2, gridRow: r + 2 }}
+                          />
+                        </TooltipTrigger>
+                        <TooltipContent className="text-xs">
+                          {format(d, "EEE d MMM")} • {bin.label} — {v}{" "}
+                          {metric === "completions" ? "completion(s)" : metric === "views" ? "view(s)" : "event(s)"}
+                        </TooltipContent>
+                      </Tooltip>
+                    );
+                  })
+                )}
               </div>
             </div>
             <Legend />
