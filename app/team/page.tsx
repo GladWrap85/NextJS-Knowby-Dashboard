@@ -41,14 +41,7 @@ export default function Home() {
 
       {/* Calendar Heatmap + Dialog Card */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-[20px]">
-        <Card className="bg-card text-card-foreground flex flex-col rounded-xl border col-span-2">
-          <CardHeader>
-            <CardTitle>Calendar Heatmap</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ViewsCalendarHeatmap />
-          </CardContent>
-        </Card>
+
 
 
         <Card />
