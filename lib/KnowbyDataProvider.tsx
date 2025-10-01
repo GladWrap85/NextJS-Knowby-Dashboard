@@ -1,57 +1,71 @@
+// src/contexts/KnowbyDataProvider.tsx
 "use client";
 
 import {
-  useState,
+  createContext,
   useCallback,
+  useContext,
   useEffect,
   useMemo,
-  createContext,
-  useContext,
+  useRef,
+  useState,
 } from "react";
 import Papa from "papaparse";
 
+/** Data source selector */
+export type DataSource = "sample" | "real";
+type Status = "loading" | "ready" | "refreshing" | "error";
+
 export interface CompletionData {
+  organisation?: string;
   knowby_id: string;
-  member_id?: string;
-  date: string;
-  organisation?: string;
-  member_name?: string;
   knowby_name?: string;
+  member_id?: string;
+  member_name?: string;
+  date: string; // DD/MM/YYYY
 }
+
 export interface ViewData {
-  knowby_id?: string;
-  member_id?: string;
-  date: string;
   organisation?: string;
-  member_name?: string;
+  knowby_id?: string;
   knowby_name?: string;
+  member_id?: string;
+  member_name?: string;
+  date: string; // DD/MM/YYYY
 }
+
 export interface KnowbyMeta {
   knowby_id: string;
   title?: string;
   description?: string;
   created_at: string;
   last_viewed?: string;
-  organisation: string; // required for StatsTable
+  organisation: string;
   created_by_member_id?: string;
   member_name?: string;
   status?: string;
   visibility?: string;
   views?: number;
 }
-export type DataSource = "test" | "sample";
 
-export interface GroupedData {
-  completionsByDay: Map<string, CompletionData[]>;
-  viewsByDay: Map<string, ViewData[]>;
-  knowbysByDay: Map<string, KnowbyMeta[]>;
-}
+/** Endpoints for each mode */
+export const ENDPOINTS: Record<
+  DataSource,
+  { completions: string; views: string; knowbys: string }
+> = {
+  sample: {
+    completions: "/completions.csv",
+    views: "/views.csv",
+    knowbys: "/knowbys.csv",
+  },
+  real: {
+    completions: "/scrapercompletions.csv",
+    views: "/scraperviews.csv",
+    knowbys: "/scraperpublished.csv",
+  },
+};
 
-interface Status {
-  loading: boolean;
-  success: boolean;
-}
-
+/** ---- Context ---- */
 type KnowbyCtx = {
   source: DataSource;
   switchSource: (next: DataSource) => void;
@@ -59,135 +73,135 @@ type KnowbyCtx = {
   completions: CompletionData[];
   views: ViewData[];
   knowbys: KnowbyMeta[];
-  grouped: GroupedData;
   status: Status;
   error: unknown;
   lastUpdated: number | null;
 };
 
-const KnowbyContext = createContext<KnowbyCtx | null>(null);
+const Ctx = createContext<KnowbyCtx | null>(null);
 
-export function useKnowbyData(): KnowbyCtx {
-  const ctx = useContext(KnowbyContext);
-  if (!ctx) throw new Error("useKnowbyData must be used inside KnowbyProvider");
-  return ctx;
+/** ---- Helpers ---- */
+function asCompletionRow(row: any): CompletionData | null {
+  const knowby_id = String(row?.knowby_id ?? "").trim();
+  const date = String(row?.date ?? "").trim();
+  if (!knowby_id || !date) return null;
+  return {
+    organisation: row?.organisation,
+    knowby_id,
+    knowby_name: row?.knowby_name,
+    member_id: row?.member_id,
+    member_name: row?.member_name,
+    date,
+  };
 }
 
-// ----------------------------------
-// Endpoints mapping for each source
-// ----------------------------------
-const ENDPOINTS: Record<
-  DataSource,
-  { completions: string; views: string; knowbys: string }
-> = {
-  test: {
-    completions: "/completions.csv",
-    views: "/views.csv",
-    knowbys: "/knowbys.csv",
-  },
-  sample: {
-    completions: "/scrapercompletions.csv",
-    views: "/scraperviews.csv",
-    knowbys: "/scraperpublished.csv",
-  },
-};
+function asViewRow(row: any): ViewData | null {
+  const date = String(row?.date ?? "").trim();
+  if (!date) return null;
+  return {
+    organisation: row?.organisation ?? row?.organisation_name,
+    knowby_id: row?.knowby_id,
+    knowby_name: row?.knowby_name,
+    member_id: row?.member_id,
+    member_name: row?.member_name,
+    date,
+  };
+}
 
+function asKnowbyRow(row: any): KnowbyMeta | null {
+  const knowby_id = String(row?.knowby_id ?? "").trim();
+  const created_at = String(row?.created_at ?? "").trim();
+  if (!knowby_id || !created_at) return null;
+  return {
+    knowby_id,
+    title: row?.title,
+    description: row?.description,
+    created_at,
+    last_viewed: row?.last_viewed,
+    organisation: row?.organisation ?? "Unknown",
+    created_by_member_id: row?.created_by_member_id,
+    member_name: row?.member_name,
+    status: row?.status,
+    visibility: row?.visibility,
+    views: row?.views ? Number(row.views) : 0,
+  };
+}
+
+/** ---- Provider ---- */
 export function KnowbyDataProvider({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const [source, setSource] = useState<DataSource>("test");
-
+  const [source, setSource] = useState<DataSource>("sample");
   const [completions, setCompletions] = useState<CompletionData[]>([]);
   const [views, setViews] = useState<ViewData[]>([]);
   const [knowbys, setKnowbys] = useState<KnowbyMeta[]>([]);
-  const [grouped, setGrouped] = useState<GroupedData>({
-    completionsByDay: new Map(),
-    viewsByDay: new Map(),
-    knowbysByDay: new Map(),
-  });
-
-  const [status, setStatus] = useState<Status>({
-    loading: true,
-    success: false,
-  });
+  const [status, setStatus] = useState<Status>("loading");
   const [error, setError] = useState<unknown>(null);
   const [lastUpdated, setLastUpdated] = useState<number | null>(null);
 
-  // --------------------------
-  // helpers
-  // --------------------------
-  function groupByDay<
-    T extends { date?: string; created_at?: string; last_viewed?: string }
-  >(items: T[], key: "date" | "created_at" | "last_viewed"): Map<string, T[]> {
-    const map = new Map<string, T[]>();
-    for (const item of items) {
-      const raw = key === "date" ? (item as any).date : (item as any)[key];
-      if (!raw) continue;
-      const day = raw.split("T")[0]; // normalize to yyyy-MM-dd
-      if (!map.has(day)) map.set(day, []);
-      map.get(day)!.push(item);
-    }
-    return map;
-  }
+  const abortRef = useRef<AbortController | null>(null);
 
-  // --------------------------
-  // switching + loading
-  // --------------------------
-  const switchSource = useCallback((next: DataSource) => {
-    setSource(next);
-  }, []);
+  const fetchFor = useCallback(
+    async (src: DataSource, signal?: AbortSignal) => {
+      const {
+        completions: compUrl,
+        views: viewUrl,
+        knowbys: knowbyUrl,
+      } = ENDPOINTS[src];
+      const [compText, viewText, knowbyText] = await Promise.all([
+        fetch(compUrl, { signal }).then((r) => r.text()),
+        fetch(viewUrl, { signal }).then((r) => r.text()),
+        fetch(knowbyUrl, { signal }).then((r) => r.text()),
+      ]);
 
-  useEffect(() => {
-    async function loadData() {
-      setStatus({ loading: true, success: false });
-      setError(null);
+      const c = Papa.parse(compText, { header: true, skipEmptyLines: true })
+        .data.map(asCompletionRow)
+        .filter((r): r is CompletionData => r !== null);
 
+      const v = Papa.parse(viewText, { header: true, skipEmptyLines: true })
+        .data.map(asViewRow)
+        .filter((r): r is ViewData => r !== null);
+
+      const k = Papa.parse(knowbyText, { header: true, skipEmptyLines: true })
+        .data.map(asKnowbyRow)
+        .filter((r): r is KnowbyMeta => r !== null);
+
+      return { c, v, k };
+    },
+    []
+  );
+
+  const switchSource = useCallback(
+    async (next: DataSource) => {
+      setSource(next);
+      setStatus("refreshing");
       try {
-        const {
-          completions: compUrl,
-          views: viewUrl,
-          knowbys: knowbyUrl,
-        } = ENDPOINTS[source];
+        const ac = new AbortController();
+        abortRef.current?.abort();
+        abortRef.current = ac;
 
-        const [cText, vText, kText] = await Promise.all([
-          fetch(compUrl).then((r) => r.text()),
-          fetch(viewUrl).then((r) => r.text()),
-          fetch(knowbyUrl).then((r) => r.text()),
-        ]);
-
-        const c = Papa.parse<CompletionData>(cText, {
-          header: true,
-        }).data.filter(Boolean);
-        const v = Papa.parse<ViewData>(vText, { header: true }).data.filter(
-          Boolean
-        );
-        const k = Papa.parse<KnowbyMeta>(kText, { header: true }).data.filter(
-          Boolean
-        );
-
+        const { c, v, k } = await fetchFor(next, ac.signal);
         setCompletions(c);
         setViews(v);
         setKnowbys(k);
-
-        setGrouped({
-          completionsByDay: groupByDay(c, "date"),
-          viewsByDay: groupByDay(v, "date"),
-          knowbysByDay: groupByDay(k, "created_at"),
-        });
-
-        setStatus({ loading: false, success: true });
         setLastUpdated(Date.now());
-      } catch (e) {
-        console.error("Error loading Knowby data", e);
-        setError(e);
-        setStatus({ loading: false, success: false });
+        setStatus("ready");
+      } catch (e: any) {
+        if (e?.name !== "AbortError") {
+          setError(e);
+          setStatus("error");
+        }
       }
-    }
+    },
+    [fetchFor]
+  );
 
-    loadData();
-  }, [source]);
+  useEffect(() => {
+    switchSource(source);
+    return () => abortRef.current?.abort();
+  }, []);
 
   const value = useMemo(
     () => ({
@@ -197,7 +211,6 @@ export function KnowbyDataProvider({
       completions,
       views,
       knowbys,
-      grouped,
       status,
       error,
       lastUpdated,
@@ -208,14 +221,18 @@ export function KnowbyDataProvider({
       completions,
       views,
       knowbys,
-      grouped,
       status,
       error,
       lastUpdated,
     ]
   );
 
-  return (
-    <KnowbyContext.Provider value={value}>{children}</KnowbyContext.Provider>
-  );
+  return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
+}
+
+export function useKnowbyData() {
+  const ctx = useContext(Ctx);
+  if (!ctx)
+    throw new Error("useKnowbyData must be used within KnowbyDataProvider");
+  return ctx;
 }
