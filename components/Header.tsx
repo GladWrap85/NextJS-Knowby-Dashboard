@@ -12,6 +12,7 @@ import { CommandDemo } from "./Command";
 import { Button } from "./ui/button";
 import { DatePickerWithRange } from "./DateRangePicker";
 import { ModeToggle } from "./ThemeSwitch";
+import { toast } from 'sonner'
 // No need to import DateRange or addDays here directly if only DatePickerWithRange uses them
 // but we will import useDateRange hook
 import { useDateRange } from "@/lib/DateRangeContext"; // Import the custom hook
@@ -53,17 +54,20 @@ export default function Header() {
       const data = await response.json();
       if (response.ok) {
       setScraperSuccess(true);
-        reload(); // refresh data in the app
+      toast.success('Scraper ran successfully!'); 
+      reload(); // refresh data in the app
       setTimeout(() => setScraperSuccess(false), 2000);
-      } else {
-        console.error("Scraper failed:", data.message);
-      }
-    } catch (err) {
-      console.error("Error running scraper:", err);
-    } finally {
-      setScraperLoading(false);
+    } else {
+      console.error("Scraper failed:", data.message);
+      toast.error(data.message || 'Failed to refresh data. Please Update Headers.'); 
     }
-  };
+  } catch (err) {
+    console.error("Error running scraper:", err);
+    toast.error('An unexpected error occurred during refresh.'); 
+  } finally {
+    setScraperLoading(false);
+  }
+};
 
   return (
     <div className="sticky top-0 z-50 grid grid-cols-2 items-center gap-4 px-3 h-12 backdrop-blur-md shadow-md">
