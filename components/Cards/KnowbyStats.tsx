@@ -29,6 +29,7 @@ import {
   CardContent,
 } from "../ui/card";
 import { KnowbyMeta } from "@/src/types/knowby";
+import { format } from "date-fns"; // add to imports
 
 const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
@@ -73,6 +74,41 @@ export default function KnowbyStats({ selectedDateRange }: Props) {
     return d && isWithinInterval(d, { start: from, end: to });
   });
 
+  const grouped = useMemo(() => {
+    const completionsByDay = new Map<string, typeof completions>();
+    const viewsByDay = new Map<string, typeof views>();
+    const knowbysByDay = new Map<string, typeof knowbys>();
+
+    completions.forEach((c) => {
+      const d = parseCsvDate(c.date);
+      if (d) {
+        const key = format(d, "yyyy-MM-dd");
+        if (!completionsByDay.has(key)) completionsByDay.set(key, []);
+        completionsByDay.get(key)!.push(c);
+      }
+    });
+
+    views.forEach((v) => {
+      const d = parseCsvDate(v.date);
+      if (d) {
+        const key = format(d, "yyyy-MM-dd");
+        if (!viewsByDay.has(key)) viewsByDay.set(key, []);
+        viewsByDay.get(key)!.push(v);
+      }
+    });
+
+    knowbys.forEach((k) => {
+      const d = parseCsvDate(k.created_at);
+      if (d) {
+        const key = format(d, "yyyy-MM-dd");
+        if (!knowbysByDay.has(key)) knowbysByDay.set(key, []);
+        knowbysByDay.get(key)!.push(k);
+      }
+    });
+
+    return { completionsByDay, viewsByDay, knowbysByDay };
+  }, [completions, views, knowbys]);
+
   const {
     activeMembers,
     newKnowbys,
@@ -89,7 +125,6 @@ export default function KnowbyStats({ selectedDateRange }: Props) {
   } = useMemo(() => {
     const memberSet = new Set<string>();
 
-    // Number of days in the selected range
     const daysInRange =
       Math.ceil((to.getTime() - from.getTime()) / (1000 * 60 * 60 * 24)) + 1;
 
@@ -100,48 +135,38 @@ export default function KnowbyStats({ selectedDateRange }: Props) {
 
     for (let i = 0; i < daysInRange; i++) {
       const day = subDays(to, daysInRange - 1 - i);
-      const start = startOfDay(day);
-      const end = endOfDay(day);
+      const dayKey = format(day, "yyyy-MM-dd");
 
-      // Active members on this day
-      const dayCompletions = filteredCompletions.filter((c) => {
-        const d = parseCsvDate(c.date);
-        return d && isWithinInterval(d, { start, end });
-      });
+      // Active members
+      const dayCompletions = grouped.completionsByDay.get(dayKey) ?? [];
       activeCounts.push(new Set(dayCompletions.map((c) => c.member_id)).size);
 
-      // New Knowbys on this day
-      const dayKnowbys = filteredKnowbys.filter((k) => {
-        const d = parseCsvDate(k.created_at);
-        return d && isWithinInterval(d, { start, end });
-      });
+      // New knowbys
+      const dayKnowbys = grouped.knowbysByDay.get(dayKey) ?? [];
       newCounts.push(dayKnowbys.length);
 
-      // Recently viewed on this day
-      const dayViews = filteredViews.filter((v) => {
-        const d = parseCsvDate(v.date);
-        return d && isWithinInterval(d, { start, end });
-      });
+      // Recently viewed
+      const dayViews = grouped.viewsByDay.get(dayKey) ?? [];
       viewedCounts.push(dayViews.length);
 
-      // Unused Knowbys
-      const dayUnused = knowbys.filter((k) => {
+      // Unused knowbys = all knowbys not viewed *up to this day*
+      const unusedForDay = knowbys.filter((k) => {
         const last = parseCsvDate(k.last_viewed);
-        return !last || last < start;
+        return !last || last < startOfDay(day);
       });
-      unusedCounts.push(dayUnused.length);
+      unusedCounts.push(unusedForDay.length);
     }
 
-    // Total active members in range
+    // Total active members in whole range
     filteredCompletions.forEach((r) => memberSet.add(r.member_id ?? ""));
 
-    // Unused Knowbys table
+    // Precompute unused knowbys for the whole range
     const unusedFiltered = knowbys.filter((k) => {
       const last = parseCsvDate(k.last_viewed);
       return !last || last < from || last > to;
     });
 
-    // Prepare table data
+    // Prepare table data (unchanged)
     const recentlyViewedForTable = filteredViews.map((v) => ({
       knowby_id: v.knowby_id ?? "",
       member_id: v.member_id,
@@ -195,7 +220,15 @@ export default function KnowbyStats({ selectedDateRange }: Props) {
       viewedTrend: viewedCounts,
       unusedTrend: unusedCounts,
     };
-  }, [from, to, filteredCompletions, filteredViews, filteredKnowbys, knowbys]);
+  }, [
+    from,
+    to,
+    filteredCompletions,
+    filteredViews,
+    filteredKnowbys,
+    knowbys,
+    grouped,
+  ]);
 
   const StatTile = ({
     label,
