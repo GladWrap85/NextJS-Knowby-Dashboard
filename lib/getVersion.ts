@@ -11,5 +11,5 @@ export async function getAppVersion(): Promise<AppVersion> {
 
   if (!res || !res.ok) return { version: "dev" };
   const data = (await res.json()) as AppVersion;
-  return { version: data.version ?? "dev", build: data.build, commit: data.commit };
+  return { version: data.version ?? "dev", build: data.build };
 }

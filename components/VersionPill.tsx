@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-type AppVersion = { version: string; build?: string; commit?: string };
+type AppVersion = { version: string; build?: string; };
 
 export default function VersionPill() {
   const [v, setV] = useState<AppVersion | null>(null);
@@ -17,14 +17,8 @@ export default function VersionPill() {
 
   if (!v) return null;
 
-  const title =
-    `Version ${v.version}` +
-    (v.build ? ` • built ${new Date(v.build).toLocaleString()}` : "") +
-    (v.commit ? ` • ${v.commit.slice(0, 7)}` : "");
-
   return (
     <span
-      title={title}
       className="inline-flex items-center gap-1 px-2.5 py-1 text-xs text-muted-foreground">
       <span className="tabular-nums">{v.version}</span>
     </span>

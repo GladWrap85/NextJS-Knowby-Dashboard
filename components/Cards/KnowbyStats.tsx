@@ -7,7 +7,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import StatsTable from "@/components/Cards/StatsTable";
+import StatsTable from "@/components/StatsTable";
 import dynamic from "next/dynamic";
 import type { ApexOptions } from "apexcharts";
 import { BarChart3, ChevronDown } from "lucide-react";
@@ -227,7 +227,7 @@ export default function KnowbyStats({ selectedDateRange }: Props) {
           <BarChart3 className="h-5 w-5" />
         </div>
         <div className="flex flex-col">
-          <h3 className="text-lg text-white font-semibold">Knowby Stats</h3>
+          <h3 className="text-lg dark:text-white font-semibold">Knowby Stats</h3>
           <span className="text-xs text-muted-foreground">
             Overview of Knowby activity and usage
           </span>

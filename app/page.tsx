@@ -5,7 +5,7 @@ import TopKnowbyCard from "@/components/Cards/TopKnowbyCard";
 import ModularGraphCard from "@/components/Cards/InsightsCard";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import KnowbyStats from "@/components/Cards/KnowbyStats";
-import ViewsCalendarHeatmap from "@/components/cal-heatmap";
+import ViewsCalendarHeatmap from "@/components/Cards/HeatmapCard";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useDateRange } from "@/lib/DateRangeContext";
 import { useEffect, useMemo, useState } from "react";

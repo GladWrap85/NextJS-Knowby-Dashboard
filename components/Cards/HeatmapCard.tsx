@@ -28,6 +28,7 @@ import {
 import { DateRange } from "react-day-picker";
 import { useKnowbyData } from "@/lib/KnowbyDataProvider";
 import { Calendar as CalendarIcon, Eye, CheckCircle } from "lucide-react";
+import clsx from "clsx";
 
 type Props = { selectedDateRange: DateRange | undefined };
 type Metric = "views" | "completions" | "both";
@@ -104,16 +105,46 @@ function resolveMode(from: Date, to: Date): Mode {
   return "all";
 }
 
-/** Theme-agnostic cell colors (light + dark) */
-function cellColor(value: number, max: number) {
-  if (value <= 0 || max <= 0) return "bg-slate-100 dark:bg-white/5";
+/** Ramps that match your dashboard semantics */
+const RAMPS: Record<Metric, string[]> = {
+  views: [
+    "bg-slate-100 dark:bg-white/5",            // 0 or no max
+    "bg-sky-100 dark:bg-sky-900/30",           // very low
+    "bg-sky-200 dark:bg-sky-800/40",           // low
+    "bg-sky-300 dark:bg-sky-700/50",           // med
+    "bg-sky-400 dark:bg-sky-600/60",           // high
+    "bg-sky-500 text-white dark:bg-sky-500/80 shadow-[0_2px_10px_-4px] shadow-sky-400/40 dark:shadow-[0_0_12px] dark:shadow-sky-500/30", // very high
+  ],
+  completions: [
+    "bg-slate-100 dark:bg-white/5",
+    "bg-emerald-100 dark:bg-emerald-950/30",
+    "bg-emerald-200 dark:bg-emerald-900/40",
+    "bg-emerald-300 dark:bg-emerald-800/50",
+    "bg-emerald-400 dark:bg-emerald-700/60",
+    "bg-emerald-500 text-white dark:bg-emerald-500/80 shadow-[0_2px_10px_-4px] shadow-emerald-400/40 dark:shadow-[0_0_12px] dark:shadow-emerald-500/30",
+  ],
+  both: [
+    "bg-slate-100 dark:bg-white/5",
+    "bg-violet-100 dark:bg-violet-950/30",
+    "bg-violet-200 dark:bg-violet-900/40",
+    "bg-violet-300 dark:bg-violet-800/50",
+    "bg-violet-400 dark:bg-violet-700/60",
+    "bg-violet-500 text-white dark:bg-violet-500/80 shadow-[0_2px_10px_-4px] shadow-violet-400/40 dark:shadow-[0_0_12px] dark:shadow-violet-500/30",
+  ],
+};
+
+/** Theme-agnostic cell colors that switch by metric */
+export function cellColor(value: number, max: number, metric: Metric) {
+  const ramp = RAMPS[metric];
+  if (value <= 0 || max <= 0) return ramp[0];
   const t = value / max;
-  if (t < 0.15) return "bg-slate-200 dark:bg-sky-900/40";
-  if (t < 0.35) return "bg-sky-200 dark:bg-sky-700/50";
-  if (t < 0.6) return "bg-indigo-300 dark:bg-indigo-600/60";
-  if (t < 0.85) return "bg-violet-400 dark:bg-violet-600/70";
-  return "bg-fuchsia-500 text-white dark:bg-fuchsia-500/80 shadow-[0_2px_10px_-4px] shadow-fuchsia-400/40 dark:shadow-[0_0_12px] dark:shadow-fuchsia-500/30";
+  if (t < 0.15) return ramp[1];
+  if (t < 0.35) return ramp[2];
+  if (t < 0.6)  return ramp[3];
+  if (t < 0.85) return ramp[4];
+  return ramp[5];
 }
+
 
 export default function UsageHeatmap({ selectedDateRange }: Props) {
   /* --- ALWAYS call hooks in the same order (no early return before these) --- */
@@ -275,7 +306,7 @@ export default function UsageHeatmap({ selectedDateRange }: Props) {
   /* ---------- UI ---------- */
   return (
     <TooltipProvider>
-      <Card className="relative isolate overflow-hidden rounded-3xl p-5 md:p-6 border-0 shadow-xl/2 bg-card dark:border dark:border-slate-700 gap-2">
+      <Card className="min-h-[365px] max-h-[365px] relative isolate overflow-hidden rounded-3xl p-5 md:p-6 border-0 shadow-xl/2 bg-card dark:border dark:border-slate-700 gap-2">
         {/* Header */}
         <div className="flex items-center gap-3">
           <div className="shrink-0 flex h-10 w-10 items-center justify-center rounded-full text-white bg-gradient-to-b from-teal-500 to-teal-700">
@@ -361,8 +392,7 @@ export default function UsageHeatmap({ selectedDateRange }: Props) {
                     return (
                       <Tooltip key={`${c}-${r}`}>
                         <TooltipTrigger asChild>
-                          <div
-                            className={`h-5 w-5 rounded-md ${cellColor(v, weekly.max)} ring-1 ring-black/10 dark:ring-white/10`}
+                          <div className={`h-5 w-auto rounded-md ${cellColor(v, weekly.max, metric)} ring-1 ring-black/10 dark:ring-white/10`}
                             style={{ gridColumn: c + 2, gridRow: r + 2 }}
                           />
                         </TooltipTrigger>
@@ -382,7 +412,7 @@ export default function UsageHeatmap({ selectedDateRange }: Props) {
 
         {/* MONTHLY: stacked calendars */}
         {mode === "monthly" && (
-          <div className="space-y-6">
+          <div className="space-y-2">
             {months.map(({ monthStart, days, max }) => (
               <div key={monthStart.toISOString()} className="rounded-2xl ring-1 ring-black/10 dark:ring-white/10 p-3 bg-white/60 dark:bg-black/10">
                 <div className="mb-2 flex items-center justify-between">
@@ -399,11 +429,12 @@ export default function UsageHeatmap({ selectedDateRange }: Props) {
                     return (
                       <Tooltip key={d.toISOString()}>
                         <TooltipTrigger asChild>
-                          <div className={`relative h-8 rounded-md ${cellColor(v, max)} ring-1 ring-black/10 dark:ring-white/10 ${faint ? "opacity-45" : ""}`}>
-                            <span className="absolute left-1 top-1 text-[10px] select-none text-slate-700 dark:text-white/70">
-                              {getDate(d)}
-                            </span>
-                          </div>
+                          <div className={clsx(`relative h-7 rounded-md ${cellColor(v, max, metric)} ring-1 ring-black/10 dark:ring-white/10`, faint && "opacity-45" )}>
+                          <span className="absolute left-1 top-1 text-[10px] select-none text-slate-700 dark:text-white/70">
+                            {getDate(d)}
+                          </span>
+                        </div>
+
                         </TooltipTrigger>
                         <TooltipContent className="text-xs">
                           {format(d, "EEE d MMM yyyy")} — {v} {metric === "completions" ? "completion(s)" : metric === "views" ? "view(s)" : "event(s)"}
@@ -440,7 +471,7 @@ export default function UsageHeatmap({ selectedDateRange }: Props) {
                 <div
                   className="grid gap-[2px]"
                   style={{
-                    gridTemplateRows: "repeat(7, 12px)", // ~h-1.5 each row; keep card height constant
+                    gridTemplateRows: "repeat(7, 24px)", // ~h-1.5 each row; keep card height constant
                     gridTemplateColumns: `repeat(${y.weeks}, 1fr)`,
                   }}
                 >
@@ -452,8 +483,8 @@ export default function UsageHeatmap({ selectedDateRange }: Props) {
                         <Tooltip key={`${r}-${c}`}>
                           <TooltipTrigger asChild>
                             <div
-                              className={`w-full h-[12px] rounded-[2px] ${cellColor(v, y.max)} ring-0`}
-                            // No fixed width -> column width defines it, preventing overflow
+                              className={`w-full h-[24px] rounded-[2px] ${cellColor(v, y.max, metric)} ring-0`}
+                              // No fixed width -> column width defines it, preventing overflow
                             />
                           </TooltipTrigger>
                           <TooltipContent className="text-xs">
@@ -477,7 +508,7 @@ export default function UsageHeatmap({ selectedDateRange }: Props) {
 /* ---------- shared legend ---------- */
 function Legend() {
   return (
-    <div className="mt-4 flex items-center gap-3">
+    <div className="mt-0 flex items-center gap-3">
       <span className="text-xs text-muted-foreground">Low</span>
       <div className="h-2 w-44 rounded-full bg-gradient-to-r from-slate-200 via-sky-300 via-70% to-fuchsia-500 dark:from-sky-900 dark:via-indigo-600 dark:via-70% dark:to-fuchsia-500/90" />
       <span className="text-xs text-muted-foreground">High</span>
