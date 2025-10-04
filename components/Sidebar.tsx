@@ -20,8 +20,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Loader2, CheckCircle, AlertCircle, ExternalLink } from 'lucide-react'
 
@@ -73,10 +74,15 @@ export default function Sidebar() {
   const [isLoading, setIsLoading] = useState(false)
   const [accountStatus, setAccountStatus] = useState<'idle' | 'success' | 'error'>('idle')
   const [accountMessage, setAccountMessage] = useState('')
+  const abortControllerRef = useRef<AbortController | null>(null)
+
 
   // --- Scraper functionality state ---
   const [scraperLoading, setScraperLoading] = useState(false)
   const [scraperSuccess, setScraperSuccess] = useState(false)
+
+  // --- Refresh error state ---
+  const [refreshError, setRefreshError] = useState<string | null>(null)
 
   // Handle the header extraction process
   const handleExtractHeaders = async () => {
@@ -84,10 +90,16 @@ export default function Sidebar() {
     setAccountStatus('idle')
     setAccountMessage('')
 
+    // AbortController for this request
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
+
     try {
       // Call the API to extract headers
       const response = await fetch('/api/extract-headers', {
         method: 'POST',
+        signal: abortController.signal,
+
       })
 
       const data = await response.json()
@@ -99,11 +111,18 @@ export default function Sidebar() {
         setAccountStatus('error')
         setAccountMessage(data.error || 'Failed to extract headers')
       }
-    } catch (error) {
-      setAccountStatus('error')
-      setAccountMessage('An error occurred while extracting headers')
+      
+    } catch (error: any) {
+      if (error.name === 'AbortError') {
+        setAccountStatus('idle');
+        setAccountMessage('Header extraction was cancelled.');
+      } else {
+        setAccountStatus('error')
+        setAccountMessage('An error occurred while extracting headers')
+      }
     } finally {
       setIsLoading(false)
+      abortControllerRef.current = null;
     }
   }
 
@@ -123,6 +142,7 @@ export default function Sidebar() {
       if (response.ok) {
         // Show success state briefly
         setScraperSuccess(true)
+        toast.success('Scraper ran successfully!')
         // Refresh the data after successful scraping
         reload()
 
@@ -131,12 +151,12 @@ export default function Sidebar() {
           setScraperSuccess(false)
         }, 2000)
       } else {
-        console.error('Scraper failed:', data.message)
-        // Could add toast notification here
+        console.warn('Scraper failed:', data.message)
+        toast.error(data.message || 'Failed to refresh data. Please Update Headers.')
       }
-    } catch (error) {
-      console.error('An error occurred while running the scraper:', error)
-      // Could add toast notification here
+    } catch (error: any) {
+      console.warn('An error occurred while running the scraper:', error)
+      toast.error(error?.message || 'An unexpected error occurred during refresh.')
     } finally {
       setScraperLoading(false)
     }
