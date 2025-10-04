@@ -11,38 +11,157 @@ import {
   useState,
 } from "react";
 import Papa from "papaparse";
-import { showRefreshNotification } from "./dataChangeDetection";
 
+/** Data source selector */
 export type DataSource = "sample" | "real";
-type CsvRow = Record<string, any>;
 type Status = "loading" | "ready" | "refreshing" | "error";
 
+/** ---- Row types mapped to your CSV shapes ----
+ * Keep optional fields optional to match real-world CSV variance.
+ * Dates remain as dd/MM/yyyy (original), but we also attach parsed helpers.
+ */
+export interface CompletionData {
+  organisation_name?: string;
+  knowby_id: string;
+  knowby_name?: string;
+  member_id?: string;
+  member_name?: string;
+  date: string;                 // dd/MM/yyyy (original)
+  time?: string;                // HH:mm:ss (optional)
+  datetime?: string;            // ISO string (optional, if you ever add it)
+  parsedDateTime?: Date;        // added: parsed once (date+time)
+  ts?: number;                  // added: parsedDateTime.getTime()
+  ymd?: string;                 // added: 'YYYY-MM-DD' key
+}
+
+export interface ViewData {
+  organisation_name?: string;
+  knowby_id?: string;
+  knowby_name?: string;
+  member_id?: string;
+  member_name?: string;
+  date: string;                 // dd/MM/yyyy (original)
+  time?: string;                // HH:mm:ss (optional)
+  datetime?: string;            // ISO string (optional)
+  parsedDateTime?: Date;        // added
+  ts?: number;                  // added
+  ymd?: string;                 // added
+}
+
+/** Endpoints for each mode (unchanged) */
 export const ENDPOINTS: Record<DataSource, { completions: string; views: string }> = {
   sample: { completions: "/completions.csv", views: "/views.csv" },
   real: { completions: "/scrapercompletions.csv", views: "/scraperviews.csv" },
 };
 
+/** Context shape now exposes strongly-typed arrays */
 type KnowbyCtx = {
-  // current mode
   source: DataSource;
-  // smooth switch (keeps cached data visible, refreshes in bg)
   switchSource: (next: DataSource) => void;
-  // manual refresh of current source
   reload: () => void;
-
-  // parsed arrays (shared by all cards)
-  completions: CsvRow[];
-  views: CsvRow[];
-
-  // status & errors
+  completions: CompletionData[];
+  views: ViewData[];
   status: Status;
   error: unknown;
   lastUpdated: number | null;
 };
 
-type CacheEntry = { c: CsvRow[]; v: CsvRow[]; t: number };
-
+type CacheEntry = { c: CompletionData[]; v: ViewData[]; t: number };
 const Ctx = createContext<KnowbyCtx | null>(null);
+
+/** ---- Helpers ---- */
+function parseDDMMYYYY_withTime(
+  dateStr: string | undefined,
+  timeStr?: string,
+  isoDateTimeStr?: string
+): { parsedDateTime: Date; ts: number; ymd: string } | null {
+  if (!dateStr) return null;
+
+  // 1) If an ISO datetime is provided, prefer it (and keep it local by constructing Date directly)
+  if (isoDateTimeStr) {
+    const d = new Date(isoDateTimeStr);
+    if (!isNaN(d.getTime())) {
+      const y = d.getFullYear(), m = d.getMonth() + 1, day = d.getDate();
+      return {
+        parsedDateTime: d,
+        ts: d.getTime(),
+        ymd: `${y}-${String(m).padStart(2, "0")}-${String(day).padStart(2, "0")}`,
+      };
+    }
+  }
+
+  // 2) Parse dd/MM/yyyy
+  const [dd, mm, yyyy] = String(dateStr).split("/").map((x) => parseInt(String(x).trim(), 10));
+  if (!yyyy || !mm || !dd) return null;
+
+  // Build local date; avoid TZ drift by using y,m-1,dd directly
+  const d = new Date(yyyy, mm - 1, dd);
+
+  // 3) If time exists, set hours/min/sec; else leave midnight
+  if (timeStr) {
+    const [hh = "0", min = "0", ss = "0"] = timeStr.split(":");
+    d.setHours(parseInt(hh, 10) || 0, parseInt(min, 10) || 0, parseInt(ss, 10) || 0, 0);
+  }
+
+  return {
+    parsedDateTime: d,
+    ts: d.getTime(),
+    ymd: `${yyyy}-${String(mm).padStart(2, "0")}-${String(dd).padStart(2, "0")}`,
+  };
+}
+
+
+function asCompletionRow(row: any): CompletionData | null {
+  const knowby_id = String(row?.knowby_id ?? "").trim();
+  const dateStr = String(row?.date ?? "").trim();
+  if (!knowby_id || !dateStr) return null;
+
+  const timeStr = row?.time ? String(row.time).trim() : undefined;
+  const isoStr = row?.datetime ? String(row.datetime).trim() : undefined;
+
+  const parsed = parseDDMMYYYY_withTime(dateStr, timeStr, isoStr);
+  if (!parsed) return null;
+
+  return {
+    organisation_name: row?.organisation_name ?? undefined,
+    knowby_id,
+    knowby_name: row?.knowby_name ?? undefined,
+    member_id: row?.member_id ?? undefined,
+    member_name: row?.member_name ?? undefined,
+    date: dateStr,
+    time: timeStr,
+    datetime: isoStr,
+    parsedDateTime: parsed.parsedDateTime,
+    ts: parsed.ts,
+    ymd: parsed.ymd,
+  };
+}
+
+function asViewRow(row: any): ViewData | null {
+  const dateStr = String(row?.date ?? "").trim();
+  if (!dateStr) return null;
+
+  const timeStr = row?.time ? String(row.time).trim() : undefined;
+  const isoStr = row?.datetime ? String(row.datetime).trim() : undefined;
+
+  const parsed = parseDDMMYYYY_withTime(dateStr, timeStr, isoStr);
+  if (!parsed) return null;
+
+  return {
+    organisation_name: row?.organisation_name ?? undefined,
+    knowby_id: row?.knowby_id ?? undefined,
+    knowby_name: row?.knowby_name ?? undefined,
+    member_id: row?.member_id ?? undefined,
+    member_name: row?.member_name ?? undefined,
+    date: dateStr,
+    time: timeStr,
+    datetime: isoStr,
+    parsedDateTime: parsed.parsedDateTime,
+    ts: parsed.ts,
+    ymd: parsed.ymd,
+  };
+}
+
 
 export function KnowbyDataProvider({ children }: { children: React.ReactNode }) {
   // pick initial mode: localStorage -> env -> 'sample'
@@ -52,17 +171,15 @@ export function KnowbyDataProvider({ children }: { children: React.ReactNode }) 
     return (localStorage.getItem("ffs:dataMode") as DataSource | null) ?? envDefault;
   });
 
-  // persist + optional legacy event
   useEffect(() => {
-    try { localStorage.setItem("ffs:dataMode", source); } catch { }
+    try { localStorage.setItem("ffs:dataMode", source); } catch { /* no-op */ }
     if (typeof window !== "undefined") {
       window.dispatchEvent(new CustomEvent("ffs:dataMode-change", { detail: { dataMode: source } }));
     }
   }, [source]);
 
-  // shared state
-  const [completions, setCompletions] = useState<CsvRow[]>([]);
-  const [views, setViews] = useState<CsvRow[]>([]);
+  const [completions, setCompletions] = useState<CompletionData[]>([]);
+  const [views, setViews] = useState<ViewData[]>([]);
   const [status, setStatus] = useState<Status>("loading");
   const [error, setError] = useState<unknown>(null);
   const [lastUpdated, setLastUpdated] = useState<number | null>(null);
@@ -70,34 +187,44 @@ export function KnowbyDataProvider({ children }: { children: React.ReactNode }) 
   const abortRef = useRef<AbortController | null>(null);
   const cacheRef = useRef<Partial<Record<DataSource, CacheEntry>>>({});
 
-  // low-level fetcher for a given source
   const fetchFor = useCallback(
     async (src: DataSource, signal?: AbortSignal) => {
       const { completions: compUrl, views: viewUrl } = ENDPOINTS[src];
+
       const [compText, viewText] = await Promise.all([
         fetch(compUrl, { signal }).then((r) => r.text()),
         fetch(viewUrl, { signal }).then((r) => r.text()),
       ]);
-      const c = Papa.parse(compText, { header: true, skipEmptyLines: true }).data as CsvRow[];
-      const v = Papa.parse(viewText, { header: true, skipEmptyLines: true }).data as CsvRow[];
+
+      const rawC = Papa.parse(compText, { header: true, skipEmptyLines: true }).data as any[];
+      const rawV = Papa.parse(viewText, { header: true, skipEmptyLines: true }).data as any[];
+
+      // Map → type-safe arrays; drop clearly invalid rows; attach parsed fields once.
+      const c: CompletionData[] = rawC
+        .map(asCompletionRow)
+        .filter((r): r is CompletionData => r !== null)
+        .sort((a, b) => (a.ts! - b.ts!));
+
+      const v: ViewData[] = rawV
+        .map(asViewRow)
+        .filter((r): r is ViewData => r !== null)
+        .sort((a, b) => (a.ts! - b.ts!));
+
       return { c, v };
     },
     []
   );
 
-  // smooth mode switch: show cached if available, then refresh in bg
   const switchSource = useCallback(
     async (next: DataSource) => {
       setSource(next);
 
       const cached = cacheRef.current[next];
       if (cached) {
-        // keep UI stable, no flicker
         setCompletions(cached.c);
         setViews(cached.v);
         setStatus("refreshing");
       } else {
-        // first time for this mode
         setStatus("loading");
       }
 
@@ -122,7 +249,6 @@ export function KnowbyDataProvider({ children }: { children: React.ReactNode }) 
     [fetchFor]
   );
 
-  // gentle refresh for current source
   const reload = useCallback(async () => {
     const cur = source;
     setStatus((prev) => (prev === "ready" ? "refreshing" : "loading"));
@@ -138,9 +264,6 @@ export function KnowbyDataProvider({ children }: { children: React.ReactNode }) 
       setViews(v);
       setLastUpdated(Date.now());
       setStatus("ready");
-      
-      // Show notification for real data refresh
-      showRefreshNotification(c, v, cur);
     } catch (e: any) {
       if (e?.name !== "AbortError") {
         setError(e);
@@ -149,14 +272,12 @@ export function KnowbyDataProvider({ children }: { children: React.ReactNode }) 
     }
   }, [source, fetchFor]);
 
-  // initial load
   useEffect(() => {
     switchSource(source);
     return () => abortRef.current?.abort();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // optional: accept legacy external toggle events
   useEffect(() => {
     const handler = (e: Event) => {
       const mode = (e as CustomEvent).detail?.dataMode as DataSource | undefined;

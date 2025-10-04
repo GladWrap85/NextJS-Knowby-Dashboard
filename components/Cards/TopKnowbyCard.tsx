@@ -1,299 +1,139 @@
-// components/Cards/TopKnowbyCard.tsx
 "use client";
 
-import { useEffect, useMemo, useState, useRef, useCallback } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   subDays,
-  format,
   parse,
   isWithinInterval,
-  eachDayOfInterval,
-  startOfMonth,
-  addMonths,
-  subMonths,
+  startOfDay,
+  endOfDay,
+  isSameDay,
 } from "date-fns";
 import { DateRange } from "react-day-picker";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
-import { useDarkMode } from "@/components/NivoWrapper";
-import { Eye, CheckCircle, TrendingUp } from "lucide-react";
+import { Eye, CheckCircle, TrendingUp, BookOpen } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import dynamic from "next/dynamic";
-import { topChartOptions } from "@/lib/chartOptions";
-import { Tabs, TabsList, TabsTrigger } from "../ui/tabs";
-import { ApexOptions } from "apexcharts";
 import { useKnowbyData } from "@/lib/KnowbyDataProvider";
-
-const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
 interface TopKnowbyCardProps {
   selectedDateRange: DateRange | undefined;
 }
 
-type DailyRow = { ts: number; views: number; completions: number; label: string };
-type MonthlyRow = { ts: number; rate: number; label: string };
-
+type AggRow = {
+  knowby: string;
+  views: number;   // event count
+  comps: number;   // event count
+  rate: number;    // 0..100 (events only)
+};
 
 export default function TopKnowbyCard({ selectedDateRange }: TopKnowbyCardProps) {
-  const [chartType, setChartType] = useState<"daily" | "monthly">("daily");
-  const [topKnowby, setTopKnowby] = useState<string>("—");
-  const [dailyData, setDailyData] = useState<DailyRow[]>([]);
-  const [monthlyData, setMonthlyData] = useState<MonthlyRow[]>([]);
-  const [totalsDaily, setTotalsDaily] = useState({ views: 0, comps: 0 });
-  const [totalsMonthly, setTotalsMonthly] = useState({ views: 0, comps: 0 });
-  const isDark = useDarkMode();
-
   const { completions, views, status } = useKnowbyData();
 
-  // --- Time windows
-  const effectiveEndDate = selectedDateRange?.to || new Date();
-  const dailyStart = useMemo(() => subDays(effectiveEndDate, 9), [effectiveEndDate]);
+  // -------- Time window (normalize "daily" to full day) --------
+  const endRaw = selectedDateRange?.to ?? new Date();
+  const startRaw = selectedDateRange?.from ?? subDays(endRaw, 9);
 
-  const dayKeys = useMemo(
-    () =>
-      eachDayOfInterval({ start: dailyStart, end: effectiveEndDate }).map((d) => ({
-        label: format(d, "dd/MM/yyyy"),
-        ts: d.getTime(),
-      })),
-    [dailyStart, effectiveEndDate]
-  );
+  const { start, end } = useMemo(() => {
+    let s = startRaw, e = endRaw;
+    if (isSameDay(s, e)) {
+      s = startOfDay(s);
+      e = endOfDay(e);
+    }
+    return { start: s, end: e };
+  }, [startRaw, endRaw]);
 
-  const monthDates = useMemo(() => {
-    const end = startOfMonth(effectiveEndDate);
-    const start = subMonths(end, 11);
-    const arr: Date[] = [];
-    for (let i = 0; i < 12; i++) arr.push(addMonths(start, i));
-    return arr;
-  }, [effectiveEndDate]);
+  const [rows, setRows] = useState<AggRow[]>([]);
+  const [totals, setTotals] = useState({ views: 0, comps: 0 });
+  const [footerRate, setFooterRate] = useState<number | null>(null);
 
-  const monthKeys = useMemo(
-    () => monthDates.map((d) => ({ label: format(d, "MMM yyyy"), ts: d.getTime() })),
-    [monthDates]
-  );
+  // ----- Helpers: tolerant getters + flexible date parse -----
+  const getName = (r: any) =>
+    (r?.knowby_name ?? r?.knowby ?? r?.title ?? r?.name)?.trim() ?? null;
 
-  // --- Data load
+  // completions may come with date | completed_at | created_at
+  const getDateForCompletion = (r: any) =>
+    (r?.date ?? r?.completed_at ?? r?.created_at)?.trim() ?? null;
+
+  // views may come with date | viewed_at | created_at
+  const getDateForView = (r: any) =>
+    (r?.date ?? r?.viewed_at ?? r?.created_at)?.trim() ?? null;
+
+  const parseFlexibleDate = (ds: string) => {
+    if (!ds) return new Date(NaN);
+    let d = parse(ds, "dd/MM/yyyy", new Date());
+    if (!isNaN(+d)) return d;
+    d = parse(ds, "MM/dd/yyyy", new Date());
+    if (!isNaN(+d)) return d;
+    return new Date(ds); // ISO or other
+  };
+
   useEffect(() => {
     let cancelled = false;
 
-    (async () => {
-      try {
-        // 1) Top knowby by completions
-        const byKnowby: Record<string, number> = {};
-        for (const row of completions) {
-          const name = (row as any)?.knowby_name;
-          if (!name) continue;
-          byKnowby[name] = (byKnowby[name] ?? 0) + 1;
-        }
-        const top = Object.entries(byKnowby).sort((a, b) => b[1] - a[1])[0]?.[0] ?? "—";
-        if (cancelled) return;
-        setTopKnowby(top);
+    type Buckets = { views: number; comps: number };
+    const map: Record<string, Buckets> = {};
 
-        // 2) Daily (10d) counts
-        const dayMap: Record<string, { views: number; comps: number }> = {};
-        dayKeys.forEach(({ label }) => (dayMap[label] = { views: 0, comps: 0 }));
+    // ---- ingest completions (events) ----
+    for (const r of completions) {
+      const name = getName(r);
+      const ds = getDateForCompletion(r);
+      if (!name || !ds) continue;
+      const d = parseFlexibleDate(ds);
+      if (!isWithinInterval(d, { start, end })) continue;
 
-        for (const row of completions) {
-          if ((row as any)?.knowby_name !== top || !(row as any)?.date) continue;
-          const d = parse((row as any).date, "dd/MM/yyyy", new Date());
-          if (isWithinInterval(d, { start: dailyStart, end: effectiveEndDate })) {
-            dayMap[format(d, "dd/MM/yyyy")].comps++;
-          }
-        }
-        for (const row of views) {
-          if ((row as any)?.knowby_name !== top || !(row as any)?.date) continue;
-          const d = parse((row as any).date, "dd/MM/yyyy", new Date());
-          if (isWithinInterval(d, { start: dailyStart, end: effectiveEndDate })) {
-            dayMap[format(d, "dd/MM/yyyy")].views++;
-          }
-        }
+      (map[name] ??= { views: 0, comps: 0 }).comps += 1;
+    }
 
-        const dailyRows: DailyRow[] = dayKeys.map(({ label, ts }) => ({
-          ts,
-          label,
-          views: dayMap[label].views,
-          completions: dayMap[label].comps,
-        }));
-        const dailyTotals = dailyRows.reduce(
-          (acc, r) => ({ views: acc.views + r.views, comps: acc.comps + r.completions }),
-          { views: 0, comps: 0 }
-        );
+    // ---- ingest views (events) ----
+    for (const r of views) {
+      const name = getName(r);
+      const ds = getDateForView(r);
+      if (!name || !ds) continue;
+      const d = parseFlexibleDate(ds);
+      if (!isWithinInterval(d, { start, end })) continue;
 
-        // 3) Monthly (12m) rate
-        const monthMap: Record<string, { views: number; comps: number }> = {};
-        monthKeys.forEach(({ label }) => (monthMap[label] = { views: 0, comps: 0 }));
+      (map[name] ??= { views: 0, comps: 0 }).views += 1;
+    }
 
-        for (const row of completions) {
-          if ((row as any)?.knowby_name !== top || !(row as any)?.date) continue;
-          const key = format(parse((row as any).date, "dd/MM/yyyy", new Date()), "MMM yyyy");
-          if (key in monthMap) monthMap[key].comps++;
-        }
-        for (const row of views) {
-          if ((row as any)?.knowby_name !== top || !(row as any)?.date) continue;
-          const key = format(parse((row as any).date, "dd/MM/yyyy", new Date()), "MMM yyyy");
-          if (key in monthMap) monthMap[key].views++;
-        }
+    // ---- build rows: event-based rate ----
+    const arr: AggRow[] = Object.entries(map).map(([knowby, v]) => {
+      const pct = v.views > 0 ? (v.comps / v.views) * 100 : 0;
+      return { knowby, views: v.views, comps: v.comps, rate: Math.min(pct, 100) };
+    });
 
-        const monthlyTotals = Object.values(monthMap).reduce(
-          (acc, v) => ({ views: acc.views + v.views, comps: acc.comps + v.comps }),
-          { views: 0, comps: 0 }
-        );
+    // rank by completions, top 5
+    arr.sort((a, b) => b.comps - a.comps);
+    const top5 = arr.slice(0, 5);
 
-        const monthlyRows: MonthlyRow[] = monthKeys.map(({ label, ts }) => {
-          const v = monthMap[label];
-          const rate = v.views > 0 ? (v.comps / v.views) * 100 : 0;
-          return { ts, label, rate: parseFloat(rate.toFixed(2)) };
-        });
+    // footer totals + footer rate (events only, clamped, 0% if no views)
+    const total = top5.reduce(
+      (acc, r) => ({ views: acc.views + r.views, comps: acc.comps + r.comps }),
+      { views: 0, comps: 0 }
+    );
+    const fRate =
+      total.views === 0 ? 0 : Math.min((total.comps / total.views) * 100, 100);
 
-        if (cancelled) return;
-        setDailyData(dailyRows);
-        setMonthlyData(monthlyRows);
-        setTotalsDaily(dailyTotals);
-        setTotalsMonthly(monthlyTotals);
-      } catch (e) {
-        console.error("TopKnowbyCard load error", e);
-      }
-    })();
-
+    if (!cancelled) {
+      setRows(top5);
+      setTotals(total);
+      setFooterRate(fRate);
+    }
     return () => {
       cancelled = true;
     };
-  }, [completions, views, dayKeys, monthKeys, dailyStart, effectiveEndDate]);
+  }, [completions, views, start, end]);
 
-  // ---- Series
-  const series = useMemo(() => {
-    if (chartType === "daily") {
-      return [
-        { name: "Views", data: dailyData.map((r) => [r.ts, r.views]) as [number, number][] },
-        { name: "Completions", data: dailyData.map((r) => [r.ts, r.completions]) as [number, number][] },
-      ];
-    }
-    return [{ name: "Completion Rate", data: monthlyData.map((r) => [r.ts, r.rate]) as [number, number][] }];
-  }, [chartType, dailyData, monthlyData]);
-
-  // ---- Headline + Footer stats
-  const stats =
-    chartType === "daily"
-      ? {
-        views: totalsDaily.views,
-        comps: totalsDaily.comps,
-        rate: totalsDaily.views > 0 ? (totalsDaily.comps / totalsDaily.views) * 100 : null,
-        caption: `Daily Views & Completions for ${topKnowby} (last 10 days)`,
-      }
-      : {
-        views: totalsMonthly.views,
-        comps: totalsMonthly.comps,
-        rate: totalsMonthly.views > 0 ? (totalsMonthly.comps / totalsMonthly.views) * 100 : null,
-        caption: `Monthly Completion Rate for ${topKnowby} (last 12 months)`,
-      };
-  const headline = stats.rate !== null ? `${Math.round(stats.rate)}%` : "--%";
-
-  // ========= SCROLLING BLUE TITLE (marquee) =========
-  const containerRef = useRef<HTMLDivElement>(null);
-  const textRef = useRef<HTMLSpanElement>(null);
-  const [needsScroll, setNeedsScroll] = useState(false);
-  const [maskCSS, setMaskCSS] = useState<string>("none");
-  const [scrollPx, setScrollPx] = useState(0);
-  const [animKey, setAnimKey] = useState(0);
-  const [animDuration, setAnimDuration] = useState<string>("8s");
-
-  const computeOverflow = useCallback(() => {
-    const el = containerRef.current;
-    const span = textRef.current;
-    if (!el || !span) return;
-
-    const containerW = el.offsetWidth;
-    const textW = span.scrollWidth;
-    const overflow = Math.max(0, textW - containerW);
-
-    if (overflow > 0) {
-      setNeedsScroll(true);
-
-      // Scroll distance includes a small extra so the fade looks good near the right edge
-      const fadeRight = 24;
-      const distance = overflow + fadeRight;
-      setScrollPx(distance);
-
-      // Duration: scale with distance (clamped)
-      const seconds = Math.min(14, Math.max(6, distance / 40));
-      setAnimDuration(`${seconds}s`);
-
-      // Mask fade on edges
-      const fadeLeft = 10;
-      setMaskCSS(
-        `linear-gradient(to right,
-          rgba(0,0,0,0.08) 0px,
-          rgba(0,0,0,1) ${fadeLeft}px,
-          rgba(0,0,0,1) calc(100% - ${fadeRight}px),
-          rgba(0,0,0,0) 100%)`
-      );
-
-      // Restart the animation whenever size/text changes
-      setAnimKey((k) => k + 1);
-    } else {
-      setNeedsScroll(false);
-      setScrollPx(0);
-      setAnimDuration("0s");
-      // keep a very subtle edge fade
-      setMaskCSS(
-        `linear-gradient(to right,
-          rgba(0,0,0,0.04) 0px,
-          rgba(0,0,0,1) 8px,
-          rgba(0,0,0,1) calc(100% - 8px),
-          rgba(0,0,0,0.04) 100%)`
-      );
-    }
-  }, []);
-
-  useEffect(() => {
-    computeOverflow();
-    const ro = new ResizeObserver(computeOverflow);
-    if (containerRef.current) ro.observe(containerRef.current);
-    if (textRef.current) ro.observe(textRef.current);
-    return () => ro.disconnect();
-  }, [computeOverflow, topKnowby]);
-
-
-  const options = useMemo<ApexOptions>(() => {
-    const base = topChartOptions(isDark);
-    const isMonthly = chartType === "monthly";
-    const baseY = Array.isArray(base.yaxis) ? base.yaxis[0] : base.yaxis;
-
-    return {
-      ...base,
-      xaxis: {
-        ...(base.xaxis ?? {}),
-        labels: {
-          ...(base.xaxis?.labels ?? {}),
-          format: chartType === "daily" ? "dd MMM" : "MMM yy",
-        },
-      },
-      yaxis: {
-        ...(baseY ?? {}),
-        ...(isMonthly ? { min: 0, max: 100, tickAmount: 5 } : {}),
-        labels: {
-          ...((baseY as any)?.labels ?? {}),
-          formatter: (v: number) =>
-            isMonthly ? `${Math.round(v)}%` : `${Math.round(v)}`,
-        },
-      },
-      tooltip: {
-        ...(base.tooltip ?? {}),
-        x: { format: chartType === "daily" ? "dd MMM" : "MMM yy", },
-        theme: isDark ? "dark" : "light",
-      },
-    };
-  }, [isDark, chartType]);
-
-  // Only show skeleton on very first load; keep chart during "refreshing"
+  // Loading skeleton (first load only)
   if (status === "loading") {
     return (
-      <Card className="flex flex-col p-6 rounded-xl gap-3">
+      <Card className="flex flex-col p-4 rounded-xl gap-3">
         <div className="flex items-center gap-4">
-          <div className="shrink-0 w-16 h-16 rounded-lg bg-muted animate-pulse" />
+          <div className="shrink-0 w-16 h-16 rounded-full bg-muted animate-pulse" />
           <div className="flex-1 space-y-2">
             <div className="h-4 w-32 bg-muted rounded animate-pulse" />
             <div className="h-8 w-24 bg-muted rounded animate-pulse" />
@@ -304,161 +144,106 @@ export default function TopKnowbyCard({ selectedDateRange }: TopKnowbyCardProps)
     );
   }
 
-  const isRefreshing = status === "refreshing";
-
-  // ================================================
+  const caption = `Top Knowbys by completions (selected range)`;
 
   return (
     <TooltipProvider>
-      <Card className="flex flex-col p-6 rounded-xl h-fit gap-3">
+      <Card className="flex flex-col p-6 rounded-3xl gap-3 border-0 dark:border dark:border-slate-700 shadow-xl/2 dark:shadow-lg dark:shadow-gray-900/50 bg-card min-h-[365px]">
         {/* Header */}
-        <div className="flex items-center gap-4">
-          {/* Icon */}
-          <div className="shrink-0 flex items-center justify-center w-16 h-16 rounded-lg text-white bg-gradient-to-b from-blue-500 to-blue-700">
-            <TrendingUp className="h-8 w-8" />
+        <div className="flex items-start gap-4">
+          <div className="shrink-0 flex items-center justify-center w-16 h-16 rounded-full text-white bg-gradient-to-b from-indigo-500 to-indigo-700">
+            <BookOpen className="h-8 w-8" />
           </div>
-
-          {/* Text column */}
-          <div className="flex flex-col gap-1 w-full min-w-0"> {/* <-- min-w-0 added */}
-            {/* Title row + selector */}
+          <div className="flex flex-col gap-2 w-full min-w-0">
             <div className="flex items-start">
-              <h3 className="text-lg font-semibold shrink-0">Top Knowby</h3> {/* <-- prevent shrinking */}
-              <div className="ml-auto flex gap-1 flex-shrink-0">           {/* <-- don't let buttons shrink */}
-                <Tabs
-                  value={chartType}
-                  onValueChange={(v) => v && setChartType(v as "daily" | "monthly")}
-                  className="ml-auto shrink-0"
-                >
-                  <TabsList className="bg-muted p-0.5 rounded-md h-7">
-                    <TabsTrigger
-                      value="daily"
-                      className="h-6 px-2 text-xs rounded data-[state=active]:bg-background data-[state=active]:shadow-sm"
-                    >
-                      10d
-                    </TabsTrigger>
-                    <TabsTrigger
-                      value="monthly"
-                      className="h-6 px-2 text-xs rounded data-[state=active]:bg-background data-[state=active]:shadow-sm"
-                    >
-                      12m
-                    </TabsTrigger>
-                  </TabsList>
-                </Tabs>
-              </div>
+              <h3 className="text-lg font-semibold shrink-0 dark:text-white">Top Knowbys</h3>
+              <div className="ml-auto flex gap-1 flex-shrink-0">{/* no per-card tabs */}</div>
             </div>
-
-            {/* Scrolling blue title */}
-            <div
-              ref={containerRef}
-              className="min-w-0 overflow-hidden font-bold whitespace-nowrap text-blue-600 dark:text-blue-400 leading-tight"
-              style={{
-                maskImage: maskCSS,
-                WebkitMaskImage: maskCSS,
-                paddingLeft: "5px",
-                paddingRight: "5px",
-              }}
-              title={topKnowby}
-            >
-              <span
-                key={animKey}
-                ref={textRef}
-                className={`${needsScroll ? "inline-block marquee--leftfade" : "inline-block"} text-2xl md:text-3xl`}
-                style={
-                  needsScroll
-                    ? ({
-                      ["--scroll-distance" as any]: `-${scrollPx}px`,  // note the minus for left
-                      ["--marquee-duration" as any]: animDuration,
-                    } as React.CSSProperties)
-                    : undefined
-                }
-              >
-                {topKnowby}
-              </span>
-
-            </div>
-
-            {/* Big percentage */}
-            {/* <div className="flex items-baseline gap-2">
-              <div className="text-4xl font-bold leading-none">
-                {stats.rate !== null ? `${Math.round(stats.rate)}%` : "--%"}
-              </div>
-              <p className="text-xs text-muted-foreground">completion rate</p>
-            </div> */}
+            <div className="text-xs text-muted-foreground">{caption}</div>
           </div>
         </div>
 
         <hr className="border-border" />
 
-        {/* Chart */}
-        <CardContent className="p-0 overflow-hidden">
-          <div className="h-[145px] overflow-hidden">
-            <Chart options={options} series={series} type="area" height={150} />
+        {/* ======= TABLE ======= */}
+        <CardContent className="p-0 h-full">
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="text-muted-foreground">
+                  <th className="text-left text-xs py-2 pl-6">Knowby</th>
+                  <th className="text-right text-xs py-2 pr-6">Completion rate</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.length === 0 ? (
+                  <tr>
+                    <td colSpan={2} className="py-6 text-center text-muted-foreground">
+                      No activity in the selected window.
+                    </td>
+                  </tr>
+                ) : (
+                  rows.map((r, idx) => (
+                    <tr
+                      key={r.knowby + idx}
+                      className={idx % 2 ? "bg-background" : "bg-transparent"}
+                    >
+                      <td className="py-2 pl-6 pt-0 pb-0">
+                        <div className="flex items-center gap-2">
+                          <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-muted dark:bg-background text-xs font-semibold">
+                            {idx + 1}
+                          </span>
+                          <span className="inline-block truncate max-w-[24ch]" title={r.knowby}>
+                            {r.knowby}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="py-2 pr-6 text-right tabular-nums">
+                        {`${Math.round(r.rate)}%`}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
           </div>
         </CardContent>
 
-        {/* Caption + Footer */}
+        {/* Footer summary */}
         <div className="pl-6 pr-6">
-          <div className="flex justify-center">
-            <p className="text-xs font-semibold">
-              {chartType === "daily"
-                ? `Daily Views & Completions for ${topKnowby} (last 10 days)`
-                : `Monthly Completion Rate for ${topKnowby} (last 12 months)`}
-            </p>
-          </div>
-
-          <CardFooter className="flex items-center justify-between text-muted-foreground text-sm px-0 pt-2">
+          <CardFooter className="flex items-center justify-between text-muted-foreground text-sm px-0">
             <Tooltip>
               <TooltipTrigger asChild>
                 <div className="flex items-center gap-1.5">
                   <Eye className="h-4 w-4" />
-                  <span>{chartType === "daily" ? totalsDaily.views : totalsMonthly.views}</span>
+                  <span>{totals.views}</span>
                 </div>
               </TooltipTrigger>
-              <TooltipContent>Total Views ({chartType === "daily" ? "10 days" : "12 months"})</TooltipContent>
+              <TooltipContent> Total Views (selected range) across top 5 </TooltipContent>
             </Tooltip>
 
             <Tooltip>
               <TooltipTrigger asChild>
                 <div className="flex items-center gap-1.5">
                   <CheckCircle className="h-4 w-4" />
-                  <span>{chartType === "daily" ? totalsDaily.comps : totalsMonthly.comps}</span>
+                  <span>{totals.comps}</span>
                 </div>
               </TooltipTrigger>
-              <TooltipContent>Total Completions ({chartType === "daily" ? "10 days" : "12 months"})</TooltipContent>
+              <TooltipContent> Total Completions (selected range) across top 5 </TooltipContent>
             </Tooltip>
 
             <Tooltip>
               <TooltipTrigger asChild>
                 <div className="flex items-center gap-1.5">
                   <TrendingUp className="h-4 w-4" />
-                  <span>
-                    {stats.rate !== null ? `${stats.rate.toFixed(2)}%` : "--%"}
-                  </span>
+                  <span>{footerRate == null ? "--%" : `${footerRate.toFixed(2)}%`}</span>
                 </div>
               </TooltipTrigger>
-              <TooltipContent>Completion Rate ({chartType === "daily" ? "10 days" : "12 months"})</TooltipContent>
+              <TooltipContent> Avg completion rate (selected range) across top 5 </TooltipContent>
             </Tooltip>
           </CardFooter>
         </div>
       </Card>
-
-      {/* Local CSS for marquee */}
-      <style jsx>{`
-        /* Moves left, fades out, snaps back invisible, fades in */
-        .marquee--leftfade {
-          animation: marqueeLeftFade var(--marquee-duration, 8s) linear infinite;
-        }
-
-        @keyframes marqueeLeftFade {
-          0%   { transform: translateX(0);                          opacity: 1; }
-          75%  { transform: translateX(var(--scroll-distance, -120px)); opacity: 1; }
-          85%  { transform: translateX(var(--scroll-distance, -120px)); opacity: 0; } /* fade out */
-          86%  { transform: translateX(0);                          opacity: 0; }     /* snap back invisible */
-          100% { transform: translateX(0);                          opacity: 1; }     /* fade in */
-        }
-
-
-      `}</style>
     </TooltipProvider>
   );
 }

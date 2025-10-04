@@ -2,7 +2,6 @@ import type { Metadata } from "next"
 import { Inter } from "next/font/google"
 import "./globals.css"
 import { ThemeProvider } from "next-themes"
-import { Toaster } from "@/components/ui/sonner"
 import Sidebar from "@/components/Sidebar"
 import Header from "@/components/Header"
 import { DateRangeProvider } from "@/lib/DateRangeContext"; // Import the DateRangeProvider
@@ -29,17 +28,12 @@ export default function RootLayout({
           <KnowbyDataProvider>
             <SidebarProvider>
               <DateRangeProvider>
-                <Toaster 
-                  position="top-right" 
-                  richColors 
-                  closeButton 
-                />
                 <div className="hidden md:flex border-r bg-sidebar text-sidebar-foreground inset-shadow-sm/10">
                   <Sidebar />
                 </div>
                 <main className="flex flex-col w-full h-full">
                   <Header />
-                  <div className="flex-1 overflow-y-auto p-8 pb-32">
+                  <div className="flex-1 overflow-y-auto lg:pl-25 lg:pr-25 pl-8 r-4 -mt-12 pt-16 pb-32">
                     {children}
                   </div>
                 </main>
