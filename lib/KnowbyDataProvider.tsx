@@ -11,6 +11,7 @@ import {
   useState,
 } from "react";
 import Papa from "papaparse";
+import { showRefreshNotification } from "./dataChangeDetection";
 
 /** Data source selector */
 export type DataSource = "sample" | "real";
@@ -264,6 +265,9 @@ export function KnowbyDataProvider({ children }: { children: React.ReactNode }) 
       setViews(v);
       setLastUpdated(Date.now());
       setStatus("ready");
+      
+      // Show notification for real data refresh
+      showRefreshNotification(c, v, cur);
     } catch (e: any) {
       if (e?.name !== "AbortError") {
         setError(e);
