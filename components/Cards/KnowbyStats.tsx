@@ -218,7 +218,7 @@ export default function KnowbyStats({ selectedDateRange }: Props) {
       </DialogContent>
     </Dialog>
   );
-  //test
+
   return (
     <Card className="relative isolate overflow-hidden rounded-3xl p-5 md:p-6 border-0 shadow-xl/2 bg-card dark:border dark:border-slate-700 gap-2">
       {/* Header */}
