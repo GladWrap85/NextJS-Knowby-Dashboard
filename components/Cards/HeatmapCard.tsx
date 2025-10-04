@@ -145,29 +145,38 @@ export function cellColor(value: number, max: number, metric: Metric) {
   return ramp[5];
 }
 
-
 export default function UsageHeatmap({ selectedDateRange }: Props) {
   /* --- ALWAYS call hooks in the same order (no early return before these) --- */
-  const { views, completions } = useKnowbyData();
+  const { views, completions, status } = useKnowbyData();
+
+  // Keep the mount flag to avoid SSR mismatches, but don't use it for ghosting anymore.
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
+
   const [metric, setMetric] = useState<Metric>("views");
 
   // Use stable fallback dates so hook computations don’t depend on runtime time.
   const rawFrom = selectedDateRange?.from ?? new Date(0);
   const rawTo = selectedDateRange?.to ?? new Date(0);
   const { start, end } = clampRange(rawFrom, rawTo);
-  const ready = mounted && !!selectedDateRange?.from && !!selectedDateRange?.to;
+
+  // --- Match TopMetricsRow naming & behavior ---
+  // Ghost while provider is loading OR the range hasn't been chosen yet.
+  const isLoading =
+    status === "loading" ||
+    !selectedDateRange?.from ||
+    !selectedDateRange?.to;
+
   const mode: Mode = resolveMode(start, end);
 
-  /* ---------- aggregate once (guarded by `ready`) ---------- */
+  /* ---------- aggregate once (guarded by isLoading) ---------- */
   const counts = useMemo(() => {
     const dayViews = new Map<string, number>();
     const dayComps = new Map<string, number>();
     const hourViews = new Map<string, number>();
     const hourComps = new Map<string, number>();
 
-    if (!ready) {
+    if (isLoading) {
       return { dayViews, dayComps, hourViews, hourComps };
     }
 
@@ -199,7 +208,7 @@ export default function UsageHeatmap({ selectedDateRange }: Props) {
     }
 
     return { dayViews, dayComps, hourViews, hourComps };
-  }, [views, completions, start.getTime(), end.getTime(), ready]);
+  }, [views, completions, start.getTime(), end.getTime(), isLoading]);
 
   const dayCount = (d: Date) => {
     const k = dayKey(d);
@@ -214,9 +223,9 @@ export default function UsageHeatmap({ selectedDateRange }: Props) {
     return metric === "views" ? v : metric === "completions" ? c : v + c;
   };
 
-  /* ---------- data shapes (guarded; cheap when !ready) ---------- */
+  /* ---------- data shapes (guarded; cheap when isLoading) ---------- */
   const weekly = useMemo(() => {
-    if (!ready) return { days: [] as Date[], grid: [] as number[][], max: 0, bins: TIME_BINS };
+    if (isLoading) return { days: [] as Date[], grid: [] as number[][], max: 0, bins: TIME_BINS };
 
     const days = eachDayOfInterval({ start, end }).slice(0, 14);
     const rows = TIME_BINS.length; // now 8
@@ -242,10 +251,10 @@ export default function UsageHeatmap({ selectedDateRange }: Props) {
     }
 
     return { days, grid, max, bins: TIME_BINS };
-  }, [start.getTime(), end.getTime(), metric, counts, ready]);
+  }, [start.getTime(), end.getTime(), metric, counts, isLoading]);
 
   const months = useMemo(() => {
-    if (!ready) return [] as { monthStart: Date; days: Date[]; max: number }[];
+    if (isLoading) return [] as { monthStart: Date; days: Date[]; max: number }[];
     const first = startOfMonth(start);
     const last = endOfMonth(end);
     const out: { monthStart: Date; days: Date[]; max: number }[] = [];
@@ -262,10 +271,10 @@ export default function UsageHeatmap({ selectedDateRange }: Props) {
       cursor = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1);
     }
     return out;
-  }, [start.getTime(), end.getTime(), metric, counts, ready]);
+  }, [start.getTime(), end.getTime(), metric, counts, isLoading]);
 
   const yearly = useMemo(() => {
-    if (!ready) return [] as { year: number; start: Date; end: Date; weeks: number; matrix: number[][]; max: number }[];
+    if (isLoading) return [] as { year: number; start: Date; end: Date; weeks: number; matrix: number[][]; max: number }[];
     const ys: { year: number; start: Date; end: Date; weeks: number; matrix: number[][]; max: number }[] = [];
     for (let y = startOfYear(start).getFullYear(); y <= endOfYear(end).getFullYear(); y++) {
       const yStart = startOfWeek(startOfYear(new Date(y, 0, 1)), { weekStartsOn: 0 });
@@ -285,14 +294,46 @@ export default function UsageHeatmap({ selectedDateRange }: Props) {
       ys.push({ year: y, start: yStart, end: yEnd, weeks, matrix, max });
     }
     return ys;
-  }, [start.getTime(), end.getTime(), metric, counts, ready]);
+  }, [start.getTime(), end.getTime(), metric, counts, isLoading]);
 
-  /* ---------- Skeleton (after all hooks have been called) ---------- */
-  if (!ready) {
+  const fullRange = useMemo(() => {
+  if (isLoading) {
+    return {
+      startAligned: start,
+      endAligned: end,
+      weeks: 0,
+      matrix: [] as number[][],
+      max: 0,
+    };
+  }
+
+  // Align to full weeks so columns stay tidy
+  const startAligned = startOfWeek(start, { weekStartsOn: 0 });
+  const endAligned = endOfWeek(end, { weekStartsOn: 0 });
+  const weeks = differenceInCalendarWeeks(endAligned, startAligned, { weekStartsOn: 0 }) + 1;
+
+  const matrix: number[][] = Array.from({ length: 7 }, () => Array(weeks).fill(0));
+  let max = 0;
+
+  for (let w = 0; w < weeks; w++) {
+    const colStart = addDays(startAligned, w * 7);
+    for (let r = 0; r < 7; r++) {
+      const d = addDays(colStart, r);
+      const v = isWithinInterval(d, { start, end }) ? dayCount(d) : 0;
+      matrix[r][w] = v;
+      if (v > max) max = v;
+    }
+  }
+
+  return { startAligned, endAligned, weeks, matrix, max };
+}, [isLoading, start.getTime(), end.getTime(), metric, counts]);
+
+
+  if (isLoading) {
     return (
       <Card className="relative isolate overflow-hidden rounded-3xl p-5 border-0 shadow-xl/2 bg-card">
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-full bg-gradient-to-b from-pink-500 to-fuchsia-500 dark:from-rose-500 dark:to-rose-600" />
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-10 h-10 rounded-full bg-muted animate-pulse" />
           <div className="flex-1">
             <div className="h-4 w-40 rounded bg-muted animate-pulse" />
             <div className="mt-2 h-3 w-56 rounded bg-muted animate-pulse" />
@@ -306,7 +347,7 @@ export default function UsageHeatmap({ selectedDateRange }: Props) {
   /* ---------- UI ---------- */
   return (
     <TooltipProvider>
-      <Card className="min-h-[365px] max-h-[365px] relative isolate overflow-hidden rounded-3xl p-5 md:p-6 border-0 shadow-xl/2 bg-card dark:border dark:border-slate-700 gap-2">
+      <Card className="min-h-[335px] relative isolate overflow-hidden rounded-3xl p-5 md:p-6 border-0 shadow-xl/2 bg-card dark:border dark:border-slate-700 gap-2">
         {/* Header */}
         <div className="flex items-center gap-3">
           <div className="shrink-0 flex h-10 w-10 items-center justify-center rounded-full text-white bg-gradient-to-b from-teal-500 to-teal-700">
@@ -392,7 +433,8 @@ export default function UsageHeatmap({ selectedDateRange }: Props) {
                     return (
                       <Tooltip key={`${c}-${r}`}>
                         <TooltipTrigger asChild>
-                          <div className={`h-5 w-auto rounded-md ${cellColor(v, weekly.max, metric)} ring-1 ring-black/10 dark:ring-white/10`}
+                          <div
+                            className={`h-5 w-auto rounded-md ${cellColor(v, weekly.max, metric)} ring-1 ring-black/10 dark:ring-white/10`}
                             style={{ gridColumn: c + 2, gridRow: r + 2 }}
                           />
                         </TooltipTrigger>
@@ -406,7 +448,6 @@ export default function UsageHeatmap({ selectedDateRange }: Props) {
                 )}
               </div>
             </div>
-            <Legend />
           </>
         )}
 
@@ -430,11 +471,10 @@ export default function UsageHeatmap({ selectedDateRange }: Props) {
                       <Tooltip key={d.toISOString()}>
                         <TooltipTrigger asChild>
                           <div className={clsx(`relative h-7 rounded-md ${cellColor(v, max, metric)} ring-1 ring-black/10 dark:ring-white/10`, faint && "opacity-45" )}>
-                          <span className="absolute left-1 top-1 text-[10px] select-none text-slate-700 dark:text-white/70">
-                            {getDate(d)}
-                          </span>
-                        </div>
-
+                            <span className="absolute left-1 top-1 text-[10px] select-none text-slate-700 dark:text-white/70">
+                              {getDate(d)}
+                            </span>
+                          </div>
                         </TooltipTrigger>
                         <TooltipContent className="text-xs">
                           {format(d, "EEE d MMM yyyy")} — {v} {metric === "completions" ? "completion(s)" : metric === "views" ? "view(s)" : "event(s)"}
@@ -445,12 +485,11 @@ export default function UsageHeatmap({ selectedDateRange }: Props) {
                 </div>
               </div>
             ))}
-            <Legend />
           </div>
         )}
 
-        {/* YEARLY + ALL: width-fitting micro-cells (no overflow, no extra height) */}
-        {(mode === "yearly" || mode === "all") && (
+        {/* YEARLY + ALL: width-fitting micro-cells */}
+        {mode === "yearly" && (
           <div className="space-y-6">
             {yearly.map((y) => (
               <div key={y.year} className="rounded-2xl ring-1 ring-black/10 dark:ring-white/10 p-3 bg-white/60 dark:bg-black/10">
@@ -460,18 +499,10 @@ export default function UsageHeatmap({ selectedDateRange }: Props) {
                     {format(y.start, "d MMM")} – {format(y.end, "d MMM")}
                   </div>
                 </div>
-
-                {/* 
-                  Width-fitting grid:
-                  - Columns: repeat(weeks, 1fr) -> always fits container width
-                  - Rows: fixed tiny height per weekday (no extra vertical space)
-                  - Gap: minimal (0.125rem) to keep legibility at tiny widths
-                  - Cells: full column width, height ~6px (h-1.5), rounded for a modern “spark-heatmap” look
-                */}
                 <div
                   className="grid gap-[2px]"
                   style={{
-                    gridTemplateRows: "repeat(7, 24px)", // ~h-1.5 each row; keep card height constant
+                    gridTemplateRows: "repeat(7, 24px)",
                     gridTemplateColumns: `repeat(${y.weeks}, 1fr)`,
                   }}
                 >
@@ -482,10 +513,7 @@ export default function UsageHeatmap({ selectedDateRange }: Props) {
                       return (
                         <Tooltip key={`${r}-${c}`}>
                           <TooltipTrigger asChild>
-                            <div
-                              className={`w-full h-[24px] rounded-[2px] ${cellColor(v, y.max, metric)} ring-0`}
-                              // No fixed width -> column width defines it, preventing overflow
-                            />
+                            <div className={`w-full h-[24px] rounded-[2px] ${cellColor(v, y.max, metric)} ring-0`} />
                           </TooltipTrigger>
                           <TooltipContent className="text-xs">
                             {format(day, "EEE d MMM yyyy")} — {v} {metric === "completions" ? "completion(s)" : metric === "views" ? "view(s)" : "event(s)"}
@@ -497,21 +525,48 @@ export default function UsageHeatmap({ selectedDateRange }: Props) {
                 </div>
               </div>
             ))}
-            <Legend />
           </div>
         )}
+
+        {/* ALL: single continuous heatmap for the whole period */}
+        {mode === "all" && (
+          <div className="space-y-6">
+            <div className="rounded-2xl ring-1 ring-black/10 dark:ring-white/10 p-3 bg-white/60 dark:bg-black/10">
+              <div className="mb-2 flex items-center justify-between">
+                <div className="text-sm font-medium">All time</div>
+                <div className="text-xs text-muted-foreground">
+                  {format(fullRange.startAligned, "d MMM yyyy")} – {format(fullRange.endAligned, "d MMM yyyy")}
+                </div>
+              </div>
+              <div
+                className="grid gap-[2px]"
+                style={{
+                  gridTemplateRows: "repeat(7, 24px)",
+                  gridTemplateColumns: `repeat(${fullRange.weeks}, 1fr)`,
+                }}
+              >
+                {Array.from({ length: 7 }, (_, r) =>
+                  Array.from({ length: fullRange.weeks }, (_, c) => {
+                    const day = addDays(fullRange.startAligned, c * 7 + r);
+                    const v = fullRange.matrix[r][c];
+                    return (
+                      <Tooltip key={`${r}-${c}`}>
+                        <TooltipTrigger asChild>
+                          <div className={`w-full h-[24px] rounded-[2px] ${cellColor(v, fullRange.max, metric)} ring-0`} />
+                        </TooltipTrigger>
+                        <TooltipContent className="text-xs">
+                          {format(day, "EEE d MMM yyyy")} — {v} {metric === "completions" ? "completion(s)" : metric === "views" ? "view(s)" : "event(s)"}
+                        </TooltipContent>
+                      </Tooltip>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
       </Card>
     </TooltipProvider>
-  );
-}
-
-/* ---------- shared legend ---------- */
-function Legend() {
-  return (
-    <div className="mt-0 flex items-center gap-3">
-      <span className="text-xs text-muted-foreground">Low</span>
-      <div className="h-2 w-44 rounded-full bg-gradient-to-r from-slate-200 via-sky-300 via-70% to-fuchsia-500 dark:from-sky-900 dark:via-indigo-600 dark:via-70% dark:to-fuchsia-500/90" />
-      <span className="text-xs text-muted-foreground">High</span>
-    </div>
   );
 }
