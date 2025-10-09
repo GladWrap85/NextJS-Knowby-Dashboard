@@ -26,6 +26,7 @@ import { Calendar as CalendarIcon, LayoutDashboard, User } from "lucide-react";
 import { useKnowbyData } from "@/lib/KnowbyDataProvider";
 import { parse } from "date-fns";
 import TopMetricsRow from "@/components/Cards/TopMetricsRow";
+import AnalyticsExplorer from "@/components/Cards/InsightsCard";
 
 type Period = "daily" | "weekly" | "monthly" | "yearly" | "all-time" | "range";
 
@@ -169,8 +170,8 @@ export default function Home() {
               </div>
 
               {/* Insights */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-[20px]">
-                <ModularGraphCard selectedDateRange={dateRange} />
+              <div className="grid grid-cols-1 lg:grid-cols-1 gap-[20px]">
+                <AnalyticsExplorer selectedDateRange={dateRange} />
               </div>
             </div>
           </div>

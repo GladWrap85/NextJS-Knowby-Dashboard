@@ -211,33 +211,33 @@ export default function TopKnowbyCard({ selectedDateRange }: TopKnowbyCardProps)
 
         {/* Footer summary */}
         <div className="pl-6 pr-6">
-          <CardFooter className="flex items-center justify-between text-muted-foreground text-sm px-0">
+          <CardFooter className="flex items-center justify-between text-muted-foreground text-xs px-0">
             <Tooltip>
               <TooltipTrigger asChild>
-                <div className="flex items-center gap-1.5">
+                <span className="inline-flex items-center gap-1">
                   <Eye className="h-4 w-4" />
-                  <span>{totals.views}</span>
-                </div>
+                  <strong className="text-foreground">{totals.views}</strong> views
+                </span>
               </TooltipTrigger>
               <TooltipContent> Total Views (selected range) across top 5 </TooltipContent>
             </Tooltip>
 
             <Tooltip>
               <TooltipTrigger asChild>
-                <div className="flex items-center gap-1.5">
-                  <CheckCircle className="h-4 w-4" />
-                  <span>{totals.comps}</span>
-                </div>
+                <span className="inline-flex items-center gap-1">
+                  <CheckCircle className="h-3.5 w-3.5" />
+                  <strong className="text-foreground">{totals.comps}</strong> completions
+                </span>
               </TooltipTrigger>
               <TooltipContent> Total Completions (selected range) across top 5 </TooltipContent>
             </Tooltip>
 
             <Tooltip>
               <TooltipTrigger asChild>
-                <div className="flex items-center gap-1.5">
+                <span className="inline-flex items-center gap-1">
                   <TrendingUp className="h-4 w-4" />
-                  <span>{footerRate == null ? "--%" : `${footerRate.toFixed(2)}%`}</span>
-                </div>
+                  <strong className="text-foreground">{footerRate == null ? "--%" : `${footerRate.toFixed(2)}%`}</strong> avg rate
+                </span>
               </TooltipTrigger>
               <TooltipContent> Avg completion rate (selected range) across top 5 </TooltipContent>
             </Tooltip>

@@ -606,33 +606,33 @@ export default function TodaysUsageCard({ selectedDateRange }: TodaysUsageCardPr
             <p className="text-xs font-semibold">{subtitleText}</p>
           </div> */}
           {/* Footer with tooltips for views and completions */}
-          <CardFooter className="flex items-center justify-center gap-56 text-muted-foreground text-sm px-0 pt-2">
+          <CardFooter className="flex items-center justify-between text-muted-foreground text-xs px-20 pt-2">
             <Tooltip>
               <TooltipTrigger asChild>
-                <div className="flex items-center gap-1.5">
-                  <Eye className="h-4 w-4" />
-                  <span>{totalViews}</span>
-                </div>
+                <span className="inline-flex items-center gap-1">
+                  <Eye className="h-3.5 w-3.5" />
+                  <strong className="text-foreground">{totalViews}</strong> views
+                </span>
               </TooltipTrigger>
               <TooltipContent>Total Views for Selected Period</TooltipContent>
             </Tooltip>
 
             <Tooltip>
               <TooltipTrigger asChild>
-                <div className="flex items-center gap-1.5">
-                  <CheckCircle className="h-4 w-4" />
-                  <span>{totalCompletions}</span>
-                </div>
+                <span className="inline-flex items-center gap-1">
+                  <CheckCircle className="h-3.5 w-3.5" />
+                  <strong className="text-foreground">{totalCompletions}</strong> completions
+                </span>
               </TooltipTrigger>
               <TooltipContent>Total Completions for Selected Period</TooltipContent>
             </Tooltip>
 
             <Tooltip>
               <TooltipTrigger asChild>
-                <div className="flex items-center gap-1.5">
-                <TrendingUp className="h-4 w-4" />
-                  <span>{sevenDayCompletionRate !== null ? `${sevenDayCompletionRate.toFixed(2)}%` : "--%"}</span>
-                </div>
+                <span className="inline-flex items-center gap-1">
+                <TrendingUp className="h-3.5 w-3.5" />
+                  <strong className="text-foreground">{sevenDayCompletionRate !== null ? `${sevenDayCompletionRate.toFixed(2)}%` : "--%"}</strong> comp. rate
+                </span>
               </TooltipTrigger>
               <TooltipContent>Completion Rate for Selected Period</TooltipContent>
             </Tooltip>

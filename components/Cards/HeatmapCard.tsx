@@ -366,7 +366,7 @@ export default function UsageHeatmap({ selectedDateRange }: Props) {
               onClick={() => setMetric("views")}
               className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 ring-1 transition
               ${"bg-sky-100 text-sky-700 ring-sky-200 dark:bg-sky-500/20 dark:text-sky-300 dark:ring-white/10"}
-              ${metric === "views" ? "font-semibold" : "opacity-35"}`}
+              ${metric === "views" ? "font-semibold" : "opacity-35 hover:opacity-90"}`}
               title="Show views"
             >
               <Eye className="h-3.5 w-3.5" /> Views
@@ -375,7 +375,7 @@ export default function UsageHeatmap({ selectedDateRange }: Props) {
               onClick={() => setMetric("completions")}
               className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 ring-1 transition
               ${"bg-emerald-100 text-emerald-700 ring-emerald-200 dark:bg-emerald-500/20 dark:text-emerald-300 dark:ring-white/10"}
-              ${metric === "completions" ? "font-semibold" : "opacity-35"}`}
+              ${metric === "completions" ? "font-semibold" : "opacity-35 hover:opacity-90"}`}
               title="Show completions"
             >
               <CheckCircle className="h-3.5 w-3.5" /> Completions
@@ -384,7 +384,7 @@ export default function UsageHeatmap({ selectedDateRange }: Props) {
               onClick={() => setMetric("both")}
               className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 ring-1 transition
               ${"bg-fuchsia-100 text-fuchsia-700 ring-fuchsia-200 dark:bg-fuchsia-500/20 dark:text-fuchsia-300 dark:ring-white/10"}
-              ${metric === "both" ? "font-semibold" : "opacity-35"}`}
+              ${metric === "both" ? "font-semibold" : "opacity-35 hover:opacity-90"}`}
               title="Show both"
             >
               Views + Comp
