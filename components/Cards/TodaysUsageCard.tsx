@@ -2,8 +2,6 @@
 
 // ---------------- Imports ----------------
 
-
-
 import { useEffect, useState, useMemo } from "react";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { useDarkMode } from "@/components/NivoWrapper";
@@ -14,22 +12,9 @@ import {
   TooltipProvider,
   TooltipTrigger
 } from "@/components/ui/tooltip";
-import {
-  subDays,
-  format,
-  parse,
-  isWithinInterval,
-  eachDayOfInterval,
-  startOfMonth,
-  endOfMonth,
-  addMonths,
-  isSameDay,
-  differenceInCalendarDays,
-  startOfYear,
-  endOfYear,
-  addYears,
-  startOfWeek,
-  endOfWeek
+import { subDays, format, parse, isWithinInterval, eachDayOfInterval, startOfMonth, 
+  endOfMonth, addMonths, isSameDay, differenceInCalendarDays, startOfYear, endOfYear,
+  addYears, startOfWeek, endOfWeek
 } from "date-fns";
 import { DateRange } from "react-day-picker";
 import dynamic from "next/dynamic";
@@ -576,7 +561,7 @@ export default function TodaysUsageCard({ selectedDateRange }: TodaysUsageCardPr
 
             <button
               onClick={() => setShowCompare(v => !v)}
-              className={`inline-flex text-xs font-semibold items-center gap-1 rounded-full px-2.5 py-1 ring-1
+              className={`inline-flex text-xs hover:cursor-pointer font-semibold items-center gap-1 rounded-full px-2.5 py-1 ring-1
               ${"bg-indigo-100 text-indigo-700 ring-indigo-200 hover:bg-indigo-200 dark:bg-indigo-500/20 dark:text-indigo-300 dark:ring-white/10 hover:dark:bg-indigo-500/50"}`}
               title={`Toggle comparison with ${compareLabel}`}
             >

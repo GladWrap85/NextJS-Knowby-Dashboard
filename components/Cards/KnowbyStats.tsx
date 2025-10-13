@@ -1,7 +1,7 @@
 // components/Cards/KnowbyStatsMiniCardCompact.tsx
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import dynamic from "next/dynamic";
 import {
   format, isWithinInterval,
@@ -11,12 +11,19 @@ import { DateRange } from "react-day-picker";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { BarChart3, Download } from "lucide-react";
+import {
+  Tooltip, TooltipProvider, TooltipTrigger, TooltipContent
+} from "@/components/ui/tooltip";
+import {
+  Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter
+} from "@/components/ui/dialog";
+import { BarChart3, Download, ChevronLeft, ChevronRight, Maximize2 } from "lucide-react";
 import { useKnowbyData } from "@/lib/KnowbyDataProvider";
 import { cn } from "@/lib/utils";
 import type { ApexOptions } from "apexcharts";
+import {
+  Select, SelectTrigger, SelectContent, SelectItem, SelectValue
+} from "@/components/ui/select";
 
 const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
@@ -25,15 +32,16 @@ type MetricKey = "activeMembers" | "recentlyViewed" | "newKnowbys" | "unusedKnow
 const METRICS: Array<{ key: MetricKey; label: string; hint: string; color: string }> = [
   { key: "activeMembers",  label: "Active Members",  hint: "Members with views or completions",  color: "bg-sky-500" },
   { key: "recentlyViewed", label: "Recently Viewed", hint: "Views in range",                      color: "bg-blue-500" },
-  { key: "newKnowbys",     label: "New Knowbys",     hint: "First-seen in range*",                color: "bg-violet-500" },
-  { key: "unusedKnowbys",  label: "Unused Knowbys",  hint: "0 views in range",                    color: "bg-orange-500" },
+  { key: "newKnowbys",     label: "New Knowbys",     hint: "Created in range",                    color: "bg-violet-500" },
+  { key: "unusedKnowbys",  label: "Unused Knowbys",  hint: "No views in range",                   color: "bg-orange-500" },
 ];
 
 type Props = { selectedDateRange: DateRange | undefined; className?: string };
 
 export default function KnowbyStats({ selectedDateRange, className }: Props) {
-  const { completions, views } = useKnowbyData();
-
+  // now pulling knowbys from provider
+  const { completions, views, knowbys, status } = useKnowbyData();
+  const isLoading = status === "loading";
   // —— resolve effective range (fallback = last 7 days at data max)
   const dataBounds = useMemo(() => {
     let min = Number.POSITIVE_INFINITY, max = 0;
@@ -59,37 +67,31 @@ export default function KnowbyStats({ selectedDateRange, className }: Props) {
   const compsIn = useMemo(() => completions.filter(r => inRange(r.ts)), [completions, start, end]);
 
   const shared = useMemo(() => {
-    // Active members = union of members with views OR completions in-range
+    // 1) Catalog from provider (preferred). If empty, infer from events.
+    const catalog = knowbys?.length
+      ? knowbys
+      : Array.from(
+          new Map(
+            [...completions, ...views]
+              .filter(r => r.knowby_id)
+              .map(r => [r.knowby_id!, { knowby_id: r.knowby_id!, knowby_name: r.knowby_name }])
+          ).values()
+        );
+
+    const catalogIds = new Set(catalog.map(k => k.knowby_id));
+
+    // 2) Seen-in-range (from views)
+    const seenNow = new Set<string>();
+    for (const r of viewsIn) if (r.knowby_id) seenNow.add(r.knowby_id);
+
+    // 3) Active members = union of members with views OR completions in-range
     const activeMemberSet = new Set<string>();
     for (const r of viewsIn) if (r.member_id) activeMemberSet.add(r.member_id);
     for (const r of compsIn) if (r.member_id) activeMemberSet.add(r.member_id);
 
-    // First-seen per knowby across entire dataset
-    const firstSeenByKnowby = new Map<string, number>();
-    const pushFirst = (id?: string, ts?: number) => {
-      if (!id || !ts) return;
-      const cur = firstSeenByKnowby.get(id);
-      if (cur == null || ts < cur) firstSeenByKnowby.set(id, ts);
-    };
-    for (const r of completions) pushFirst(r.knowby_id, r.ts);
-    for (const r of views)       pushFirst(r.knowby_id, r.ts);
+    // 4) Time series
 
-    // All knowby ids, and which were seen in-range (via views)
-    const allKnowbys = new Set<string>();
-    for (const r of completions) if (r.knowby_id) allKnowbys.add(r.knowby_id);
-    for (const r of views)       if (r.knowby_id) allKnowbys.add(r.knowby_id);
-
-    const seenNow = new Set<string>();
-    for (const r of viewsIn) if (r.knowby_id) seenNow.add(r.knowby_id);
-
-    // helpers
-    const initNumMap = () => {
-      const m = new Map<number, number>();
-      for (const d of days) m.set(d, 0);
-      return m;
-    };
-
-    // Members per day (unique count) — based on completions to keep existing meaning
+    // Members per day (unique, based on completions to match previous semantics)
     const membersPerDay = (() => {
       const m = new Map<number, Set<string>>();
       for (const d of days) m.set(d, new Set());
@@ -103,7 +105,8 @@ export default function KnowbyStats({ selectedDateRange, className }: Props) {
 
     // Views per day
     const viewsCountPerDay = (() => {
-      const m = initNumMap();
+      const m = new Map<number, number>();
+      for (const d of days) m.set(d, 0);
       for (const r of viewsIn) {
         if (!r.ts) continue;
         const d = startOfDay(new Date(r.ts)).getTime();
@@ -112,10 +115,13 @@ export default function KnowbyStats({ selectedDateRange, className }: Props) {
       return days.map(d => ({ x: d, y: m.get(d)! }));
     })();
 
-    // First-seen per day (counts)
-    const firstSeenPerDay = (() => {
-      const m = initNumMap();
-      for (const ts of firstSeenByKnowby.values()) {
+    // New Knowbys per day (CREATION-based)
+    const newKnowbysPerDay = (() => {
+      const m = new Map<number, number>();
+      for (const d of days) m.set(d, 0);
+      for (const k of (knowbys ?? [])) {
+        const ts = (k as any).createdTs as number | undefined;
+        if (typeof ts !== "number") continue;
         const d = startOfDay(new Date(ts)).getTime();
         if (d >= days[0] && d <= days[days.length - 1] && m.has(d)) {
           m.set(d, (m.get(d) || 0) + 1);
@@ -124,35 +130,35 @@ export default function KnowbyStats({ selectedDateRange, className }: Props) {
       return days.map(d => ({ x: d, y: m.get(d)! }));
     })();
 
-    // Unused knowbys per day (cumulative "not yet viewed by that day")
+    // Unused knowbys per day (count of catalog not yet viewed by that day)
     const unusedPerDay = (() => {
       const usedUntil = new Set<string>();
       const sortedViews = [...views]
         .filter(v => v.ts && v.knowby_id)
         .sort((a, b) => (a.ts! - b.ts!));
       let i = 0;
-      const all = [...allKnowbys];
       return days.map(d => {
         while (i < sortedViews.length && startOfDay(new Date(sortedViews[i].ts!)).getTime() <= d) {
           usedUntil.add(sortedViews[i].knowby_id!);
           i++;
         }
-        const unused = all.length - usedUntil.size;
-        return { x: d, y: unused < 0 ? 0 : unused };
+        const unused = catalogIds.size - usedUntil.size;
+        return { x: d, y: Math.max(unused, 0) };
       });
     })();
 
-    // FIX: totals.activeMembers uses the union set
+    // 5) Totals
+    const createdInRange = (knowbys ?? []).filter(k => inRange((k as any).createdTs));
     const totals = {
       activeMembers: activeMemberSet.size,
       recentlyViewed: viewsIn.length,
-      newKnowbys: [...firstSeenByKnowby.values()].filter(ts => inRange(ts)).length,
-      unusedKnowbys: [...allKnowbys].filter(k => !seenNow.has(k)).length,
+      newKnowbys: createdInRange.length,
+      unusedKnowbys: [...catalogIds].filter(id => !seenNow.has(id)).length,
     } as Record<MetricKey, number>;
 
-    // Tables (compact)
+    // 6) Tables
     const tables = (() => {
-      // FIXED: Active members table built from union; includes views & completions and shows ALL members (no slice)
+      // Active members
       const activeMap = new Map<
         string,
         { member: string; views: number; completions: number; last: number }
@@ -186,7 +192,7 @@ export default function KnowbyStats({ selectedDateRange, className }: Props) {
           last: r.last ? format(r.last, "d MMM") : "-"
         }));
 
-      // Recently viewed: latest 30 view events in range
+      // Recently viewed (latest 30)
       const recentV = viewsIn
         .slice(-30)
         .reverse()
@@ -196,18 +202,33 @@ export default function KnowbyStats({ selectedDateRange, className }: Props) {
           member: r.member_name ?? r.member_id ?? "-",
         }));
 
-      // New knowbys (first-seen in range)
-      const newK = [...firstSeenByKnowby.entries()]
-        .filter(([_, ts]) => inRange(ts))
-        .sort((a, b) => a[1] - b[1])
-        .slice(0, 25)
-        .map(([id, ts]) => ({ knowby_id: id, first: format(ts, "d MMM") }));
+      // New knowbys — creation in selected range (provider-driven)
+      const newK = createdInRange
+        .sort((a, b) => ((a as any).createdTs! - (b as any).createdTs!))
+        .slice(0, 200)
+        .map(k => ({
+          knowby: (k as any).knowby_name ?? (k as any).knowby_id,
+          knowby_id: (k as any).knowby_id,
+          created: (k as any).createdTs ? format((k as any).createdTs, "d MMM") : "-",
+        }));
 
-      // Unused knowbys (no views in range)
-      const unused = [...allKnowbys]
-        .filter(k => !seenNow.has(k))
-        .slice(0, 40)
-        .map(k => ({ knowby_id: k }));
+      // Unused knowbys — no views in-range
+      const unused = [...catalogIds]
+        .filter(id => !seenNow.has(id))
+        .map(id => {
+          const knowby = catalog.find(k => k.knowby_id === id);
+          // find the most recent view or completion timestamp for that knowby
+          const lastView = [...views, ...completions]
+            .filter(r => r.knowby_id === id && r.ts)
+            .reduce((max, r) => Math.max(max, r.ts!), 0);
+          return {
+            knowby: knowby?.knowby_name ?? id,
+            last_used: lastView ? format(lastView, "d MMM") : "–",
+          };
+        })
+        .sort((a, b) => (b.last_used === "–" ? -1 : (a.last_used === "–" ? 1 : 0))) // optional sorting
+        .slice(0, 200);
+
 
       return {
         activeMembers: active,
@@ -217,42 +238,68 @@ export default function KnowbyStats({ selectedDateRange, className }: Props) {
       } as Record<MetricKey, any[]>;
     })();
 
-    // Sparklines
+    // 7) Sparklines
     const sparklines = {
       activeMembers: membersPerDay,
       recentlyViewed: viewsCountPerDay,
-      newKnowbys: firstSeenPerDay,
+      newKnowbys: newKnowbysPerDay,
       unusedKnowbys: unusedPerDay,
     } as Record<MetricKey, Array<{ x: number; y: number }>>;
 
     return { totals, tables, sparklines };
-  }, [days, completions, views, compsIn, viewsIn, inRange]);
+  }, [days, completions, views, knowbys, compsIn, viewsIn, inRange]);
 
-  // —— ui state
-  const [activeTab, setActiveTab] = useState<MetricKey>("activeMembers");
+  // —— UI state
+  const [activeMetric, setActiveMetric] = useState<MetricKey>("activeMembers");
+  const [dialogOpen, setDialogOpen] = useState(false);
 
-  const exportCSV = () => {
-    const rows = shared.tables[activeTab] || [];
-    if (!rows.length) return;
-    const headers = Object.keys(rows[0]);
-    const csv = [headers.join(","), ...rows.map(r => headers.map(h => JSON.stringify(r[h] ?? "")).join(","))].join("\n");
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob); const a = document.createElement("a");
-    a.href = url; a.download = `${activeTab}-${format(new Date(),"yyyyMMdd-HHmm")}.csv`; a.click(); URL.revokeObjectURL(url);
-  };
+  // Pagination (card only)
+  const PAGE_SIZE = 4;
+  const [page, setPage] = useState(0);
+  useEffect(() => { setPage(0); }, [activeMetric]);
 
-  // current sparkline data for header pill
-  const headerSeries = shared.sparklines[activeTab] ?? [];
+  const headerSeries = shared.sparklines[activeMetric] ?? [];
+  const activeMeta = METRICS.find(m => m.key === activeMetric)!;
+
+  const allRows = shared.tables[activeMetric] ?? [];
+  const total = allRows.length;
+  const startIdx = page * PAGE_SIZE;
+  const endIdx = Math.min(startIdx + PAGE_SIZE, total);
+  const pageRows = allRows.slice(startIdx, endIdx);
+
+  if (isLoading) {
+    return (
+      <Card className="relative isolate overflow-hidden rounded-3xl p-5 md:p-6 border-0 shadow-xl/2 bg-card">
+        {/* Header skeleton */}
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-10 h-10 rounded-full bg-muted animate-pulse" />
+          <div className="flex-1">
+            <div className="h-4 w-36 rounded bg-muted animate-pulse" />
+            <div className="mt-2 h-3 w-48 rounded bg-muted animate-pulse" />
+          </div>
+
+          {/* Right-side controls (dropdown + sparkline) */}
+          <div className="flex items-center gap-2 ml-auto">
+            <div className="h-8 w-40 rounded-md bg-muted animate-pulse" /> {/* dropdown */}
+            <div className="h-8 w-[120px] rounded-md bg-muted animate-pulse" /> {/* sparkline */}
+          </div>
+        </div>
+
+        {/* Content skeleton (single box) */}
+        <div className="h-48 rounded-2xl bg-muted animate-pulse" />
+      </Card>
+    );
+  }
 
   return (
     <TooltipProvider>
       <Card className={cn(
-        "min-h-[300px] relative isolate overflow-hidden rounded-3xl p-5 md:p-6 border-0 shadow-xl/2 bg-card",
+        "min-h-[350px] relative isolate overflow-hidden rounded-3xl p-5 md:p-6 border-0 shadow-xl/2 bg-card",
         "dark:border dark:border-slate-700",
         className
       )}>
-        <CardContent className="p-0 h-full flex flex-col">
-          {/* Header — icon, title, date, sparkline pill, export */}
+        <CardContent className="p-0 h-full flex flex-col gap-2">
+          {/* Header — unchanged layout */}
           <div className="flex items-center gap-3">
             <div className="shrink-0 flex h-10 w-10 items-center justify-center rounded-full text-white bg-gradient-to-b from-orange-500 to-orange-700">
               <BarChart3 className="h-5 w-5" />
@@ -265,89 +312,156 @@ export default function KnowbyStats({ selectedDateRange, className }: Props) {
               </span>
             </div>
 
-            {/* sparkline pill */}
-            <div className="ml-auto flex items-center">
+            <div className="ml-auto flex items-center gap-2">
+              {/* Dropdown (h-8) */}
+              <div className="hidden sm:block">
+                <Select
+                  value={activeMetric}
+                  onValueChange={(v: MetricKey) => setActiveMetric(v)}
+                >
+                  <SelectTrigger
+                    className={cn(
+                      "data-[size=default]:h-8 w-48 rounded-lg text-xs border-0 hover:cursor-pointer",
+                      "ring-1 ring-black/10 dark:ring-white/10 bg-white/60 dark:bg-black/10"
+                    )}
+                    aria-label="Select metric"
+                  >
+                    <SelectValue placeholder="Select metric" />
+                  </SelectTrigger>
+                  <SelectContent align="end" className="text-sm">
+                    {METRICS.map((m) => (
+                      <SelectItem key={m.key} value={m.key} className="text-xs hover:cursor-pointer">
+                        <div className="flex items-center gap-2">
+                          <span className={cn("inline-block h-2 w-2 rounded-full", m.color)} />
+                          <span className="font-medium">{m.label}</span>
+                          <span className="ml-auto text-[10px] text-muted-foreground tabular-nums">
+                            {(shared.totals[m.key] ?? 0).toLocaleString()}
+                          </span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Sparkline (h-8) */}
               <div
-                className=
-                  "hidden sm:flex mr-10 items-center rounded-lg pl-3 pr-2 py-1 ring-1 bg-sky-100 text-sky-700 ring-sky-200 dark:bg-sky-500/20 dark:ring-white/10"
+                className="hidden sm:flex items-center rounded-lg pl-2.5 pr-2 py-0 ring-1 h-8 bg-white/60 text-slate-700 ring-black/10 dark:bg-black/10 dark:text-slate-200 dark:ring-white/10"
                 title="Activity trend for selected metric"
               >
-                <div className="h-[22px] w-[140px]">
-                  <SparklineMini data={headerSeries} />
+                <div className="h-[24px] w-[130px] -my-[2px]">
+                  <SparklineMini data={headerSeries} height={24} />
                 </div>
               </div>
 
-              {/* export */}
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button size="icon" variant="ghost" className="h-7 w-7 rounded-md" onClick={exportCSV} aria-label="Export CSV">
-                    <Download className="size-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent className="text-xs">Export visible table</TooltipContent>
-              </Tooltip>
+              {/* Expand dialog */}
+              <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <DialogTrigger asChild>
+                      <Button size="icon" variant="ghost" className="h-8 w-8 rounded-md  hover:cursor-pointer" aria-label="Expand">
+                        <Maximize2 className="size-4" />
+                      </Button>
+                    </DialogTrigger>
+                  </TooltipTrigger>
+                  <TooltipContent className="text-xs">Expand</TooltipContent>
+                </Tooltip>
+
+                <DialogContent className="max-w-4xl">
+                  <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2">
+                      <span className={cn("inline-block h-2.5 w-2.5 rounded-full", activeMeta.color)} />
+                      {activeMeta.label}
+                    </DialogTitle>
+                    <DialogDescription className="flex items-center justify-between">
+                      <span className="text-xs">
+                        {format(start, "d MMM yyyy")} – {format(end, "d MMM yyyy")} • {activeMeta.hint}
+                      </span>
+                    </DialogDescription>
+                  </DialogHeader>
+
+                  {/* Full list (scrollable) */}
+                  <div className="mt-2 rounded-lg ring-1 ring-black/10 dark:ring-white/10 overflow-hidden">
+                    <div className={cn("h-1 w-full", activeMeta.color)} />
+                    <div className="max-h-[60vh] overflow-auto bg-white/60 dark:bg-black/10">
+                      <MiniTable rows={allRows} />
+                    </div>
+                  </div>
+
+                  <DialogFooter className="justify-between sm:justify-end">
+                    <div className="text-[11px] text-muted-foreground mr-auto">
+                      {total.toLocaleString()} row{total === 1 ? "" : "s"}
+                    </div>
+                    <Button variant="secondary" onClick={() => setDialogOpen(false)}>
+                      Close
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
             </div>
           </div>
 
-          {/* Tabs → one metric at a time */}
-          <Tabs
-            value={activeTab}
-            onValueChange={(v) => setActiveTab(v as MetricKey)}
-            className={cn("mt-3 flex-1 min-h-0")}
+          {/* Content panel */}
+          <div
+            className={cn(
+              "flex-1 min-h-0 rounded-2xl ring-1 ring-black/10 dark:ring-white/10",
+              "bg-white/60 dark:bg-black/10 p-3"
+            )}
           >
-            <TabsList className="grid grid-cols-4 w-full gap-0 bg-background">
-              {METRICS.map(m => (
-                <TabsTrigger key={m.key} value={m.key} className="flex items-center justify-between gap-2 data-[state=active]:bg-white">
-                  <span className="text-xs font-medium">{m.label}</span>
-                  <Badge variant="secondary" className="rounded-full text-[9px] tabular-nums">
-                    {(shared.totals[m.key] ?? 0).toLocaleString()}
-                  </Badge>
-                </TabsTrigger>
-              ))}
-            </TabsList>
+            <div className="mb-2 flex items-center justify-between">
+              <div className="text-sm font-medium">{activeMeta.label}</div>
+              <div className="text-[11px] text-muted-foreground">{activeMeta.hint}</div>
+            </div>
 
-            {METRICS.map(m => {
-              const rows = shared.tables[m.key];
-              return (
-                <TabsContent
-                  key={m.key}
-                  value={m.key}
-                  className="mt-3 flex flex-col min-h-0 flex-1"
-                >
-                  {/* Table title */}
-                  <div className="flex items-center justify-between">
-                    <p className="text-[11px] text-muted-foreground">{m.hint}</p>
-                  </div>
+            {/* Accent + paged table (no scroll in card) */}
+            <div className="min-h-0 rounded-lg ring-1 ring-black/10 dark:ring-white/10">
+              <div className={cn("h-1 w-full", activeMeta.color)} />
 
-                  {/* Table */}
-                  <div className={cn("mt-2 min-h-0 flex-1 overflow-hidden rounded-lg ring-1 ring-black/10 dark:ring-white/10")}>
-                    <div className={cn("h-1 w-full", m.color)} />
-                    <div className="h-[160px] overflow-auto bg-white/60 dark:bg-black/10">
-                      <MiniTable rows={rows} />
-                    </div>
-                  </div>
-                </TabsContent>
-              );
-            })}
-          </Tabs>
+              <MiniTable rows={pageRows} />
+
+              {/* Pager */}
+              <div className="flex items-center justify-between px-3 py-2">
+                <div className="text-[11px] text-muted-foreground">
+                  {total === 0 ? "0 results" : `${startIdx + 1}–${endIdx} of ${total}`}
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 px-2"
+                    onClick={() => setPage((p) => Math.max(0, p - 1))}
+                    disabled={page === 0}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                    <span className="ml-1 text-xs hover:cursor-pointer">Prev</span>
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 px-2"
+                    onClick={() => setPage((p) => (endIdx < total ? p + 1 : p))}
+                    disabled={endIdx >= total}
+                  >
+                    <span className="mr-1 text-xs hover:cursor-pointer">Next</span>
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
         </CardContent>
       </Card>
     </TooltipProvider>
   );
 }
 
-/* ——— ultra-compact sparkline for header pill ——— */
-function SparklineMini({ data }: { data: Array<{ x:number; y:number }> }) {
+/* ——— sparkline: accepts height to match dropdown ——— */
+function SparklineMini({ data, height = 22 }: { data: Array<{ x:number; y:number }>, height?: number }) {
   const series = useMemo(() => [{ name: "t", data }], [data]);
-  const dark =
-    typeof window !== "undefined"
-      ? window.matchMedia?.("(prefers-color-scheme: dark)")?.matches ?? false
-      : false;
-
   const options = useMemo<ApexOptions>(() => ({
     chart: {
       type: "line",
-      height: 22,
+      height,
       sparkline: { enabled: true },
       animations: { enabled: false },
       toolbar: { show: false },
@@ -359,26 +473,23 @@ function SparklineMini({ data }: { data: Array<{ x:number; y:number }> }) {
     yaxis: { show: false },
     grid: { show: false },
     tooltip: { enabled: false },
-  }), [dark]);
+  }), [height]);
 
-  return <Chart type="line" height={22} options={options} series={series} />;
+  return <Chart type="line" height={height} options={options} series={series} />;
 }
 
-/* ——— ultra-compact table ——— */
-/* ——— compact table with white header + alternating rows ——— */
+/* ——— compact table ——— */
 function MiniTable({ rows }: { rows: any[] }) {
   if (!rows?.length) {
     return (
-      <div className="h-full grid place-items-center text-xs text-muted-foreground">
+      <div className="h-[120px] grid place-items-center text-xs text-muted-foreground">
         No rows in this range.
       </div>
     );
   }
 
   const keys = Object.keys(rows[0]);
-
-  // preferred column order
-  const pref = ["member", "views", "completions", "last", "date", "knowby", "knowby_id", "first"];
+  const pref = ["member", "views", "completions", "last", "date", "knowby", "knowby_id", "created", "first"];
   const cols = [
     ...pref.filter((k) => keys.includes(k)),
     ...keys.filter((k) => !pref.includes(k) && k !== "id" && k !== "member_id"),
@@ -386,34 +497,31 @@ function MiniTable({ rows }: { rows: any[] }) {
 
   return (
     <table className="w-full text-[11px]">
-      {/* white sticky header */}
-      <thead className="sticky top-0 bg-white dark:bg-slate-900 z-10">
-        <tr className="[&>th]:py-2 [&>th]:px-3 text-left border-b border-slate-200 dark:border-white/10">
+      <thead className="bg-white/80 backdrop-blur-sm dark:bg-black/30">
+        <tr className="[&>th]:py-2 [&>th]:px-3 text-left border-b border-slate-200/70 dark:border-white/10">
           {cols.map((h) => (
-            <th key={h} className="font-medium text-slate-700 dark:text-slate-300">
+            <th key={h} className="font-bold text-slate-700 dark:text-slate-100">
               {h.replace(/_/g, " ").replace(/\b\w/g, (m) => m.toUpperCase())}
             </th>
           ))}
         </tr>
       </thead>
-
-      {/* alternating row colors */}
       <tbody>
         {rows.map((r, i) => (
           <tr
             key={i}
             className={cn(
-              "[&>td]:py-2 [&>td]:px-3",
+              "[&>td]:py-1.5 [&>td]:px-3",
               i % 2 === 0
-                ? "bg-white dark:bg-slate-800"
-                : "bg-slate-50 dark:bg-slate-900/60",
-              "hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-colors"
+                ? "bg-white/80 dark:bg-slate-800/70"
+                : "bg-slate-50/80 dark:bg-slate-900/50",
+              "hover:bg-slate-100/80 dark:hover:bg-slate-800/80 transition-colors"
             )}
           >
             {cols.map((h) => (
               <td
                 key={h}
-                className="whitespace-nowrap max-w-[22ch] truncate text-slate-700 dark:text-slate-200"
+                className="whitespace-nowrap max-w-[28ch] truncate text-slate-700 dark:text-slate-200"
                 title={String(r[h] ?? "")}
               >
                 {typeof r[h] === "number"

@@ -26,6 +26,7 @@ import {
   BarChart3, LineChart,
   ArrowUpRight, ArrowDownRight, Search, ChevronDown, X
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
@@ -208,7 +209,7 @@ export default function AnalyticsExplorer({ selectedDateRange }: Props) {
   const { views, completions, status } = useKnowbyData();
   const isDark = useDarkMode();
 
-  const [metric, setMetric] = useState<Metric>("completionRate");
+  const [metric, setMetric] = useState<Metric>("views");
   const [chartType, setChartType] = useState<ChartType>("area");
   const [selKnowbys, setSelKnowbys] = useState<string[]>([]);
   const [selEmployees, setSelEmployees] = useState<string[]>([]);
@@ -510,16 +511,16 @@ export default function AnalyticsExplorer({ selectedDateRange }: Props) {
         <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
           {/* LEFT: metric filters */}
           <div className="flex flex-wrap items-center gap-2">
-            <button className={pill(metric==="views","views")} onClick={()=>setMetric("views")} title="Show Views">
+            <button className={cn(pill(metric==="views","views"),"hover:cursor-pointer")} onClick={()=>setMetric("views")} title="Show Views">
               <Eye className="h-4 w-4" /> Views
             </button>
-            <button className={pill(metric==="completions","completions")} onClick={()=>setMetric("completions")} title="Show Completions">
+            <button className={cn(pill(metric==="completions","completions"),"hover:cursor-pointer")} onClick={()=>setMetric("completions")} title="Show Completions">
               <CheckCircle className="h-4 w-4" /> Completions
             </button>
-            <button className={pill(metric==="both","both")} onClick={()=>setMetric("both")} title="Views + Completions">
+            <button className={cn(pill(metric==="both","both"),"hover:cursor-pointer")} onClick={()=>setMetric("both")} title="Views + Completions">
               <Eye className="h-4 w-4" /> + <CheckCircle className="h-4 w-4" />
             </button>
-            <button className={pill(metric==="completionRate","neutral")} onClick={()=>setMetric("completionRate")} title="Completion Rate">
+            <button className={cn(pill(metric==="completionRate","neutral"),"hover:cursor-pointer")} onClick={()=>setMetric("completionRate")} title="Completion Rate">
               <TrendingUp className="h-4 w-4" /> Rate
             </button>
           </div>

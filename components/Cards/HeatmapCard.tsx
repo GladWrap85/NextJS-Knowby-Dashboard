@@ -328,18 +328,20 @@ export default function UsageHeatmap({ selectedDateRange }: Props) {
   return { startAligned, endAligned, weeks, matrix, max };
 }, [isLoading, start.getTime(), end.getTime(), metric, counts]);
 
-
   if (isLoading) {
     return (
-      <Card className="relative isolate overflow-hidden rounded-3xl p-5 border-0 shadow-xl/2 bg-card">
+      <Card className="relative isolate overflow-hidden rounded-3xl p-5 md:p-6 border-0 shadow-xl/2 bg-card">
+        {/* Header skeleton */}
         <div className="flex items-center gap-3 mb-4">
           <div className="w-10 h-10 rounded-full bg-muted animate-pulse" />
           <div className="flex-1">
-            <div className="h-4 w-40 rounded bg-muted animate-pulse" />
-            <div className="mt-2 h-3 w-56 rounded bg-muted animate-pulse" />
+            <div className="h-4 w-36 rounded bg-muted animate-pulse" />
+            <div className="mt-2 h-3 w-48 rounded bg-muted animate-pulse" />
           </div>
         </div>
-        <div className="h-40 rounded-2xl bg-muted animate-pulse" />
+
+        {/* Content skeleton (single box) */}
+        <div className="h-48 rounded-2xl bg-muted animate-pulse" />
       </Card>
     );
   }
@@ -347,7 +349,7 @@ export default function UsageHeatmap({ selectedDateRange }: Props) {
   /* ---------- UI ---------- */
   return (
     <TooltipProvider>
-      <Card className="min-h-[335px] relative isolate overflow-hidden rounded-3xl p-5 md:p-6 border-0 shadow-xl/2 bg-card dark:border dark:border-slate-700 gap-2">
+      <Card className="min-h-[350px] relative isolate overflow-hidden rounded-3xl p-5 md:p-6 border-0 shadow-xl/2 bg-card dark:border dark:border-slate-700 gap-2">
         {/* Header */}
         <div className="flex items-center gap-3">
           <div className="shrink-0 flex h-10 w-10 items-center justify-center rounded-full text-white bg-gradient-to-b from-teal-500 to-teal-700">
@@ -364,7 +366,7 @@ export default function UsageHeatmap({ selectedDateRange }: Props) {
           <div className="ml-auto flex items-center gap-2 text-xs">
             <button
               onClick={() => setMetric("views")}
-              className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 ring-1 transition
+              className={`inline-flex items-center hover:cursor-pointer gap-1 rounded-full px-2.5 py-1 ring-1 transition
               ${"bg-sky-100 text-sky-700 ring-sky-200 dark:bg-sky-500/20 dark:text-sky-300 dark:ring-white/10"}
               ${metric === "views" ? "font-semibold" : "opacity-35 hover:opacity-90"}`}
               title="Show views"
@@ -373,7 +375,7 @@ export default function UsageHeatmap({ selectedDateRange }: Props) {
             </button>
             <button
               onClick={() => setMetric("completions")}
-              className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 ring-1 transition
+              className={`inline-flex items-center hover:cursor-pointer gap-1 rounded-full px-2.5 py-1 ring-1 transition
               ${"bg-emerald-100 text-emerald-700 ring-emerald-200 dark:bg-emerald-500/20 dark:text-emerald-300 dark:ring-white/10"}
               ${metric === "completions" ? "font-semibold" : "opacity-35 hover:opacity-90"}`}
               title="Show completions"
@@ -382,7 +384,7 @@ export default function UsageHeatmap({ selectedDateRange }: Props) {
             </button>
             <button
               onClick={() => setMetric("both")}
-              className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 ring-1 transition
+              className={`inline-flex items-center hover:cursor-pointer gap-1 rounded-full px-2.5 py-1 ring-1 transition
               ${"bg-fuchsia-100 text-fuchsia-700 ring-fuchsia-200 dark:bg-fuchsia-500/20 dark:text-fuchsia-300 dark:ring-white/10"}
               ${metric === "both" ? "font-semibold" : "opacity-35 hover:opacity-90"}`}
               title="Show both"
