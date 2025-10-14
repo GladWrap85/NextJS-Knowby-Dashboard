@@ -348,7 +348,7 @@ export default function KnowbyStats({ selectedDateRange, className }: Props) {
                 className="hidden sm:flex items-center rounded-lg pl-2.5 pr-2 py-0 ring-1 h-8 bg-white/60 text-slate-700 ring-black/10 dark:bg-black/10 dark:text-slate-200 dark:ring-white/10"
                 title="Activity trend for selected metric"
               >
-                <div className="h-[24px] w-[130px] -my-[2px]">
+                <div className="h-[24px] w-[100px] -my-[2px]">
                   <SparklineMini data={headerSeries} height={24} />
                 </div>
               </div>
