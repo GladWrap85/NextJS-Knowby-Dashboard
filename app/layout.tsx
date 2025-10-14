@@ -8,6 +8,7 @@ import Header from "@/components/Header"
 import { DateRangeProvider } from "@/lib/DateRangeContext"; // Import the DateRangeProvider
 import { SidebarProvider } from "@/components/Sidebar-Context" // Your global context
 import { KnowbyDataProvider } from "@/lib/KnowbyDataProvider"
+import { cn } from "@/lib/utils"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -39,7 +40,12 @@ export default function RootLayout({
                 </div>
                 <main className="flex flex-col w-full h-full">
                   <Header />
-                  <div className="flex-1 overflow-y-auto lg:pl-25 lg:pr-25 pl-8 r-4 -mt-12 pt-16 pb-10">
+                   <div
+                    className={cn(
+                      "flex-1 overflow-y-auto -mt-12 pt-16 pb-10",
+                      "px-3 sm:px-5 md:px-8 lg:px-16 xl:px-24 2xl:px-30"
+                    )}
+                  >
                     {children}
                   </div>
                 </main>
