@@ -41,7 +41,6 @@ type Props = { selectedDateRange: DateRange | undefined; className?: string };
 export default function KnowbyStats({ selectedDateRange, className }: Props) {
   // now pulling knowbys from provider
   const { completions, views, knowbys, status } = useKnowbyData();
-  const isLoading = status === "loading";
   // —— resolve effective range (fallback = last 7 days at data max)
   const dataBounds = useMemo(() => {
     let min = Number.POSITIVE_INFINITY, max = 0;
@@ -267,7 +266,7 @@ export default function KnowbyStats({ selectedDateRange, className }: Props) {
   const endIdx = Math.min(startIdx + PAGE_SIZE, total);
   const pageRows = allRows.slice(startIdx, endIdx);
 
-  if (isLoading) {
+  if (status === "loading") {
     return (
       <Card className="relative isolate overflow-hidden rounded-3xl p-5 md:p-6 border-0 shadow-xl/2 bg-card">
         {/* Header skeleton */}

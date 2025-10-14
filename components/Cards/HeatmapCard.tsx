@@ -328,7 +328,7 @@ export default function UsageHeatmap({ selectedDateRange }: Props) {
   return { startAligned, endAligned, weeks, matrix, max };
 }, [isLoading, start.getTime(), end.getTime(), metric, counts]);
 
-  if (isLoading) {
+  if (status === "loading") {
     return (
       <Card className="relative isolate overflow-hidden rounded-3xl p-5 md:p-6 border-0 shadow-xl/2 bg-card">
         {/* Header skeleton */}

@@ -131,7 +131,7 @@ export default function TopKnowbyCard({ selectedDateRange }: TopKnowbyCardProps)
   // Loading skeleton (first load only)
   if (status === "loading") {
     return (
-      <Card className="flex flex-col p-4 rounded-xl gap-3">
+      <Card className="relative isolate overflow-hidden rounded-3xl p-5 md:p-6 border-0 shadow-xl/2 bg-card">
         <div className="flex items-center gap-4">
           <div className="shrink-0 w-16 h-16 rounded-full bg-muted animate-pulse" />
           <div className="flex-1 space-y-2">

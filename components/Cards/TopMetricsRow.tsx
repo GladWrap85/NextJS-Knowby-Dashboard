@@ -220,9 +220,8 @@ export default function TopMetricsRow({ selectedDateRange }: Props) {
   const deltaRate =
     compRate === 0 && prevCompRate === 0 ? 0 : compRate - prevCompRate;
 
-  const isLoading = status === "loading";
 
-  if (isLoading) {
+  if (status === "loading") {
     return (
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-6">
         {Array.from({ length: 5 }).map((_, i) => (
