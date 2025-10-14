@@ -211,15 +211,17 @@ function asKnowbyRow(row: any): KnowbyMeta | null {
   const knowby_name =
     coalesce(row, ["knowby_name", "name", "title", "Knowby Name"]) ?? undefined;
 
-  // Accept various header aliases
+  // in asKnowbyRow
   const created_date =
-    (coalesce(row, ["created_date", "published_date", "date"]) as string | undefined)?.trim();
+    (coalesce(row, ["created_date", "published_date", "date", "created_at"]) as string | undefined)?.trim();
+
   const created_time =
     (coalesce(row, ["created_time", "published_time", "time"]) as string | undefined)?.trim();
+
+  // only real datetime-like fields here
   const created_datetime =
-    (coalesce(row, ["created_at", "created_datetime", "published_datetime", "datetime"]) as // ← added "created_at"
-      | string
-      | undefined)?.trim();
+    (coalesce(row, ["created_datetime", "published_datetime", "datetime"]) as string | undefined)?.trim();
+
 
   const parsed = parseDDMMYYYY_withTime(created_date, created_time, created_datetime);
 

@@ -43,7 +43,7 @@ export default function RootLayout({
                    <div
                     className={cn(
                       "flex-1 overflow-y-auto -mt-12 pt-16 pb-10",
-                      "px-3 sm:px-5 md:px-8 lg:px-16 xl:px-24 2xl:px-30"
+                      "px-3 sm:px-5 md:px-8 lg:px-16 xl:px-24 2xl:px-40"
                     )}
                   >
                     {children}

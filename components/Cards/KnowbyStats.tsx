@@ -496,10 +496,14 @@ function MiniTable({ rows }: { rows: any[] }) {
 
   return (
     <table className="w-full text-[11px]">
-      <thead className="bg-white/80 backdrop-blur-sm dark:bg-black/30">
-        <tr className="[&>th]:py-2 [&>th]:px-3 text-left border-b border-slate-200/70 dark:border-white/10">
+      <thead
+        className="sticky top-0 z-10 bg-white/90 backdrop-blur-sm dark:bg-black/30 border-b border-slate-200/70 dark:border-white/10">
+        <tr className="[&>th]:py-2 [&>th]:px-3 text-left">
           {cols.map((h) => (
-            <th key={h} className="font-bold text-slate-700 dark:text-slate-100">
+            <th
+              key={h}
+              className="font-bold text-slate-700 dark:text-slate-100"
+            >
               {h.replace(/_/g, " ").replace(/\b\w/g, (m) => m.toUpperCase())}
             </th>
           ))}

@@ -11,22 +11,18 @@ import {
   Eye,
   Percent,
   User,
+  Info,
 } from "lucide-react";
+import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { useKnowbyData } from "@/lib/KnowbyDataProvider";
 import { DateRange } from "react-day-picker";
-import {
-  parse,
-  isWithinInterval,
-  differenceInCalendarDays,
-  subDays,
-} from "date-fns";
+import { parse, isWithinInterval, differenceInCalendarDays, subDays } from "date-fns";
 import { useMemo } from "react";
 
 type Props = {
   selectedDateRange: DateRange | undefined;
 };
 
-/** Helper: parse dd/MM/yyyy (used for views/completions only) */
 function parseCsvDate(ds?: string): Date | null {
   if (!ds) return null;
   return parse(ds, "dd/MM/yyyy", new Date());
@@ -63,6 +59,31 @@ function countKnowbysInRange(
     if (k.createdTs != null && k.createdTs >= s && k.createdTs <= e) n++;
   }
   return n;
+}
+
+/** Count unique knowbys (by id) with createdTs <= upTo (undated included). */
+function countKnowbysUpTo(
+  list: { knowby_id?: string; createdTs?: number }[],
+  upTo: Date
+) {
+  const cutoff = new Date(upTo);
+  cutoff.setHours(23, 59, 59, 999);
+  const cutoffMs = cutoff.getTime();
+
+  const ids = new Set<string>();
+  const undated = new Set<string>();
+
+  for (const k of list) {
+    const id = (k as any)?.knowby_id as string | undefined;
+    if (!id) continue;
+    if (k.createdTs == null) {
+      undated.add(id); // always include undated in both totals
+    } else if (k.createdTs <= cutoffMs) {
+      ids.add(id);
+    }
+  }
+  for (const id of undated) ids.add(id);
+  return ids.size;
 }
 
 /** Delta badge for comparison % changes */
@@ -108,12 +129,10 @@ export default function TopMetricsRow({ selectedDateRange }: Props) {
 
   const {
     activeMembers,
-    knowbysCreated,
     vCount,
     cCount,
     compRate,
     prevActiveMembers,
-    prevKnowbysCreated,
     prevVCount,
     prevCCount,
     prevCompRate,
@@ -188,6 +207,14 @@ export default function TopMetricsRow({ selectedDateRange }: Props) {
     };
   }, [views, completions, knowbys, from, to, prevFrom, prevTo]);
 
+  // Totals up to period end (ever-growing catalog size per cutoff)
+  const { totalNow, totalPrev } = useMemo(() => {
+    return {
+      totalNow: countKnowbysUpTo(knowbys ?? [], to),
+      totalPrev: countKnowbysUpTo(knowbys ?? [], prevTo),
+    };
+  }, [knowbys, to, prevTo]);
+
   // Deltas (% change vs previous)
   const deltaMembers =
     activeMembers === 0 && prevActiveMembers === 0
@@ -196,11 +223,12 @@ export default function TopMetricsRow({ selectedDateRange }: Props) {
         ? ((activeMembers - prevActiveMembers) / prevActiveMembers) * 100
         : 100;
 
+  // Use TOTALS for Knowbys delta
   const deltaKnowbys =
-    knowbysCreated === 0 && prevKnowbysCreated === 0
+    totalNow === 0 && totalPrev === 0
       ? 0
-      : prevKnowbysCreated > 0
-        ? ((knowbysCreated - prevKnowbysCreated) / prevKnowbysCreated) * 100
+      : totalPrev > 0
+        ? ((totalNow - totalPrev) / totalPrev) * 100
         : 100;
 
   const deltaViews =
@@ -219,7 +247,6 @@ export default function TopMetricsRow({ selectedDateRange }: Props) {
 
   const deltaRate =
     compRate === 0 && prevCompRate === 0 ? 0 : compRate - prevCompRate;
-
 
   if (status === "loading") {
     return (
@@ -241,86 +268,128 @@ export default function TopMetricsRow({ selectedDateRange }: Props) {
   }
 
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-5 gap-6">
-      {/* Active Members */}
-      <Card className="flex flex-row items-center p-4 bg-card shadow-xl/2 dark:shadow-lg dark:shadow-gray-900/50 gap-3 border-0 border-b-teal-500/50 border-b-2 rounded-3xl">
-        <div className="flex items-center justify-center w-10 h-10 rounded-full bg-teal-600/20 text-teal-500">
-          <User className="h-5 w-5" />
-        </div>
-        <div className="flex flex-col justify-center gap-2">
-          <span className="text-xs text-muted-foreground">Active Members</span>
-          <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-semibold tabular-nums dark:text-white">
-              {activeMembers.toLocaleString()}
-            </span>
-            <DeltaBadge delta={deltaMembers} />
+    <TooltipProvider>
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-6">
+        {/* Active Members */}
+        <Card className="relative flex flex-row items-center p-4 bg-card shadow-xl/2 dark:shadow-lg dark:shadow-gray-900/50 gap-3 border-0 border-b-teal-500/50 border-b-2 rounded-3xl">
+          <Tooltip>
+            <TooltipTrigger className="absolute top-4 right-4 text-muted-foreground">
+              <Info className="h-4 w-4" />
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Number of unique members who viewed or completed any Knowby within the selected range.</p>
+            </TooltipContent>
+          </Tooltip>
+          <div className="flex items-center justify-center w-10 h-10 rounded-full bg-teal-600/20 text-teal-500">
+            <User className="h-5 w-5" />
           </div>
-        </div>
-      </Card>
+          <div className="flex flex-col justify-center gap-2">
+            <span className="text-xs text-muted-foreground">Active Members</span>
+            <div className="flex items-baseline gap-2">
+              <span className="text-2xl font-semibold tabular-nums dark:text-white">
+                {activeMembers.toLocaleString()}
+              </span>
+              <DeltaBadge delta={deltaMembers} />
+            </div>
+          </div>
+        </Card>
 
-      {/* Knowbys (created within range) */}
-      <Card className="flex flex-row items-center p-4 bg-card shadow-xl/2 dark:shadow-lg dark:shadow-gray-900/50 gap-3 border-0 border-b-indigo-500/50 border-b-2 rounded-3xl">
-        <div className="flex items-center justify-center w-10 h-10 rounded-full bg-indigo-600/20 text-indigo-500">
-          <BookOpen className="h-5 w-5" />
-        </div>
-        <div className="flex flex-col justify-center gap-2">
-          <span className="text-xs text-muted-foreground">Knowbys</span>
-          <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-semibold tabular-nums dark:text-white">
-              {knowbysCreated.toLocaleString()}
-            </span>
-            <DeltaBadge delta={deltaKnowbys} />
+        {/* Knowbys */}
+        <Card className="relative flex flex-row items-center p-4 bg-card shadow-xl/2 dark:shadow-lg dark:shadow-gray-900/50 gap-3 border-0 border-b-indigo-500/50 border-b-2 rounded-3xl">
+          <Tooltip>
+            <TooltipTrigger className="absolute top-4 right-4 text-muted-foreground">
+              <Info className="h-4 w-4" />
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Total number of Knowbys available up to the end of the selected period.</p>
+            </TooltipContent>
+          </Tooltip>
+          <div className="flex items-center justify-center w-10 h-10 rounded-full bg-indigo-600/20 text-indigo-500">
+            <BookOpen className="h-5 w-5" />
           </div>
-        </div>
-      </Card>
+          <div className="flex flex-col justify-center gap-2">
+            <span className="text-xs text-muted-foreground">Knowbys</span>
+            <div className="flex items-baseline gap-2">
+              <span className="text-2xl font-semibold tabular-nums dark:text-white">
+                {totalNow.toLocaleString()}
+              </span>
+              <DeltaBadge delta={deltaKnowbys} />
+            </div>
+          </div>
+        </Card>
 
-      {/* Views */}
-      <Card className="flex flex-row items-center p-4 bg-card shadow-xl/2 dark:shadow-lg dark:shadow-gray-900/50 gap-3 border-0 border-b-blue-500/50 border-b-2 rounded-3xl">
-        <div className="flex items-center justify-center w-10 h-10 rounded-full bg-blue-600/20 text-blue-500">
-          <Eye className="h-5 w-5" />
-        </div>
-        <div className="flex flex-col justify-center gap-2">
-          <span className="text-xs text-muted-foreground">Views</span>
-          <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-semibold tabular-nums dark:text-white">
-              {vCount.toLocaleString()}
-            </span>
-            <DeltaBadge delta={deltaViews} />
+        {/* Views */}
+        <Card className="relative flex flex-row items-center p-4 bg-card shadow-xl/2 dark:shadow-lg dark:shadow-gray-900/50 gap-3 border-0 border-b-blue-500/50 border-b-2 rounded-3xl">
+          <Tooltip>
+            <TooltipTrigger className="absolute top-4 right-4 text-muted-foreground">
+              <Info className="h-4 w-4" />
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Total number of times Knowbys were viewed during the selected period.</p>
+            </TooltipContent>
+          </Tooltip>
+          <div className="flex items-center justify-center w-10 h-10 rounded-full bg-blue-600/20 text-blue-500">
+            <Eye className="h-5 w-5" />
           </div>
-        </div>
-      </Card>
+          <div className="flex flex-col justify-center gap-2">
+            <span className="text-xs text-muted-foreground">Views</span>
+            <div className="flex items-baseline gap-2">
+              <span className="text-2xl font-semibold tabular-nums dark:text-white">
+                {vCount.toLocaleString()}
+              </span>
+              <DeltaBadge delta={deltaViews} />
+            </div>
+          </div>
+        </Card>
 
-      {/* Completions */}
-      <Card className="flex flex-row items-center p-4 bg-card shadow-xl/2 dark:shadow-lg dark:shadow-gray-900/50 gap-3 border-0 border-b-green-500/50 border-b-2 rounded-3xl">
-        <div className="flex items-center justify-center w-10 h-10 rounded-full bg-green-600/20 text-green-500">
-          <CheckCheck className="h-5 w-5" />
-        </div>
-        <div className="flex flex-col justify-center gap-2">
-          <span className="text-xs text-muted-foreground">Completions</span>
-          <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-semibold tabular-nums dark:text-white">
-              {cCount.toLocaleString()}
-            </span>
-            <DeltaBadge delta={deltaCompletions} />
+        {/* Completions */}
+        <Card className="relative flex flex-row items-center p-4 bg-card shadow-xl/2 dark:shadow-lg dark:shadow-gray-900/50 gap-3 border-0 border-b-green-500/50 border-b-2 rounded-3xl">
+          <Tooltip>
+            <TooltipTrigger className="absolute top-4 right-4 text-muted-foreground">
+              <Info className="h-4 w-4" />
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Number of Knowby completions recorded within the selected date range.</p>
+            </TooltipContent>
+          </Tooltip>
+          <div className="flex items-center justify-center w-10 h-10 rounded-full bg-green-600/20 text-green-500">
+            <CheckCheck className="h-5 w-5" />
           </div>
-        </div>
-      </Card>
+          <div className="flex flex-col justify-center gap-2">
+            <span className="text-xs text-muted-foreground">Completions</span>
+            <div className="flex items-baseline gap-2">
+              <span className="text-2xl font-semibold tabular-nums dark:text-white">
+                {cCount.toLocaleString()}
+              </span>
+              <DeltaBadge delta={deltaCompletions} />
+            </div>
+          </div>
+        </Card>
 
-      {/* Completion Rate */}
-      <Card className="flex flex-row items-center p-4 bg-card shadow-xl/2 dark:shadow-lg dark:shadow-gray-900/50 gap-3 border-0 border-b-purple-500/50 border-b-2 rounded-3xl">
-        <div className="flex items-center justify-center w-10 h-10 rounded-full bg-purple-600/20 text-purple-500">
-          <Percent className="h-5 w-5" />
-        </div>
-        <div className="flex flex-col justify-center gap-2">
-          <span className="text-xs text-muted-foreground">Completion Rate</span>
-          <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-semibold tabular-nums dark:text-white">
-              {pct(compRate || 0)}
-            </span>
-            <DeltaBadge delta={deltaRate} isRate />
+        {/* Completion Rate */}
+        <Card className="relative flex flex-row items-center p-4 bg-card shadow-xl/2 dark:shadow-lg dark:shadow-gray-900/50 gap-3 border-0 border-b-purple-500/50 border-b-2 rounded-3xl">
+          <Tooltip>
+            <TooltipTrigger className="absolute top-4 right-4 text-muted-foreground">
+              <Info className="h-4 w-4" />
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Percentage of views that resulted in completions within the selected period.</p>
+            </TooltipContent>
+          </Tooltip>
+          <div className="flex items-center justify-center w-10 h-10 rounded-full bg-purple-600/20 text-purple-500">
+            <Percent className="h-5 w-5" />
           </div>
-        </div>
-      </Card>
-    </div>
+          <div className="flex flex-col justify-center gap-2">
+            <span className="text-xs text-muted-foreground">Completion Rate</span>
+            <div className="flex items-baseline gap-2">
+              <span className="text-2xl font-semibold tabular-nums dark:text-white">
+                {pct(compRate || 0)}
+              </span>
+              <DeltaBadge delta={deltaRate} isRate />
+            </div>
+          </div>
+        </Card>
+      </div>
+    </TooltipProvider>
   );
 }
