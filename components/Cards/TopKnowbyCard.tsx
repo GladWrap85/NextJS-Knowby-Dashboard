@@ -289,15 +289,24 @@ export default function TopKnowbyCard({ selectedDateRange }: TopKnowbyCardProps)
           {/* Accent bar to match the Stats card feel */}
           <div className="h-1 w-full bg-indigo-500/60 dark:bg-indigo-500/50" />
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-[11.5px]">
+          {/* no horizontal scroll */}
+          <div className="overflow-hidden">
+            <table className="w-full text-[11.5px] table-fixed">
+              {/* name flexes; rate is a fixed, responsive width */}
+              <colgroup>
+                <col />
+                <col className="w-[4.75rem] 2xl:w-[8.5rem]" />
+              </colgroup>
+
               <thead className="bg-white/80 backdrop-blur-sm dark:bg-black/30">
                 <tr className="border-b border-slate-200/70 dark:border-white/10 text-left">
-                  <th className="font-bold text-slate-700 dark:text-slate-100 py-2 pl-6 pr-3">
+                  <th className="font-bold text-slate-700 dark:text-slate-100 py-2 pl-6 pr-2">
                     Knowby
                   </th>
-                  <th className="font-bold text-slate-700 dark:text-slate-100 py-2 pl-3 pr-6 text-right">
-                    Completion rate
+                  <th className="font-bold text-slate-700 dark:text-slate-100 py-2 pl-2 pr-6 text-right whitespace-nowrap">
+                    {/* short label on laptops; full label only on very wide screens */}
+                    <span className="2xl:hidden">Rate</span>
+                    <span className="hidden 2xl:inline truncate">Completion rate</span>
                   </th>
                 </tr>
               </thead>
@@ -319,20 +328,20 @@ export default function TopKnowbyCard({ selectedDateRange }: TopKnowbyCardProps)
                         key={r.knowby + idx}
                         className={`${rowBg} hover:bg-slate-100/80 dark:hover:bg-slate-800/80 transition-colors`}
                       >
-                        <td className="py-1 pl-6 pr-3">
-                          <div className="flex items-center gap-2">
-                            <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-muted dark:bg-background text-[10px] font-semibold">
+                        <td className="py-1 pl-6 pr-2">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-muted dark:bg-background text-[10px] font-semibold">
                               {idx + 1}
                             </span>
                             <span
-                              className="inline-block truncate max-w-[28ch] text-slate-700 dark:text-slate-200"
+                              className="truncate text-slate-700 dark:text-slate-200 max-w-[26ch] 2xl:max-w-[44ch]"
                               title={r.knowby}
                             >
                               {r.knowby}
                             </span>
                           </div>
                         </td>
-                        <td className="py-2 pl-3 pr-6 text-right tabular-nums text-slate-700 dark:text-slate-200">
+                        <td className="py-2 pl-2 pr-6 text-right tabular-nums whitespace-nowrap">
                           {`${Math.round(r.rate)}%`}
                         </td>
                       </tr>

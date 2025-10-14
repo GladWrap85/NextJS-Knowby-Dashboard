@@ -155,15 +155,15 @@ export default function Home() {
               {/* Top row of cards */}
               <TopMetricsRow selectedDateRange={dateRange} />
               
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-[20px]">
+              <div className="grid grid-cols-1 xl:grid-cols-3 gap-[20px]">
                 {/* <TotalUsageCard /> */}
-                <div className="col-span-1 md:col-span-1 lg:col-span-2">
+                <div className="col-span-1 xl:col-span-2">
                   <TodaysUsageCard selectedDateRange={dateRange} />
                 </div>
                 <TopKnowbyCard selectedDateRange={dateRange} />
               </div>
               {/* Knowby Stats + Heatmap */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-[20px]">
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-[20px]">
                 <KnowbyStats selectedDateRange={dateRange} />
 
                 <ViewsCalendarHeatmap selectedDateRange={dateRange} />
