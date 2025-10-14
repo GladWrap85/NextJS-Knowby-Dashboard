@@ -359,14 +359,20 @@ export default function AnalyticsExplorer({ selectedDateRange }: Props) {
   const options = useMemo<ApexOptions>(() => {
     const base = topChartOptions(isDark);
 
-    // date format for x-axis / tooltip depending on bucket
     const xLabelFormat =
       computed.gran === "month" ? "MMM yyyy" :
-        computed.gran === "week" ? "dd MMM" :
-          "dd MMM";
+      computed.gran === "week" ? "dd MMM" : "dd MMM";
+
+    // --- Add color logic here ---
+    let colors: string[] = [];
+    if (metric === "views") colors = ["#008FFB"];
+    else if (metric === "completions") colors = ["#00E396"];
+    else if (metric === "both") colors = ["#38bdf8", "#10b981"];
+    else if (metric === "completionRate") colors = ["#8b5cf6"];
 
     return {
       ...base,
+      colors,
       chart: {
         ...(base.chart ?? {}),
         type: chartType,
@@ -390,7 +396,8 @@ export default function AnalyticsExplorer({ selectedDateRange }: Props) {
         max: metric === "completionRate" ? 100 : undefined,
         labels: {
           ...(Array.isArray(base.yaxis) ? {} : base.yaxis?.labels ?? {}),
-          formatter: (v: number) => (metric === "completionRate" ? `${v}%` : `${v}`),
+          formatter: (v: number) =>
+            metric === "completionRate" ? `${v}%` : `${v}`,
         },
       },
       grid: {
@@ -406,12 +413,17 @@ export default function AnalyticsExplorer({ selectedDateRange }: Props) {
             if (computed.gran === "day") return format(new Date(ts), "dd MMM yyyy");
             if (computed.gran === "week") {
               const b = computed.bins.find(b => b.ts === ts);
-              return b ? `${format(b.start, "dd MMM")} – ${format(b.end, "dd MMM yyyy")}` : format(new Date(ts), "dd MMM yyyy");
+              return b
+                ? `${format(b.start, "dd MMM")} – ${format(b.end, "dd MMM yyyy")}`
+                : format(new Date(ts), "dd MMM yyyy");
             }
             return format(new Date(ts), "MMM yyyy");
-          }
+          },
         },
-        y: { formatter: (v: number) => (metric === "completionRate" ? `${v}%` : String(v)) },
+        y: {
+          formatter: (v: number) =>
+            metric === "completionRate" ? `${v}%` : String(v),
+        },
       },
     };
   }, [isDark, chartType, computed.gran, computed.bins, metric]);
