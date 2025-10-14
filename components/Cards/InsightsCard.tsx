@@ -24,7 +24,8 @@ import type { ApexOptions } from "apexcharts";
 import {
   Eye, CheckCircle, Download, TrendingUp,
   BarChart3, LineChart,
-  ArrowUpRight, ArrowDownRight, Search, ChevronDown, X
+  ArrowUpRight, ArrowDownRight, Search, ChevronDown, X,
+  InfoIcon
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -55,10 +56,6 @@ const pill = (active: boolean, tone: "views" | "completions" | "both" | "neutral
   } ${active ? "font-semibold" : "opacity-35 hover:opacity-90"}`;
 
 const chip = "rounded-full px-2 py-0.5 text-[11px] font-medium bg-white/60 dark:bg-white/10 ring-1 ring-black/10 dark:ring-white/10";
-
-// =========================================================
-// Clean, reusable Multi-Select Dropdown (keyboard + search)
-// =========================================================
 
 type MultiSelectDropdownProps = {
   label: string;
@@ -173,7 +170,7 @@ function MultiSelectDropdown({
                         "ring-1 ring-black/10 dark:ring-white/10",
                         on
                           ? "bg-primary/10 dark:bg-primary/15 border border-primary/30"
-                          : "bg-muted/40 hover:bg-muted/60",
+                          : "bg-muted/10 hover:bg-muted/60",
                         disabled && "opacity-40 cursor-not-allowed"
                       )}
                       aria-selected={on}
@@ -419,32 +416,6 @@ export default function AnalyticsExplorer({ selectedDateRange }: Props) {
     };
   }, [isDark, chartType, computed.gran, computed.bins, metric]);
 
-  // ---------------- Export ----------------
-  const exportCsv = () => {
-    const mk = (rows: string[][]) => {
-      const csv = rows.map(r => r.join(",")).join("\n");
-      const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
-      const url = URL.createObjectURL(blob); const a = document.createElement("a");
-      a.href = url; a.download = "analytics-explorer.csv";
-      a.click(); URL.revokeObjectURL(url);
-    };
-
-    const headers = ["timestamp", ...computed.keys];
-    const tsSet = new Set<number>();
-    series.forEach(s => s.data.forEach(([ts]: any) => tsSet.add(ts)));
-    const sortedTs = Array.from(tsSet).sort((a, b) => a - b);
-    const rows = sortedTs.map(ts => {
-      const row: Record<string, string | number> = { timestamp: ts };
-      for (const k of computed.keys) {
-        const s = series.find(s => s.name === k)?.data ?? [];
-        const v = s.find(([t]: any) => t === ts)?.[1] ?? "";
-        row[k] = v;
-      }
-      return headers.map(h => String(row[h] ?? ""));
-    });
-    mk([headers, ...rows]);
-  };
-
   // ---------------- UI ----------------
   if (status === "loading") {
     return (
@@ -508,7 +479,10 @@ export default function AnalyticsExplorer({ selectedDateRange }: Props) {
               </div>
             </div>
           </div>
-          <span className="text-xs text-muted-foreground">Metrics use date range at top</span>
+          <span className="text-xs text-muted-foreground inline-flex items-center gap-1 hover:opacity-80">
+            <InfoIcon className="h-4 w-4 inline mr-1 opacity-60" />
+            Metrics shown for chosen time period
+            </span>
         </div>
 
         {/* Controls */}
@@ -529,22 +503,14 @@ export default function AnalyticsExplorer({ selectedDateRange }: Props) {
             </button>
           </div>
 
-          {/* RIGHT: chart types + export */}
+          {/* RIGHT: chart types */}
           <div className="flex flex-wrap items-center gap-2">
-            <button className={pill(chartType === "area")} onClick={() => setChartType("area")} title="Area chart">
+            <button className={cn(pill(chartType === "area"),"hover:cursor-pointer")} onClick={() => setChartType("area")} title="Area chart">
               <LineChart className="h-4 w-4" /> Area
             </button>
-            <button className={pill(chartType === "bar")} onClick={() => setChartType("bar")} title="Bar chart">
+            <button className={cn(pill(chartType === "bar"),"hover:cursor-pointer")} onClick={() => setChartType("bar")} title="Bar chart">
               <BarChart3 className="h-4 w-4" /> Bar
             </button>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button className={pill(true)} onClick={exportCsv} title="Export visible data">
-                  <Download className="h-4 w-4" /> Export
-                </button>
-              </TooltipTrigger>
-              <TooltipContent>Export visible data</TooltipContent>
-            </Tooltip>
           </div>
         </div>
 
