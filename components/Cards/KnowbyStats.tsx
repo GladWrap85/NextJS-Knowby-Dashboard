@@ -222,7 +222,7 @@ export default function KnowbyStats({ selectedDateRange, className }: Props) {
             .reduce((max, r) => Math.max(max, r.ts!), 0);
           return {
             knowby: knowby?.knowby_name ?? id,
-            last_used: lastView ? format(lastView, "d MMM") : "–",
+            last_used: lastView ? format(lastView, "d MMM yy") : "–",
           };
         })
         .sort((a, b) => (b.last_used === "–" ? -1 : (a.last_used === "–" ? 1 : 0))) // optional sorting
