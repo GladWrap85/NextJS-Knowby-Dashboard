@@ -82,7 +82,7 @@ export default function Header() {
           onClick={handleRunScraper}
           disabled={scraperLoading}
           className={cn(
-            "gap-2 w-[120px] justify-center text-white transition-colors duration-300 cursor-pointer h-8",
+            "gap-2 w-[120px] justify-center text-white transition-colors duration-300 cursor-pointer",
             scraperLoading || scraperSuccess
               ? "pointer-events-none opacity-90"
               : "",
@@ -107,7 +107,7 @@ export default function Header() {
         <Button
           onClick={handleExport}
           variant="outline"
-          className="gap-2 cursor-pointer dark:hover:text-white h-8"
+          className="gap-2 cursor-pointer dark:hover:text-white"
           title="Export current view as PDF"
         >
           <FileDown className="h-4 w-4" />

@@ -9,7 +9,6 @@ import { DateRangeProvider } from "@/lib/DateRangeContext"; // Import the DateRa
 import { SidebarProvider } from "@/components/Sidebar-Context" // Your global context
 import { KnowbyDataProvider } from "@/lib/KnowbyDataProvider"
 import { cn } from "@/lib/utils"
-import { SpeedInsights } from '@vercel/speed-insights/next';
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -48,7 +47,6 @@ export default function RootLayout({
                     )}
                   >
                     {children}
-                    <SpeedInsights />
                   </div>
                 </main>
               </DateRangeProvider>
