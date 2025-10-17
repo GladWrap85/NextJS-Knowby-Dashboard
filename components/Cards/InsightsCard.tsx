@@ -1,7 +1,7 @@
 // components/Cards/AnalyticsExplorer.tsx
 "use client";
 
-import React, { useMemo, useState, useCallback } from "react";
+import React, { useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { DateRange } from "react-day-picker";
 import {
@@ -14,20 +14,20 @@ import {
 } from "date-fns";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
-import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
-import { Command, CommandInput, CommandEmpty, CommandGroup, CommandItem } from "@/components/ui/command";
+import { Input } from "@/components/ui/input";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { useKnowbyData } from "@/lib/KnowbyDataProvider";
 import { useDarkMode } from "@/components/NivoWrapper";
 import { topChartOptions } from "@/lib/chartOptions";
 import type { ApexOptions } from "apexcharts";
 import {
-  Eye, CheckCircle, Download, TrendingUp,
+  Eye, CheckCircle, TrendingUp,
   BarChart3, LineChart,
-  ArrowUpRight, ArrowDownRight, Search, ChevronDown, X,
+  ArrowUpRight, ArrowDownRight, Search,
   InfoIcon
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Tabs, TabsList, TabsTrigger } from "../ui/tabs";
 
 const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
@@ -35,6 +35,7 @@ const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
 type Props = { selectedDateRange: DateRange | undefined };
 type Metric = "views" | "completions" | "completionRate" | "both";
 type ChartType = "area" | "bar";
+type UsageRow = { name: string; views: number; completions: number };
 
 // ---------------- Helpers ----------------
 const parseCache = new Map<string, Date>();
@@ -46,173 +47,21 @@ const parseCsvDate = (d?: string) => {
   return isNaN(dt.getTime()) ? null : dt;
 };
 
-const pill = (active: boolean, tone: "views" | "completions" | "both" | "neutral" = "neutral") =>
-  `inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs ring-1 transition whitespace-nowrap ${({
-    views: "bg-sky-100 text-sky-700 ring-sky-200 dark:bg-sky-500/20 dark:text-sky-300 dark:ring-white/10",
-    completions: "bg-emerald-100 text-emerald-700 ring-emerald-200 dark:bg-emerald-500/20 dark:text-emerald-300 dark:ring-white/10",
-    both: "bg-violet-100 text-violet-700 ring-violet-200 dark:bg-violet-500/20 dark:text-violet-300 dark:ring-white/10",
-    neutral: "bg-muted/50 text-foreground/80 ring-black/10 dark:ring-white/10",
+const pill = (
+  active: boolean,
+  tone: "views" | "completions" | "both" | "neutral" = "neutral"
+) =>
+  `inline-flex items-center gap-1 rounded-xl px-2.5 py-1 text-xs ring-1 transition whitespace-nowrap ${({
+    views:
+      "bg-sky-100 text-sky-700 ring-sky-200 dark:bg-sky-500/20 dark:text-sky-300 dark:ring-white/10",
+    completions:
+      "bg-emerald-100 text-emerald-700 ring-emerald-200 dark:bg-emerald-500/20 dark:text-emerald-300 dark:ring-white/10",
+    both:
+      "bg-violet-100 text-violet-700 ring-violet-200 dark:bg-violet-500/20 dark:text-violet-300 dark:ring-white/10",
+    neutral:
+      "bg-muted/60 text-foreground/80 ring-black/5 dark:ring-white/10",
   } as const)[tone]
-  } ${active ? "font-semibold" : "opacity-35 hover:opacity-90"}`;
-
-const chip = "rounded-full px-2 py-0.5 text-[11px] font-medium bg-white/60 dark:bg-white/10 ring-1 ring-black/10 dark:ring-white/10";
-
-type MultiSelectDropdownProps = {
-  label: string;
-  placeholder: string;
-  options: string[];                  // unique, display values
-  selected: string[];                 // controlled selection
-  onChange: (next: string[]) => void; // controlled setter
-  max?: number;                       // optional selection cap
-  className?: string;
-};
-
-function MultiSelectDropdown({
-  label, placeholder, options, selected, onChange, max,
-  className,
-}: MultiSelectDropdownProps) {
-  const [open, setOpen] = useState(false);
-  const [q, setQ] = useState("");
-
-  const filtered = useMemo(
-    () => options.filter(o => o.toLowerCase().includes(q.toLowerCase())),
-    [options, q]
-  );
-
-  const canAddMore = max ? selected.length < max : true;
-  const isOn = useCallback((name: string) => selected.includes(name), [selected]);
-
-  const toggle = (name: string) => {
-    onChange(
-      isOn(name)
-        ? selected.filter(n => n !== name)
-        : (canAddMore ? [...selected, name] : selected)
-    );
-  };
-
-  const clearAll = () => onChange([]);
-
-  return (
-    <div className={cn("flex flex-col gap-1.5", className)}>
-      <div className="text-xs text-muted-foreground">{label}</div>
-
-      <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger asChild>
-          <button
-            className={cn(
-              "w-full inline-flex items-center justify-between rounded-lg bg-background/60 dark:bg-white/5",
-              "ring-1 ring-black/10 dark:ring-white/10 px-2.5 py-1.5 text-sm hover:bg-accent transition"
-            )}
-            aria-haspopup="listbox"
-            aria-expanded={open}
-          >
-            <span className="flex items-center gap-2 min-w-0">
-              <Search className="h-4 w-4 opacity-60 shrink-0" />
-              <span className="truncate opacity-80">
-                {selected.length ? selected.join(", ") : placeholder}
-              </span>
-            </span>
-            <span className="flex items-center gap-1 shrink-0">
-              {selected.length > 0 && (
-                <Badge variant="secondary" className={chip}>{selected.length}</Badge>
-              )}
-              <ChevronDown className="h-4 w-4 opacity-60" />
-            </span>
-          </button>
-        </PopoverTrigger>
-
-        <PopoverContent align="start" className="w-[min(560px,90vw)] p-0" sideOffset={6}>
-          {/* Search + Clear */}
-          <div className="p-2 pb-0">
-            <Command shouldFilter>
-              <CommandInput
-                value={q}
-                onValueChange={setQ}
-                placeholder={placeholder}
-                className="w-full"
-              />
-            </Command>
-            {selected.length > 0 && (
-              <div className="px-1 pt-1 pb-0 flex justify-end">
-                <button
-                  onClick={clearAll}
-                  className="text-xs px-2 py-1 rounded-md bg-muted hover:bg-muted/80"
-                >
-                  Clear
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* All row */}
-          <div className="px-2 pt-2">
-            <button
-              onClick={clearAll}
-              className="w-full inline-flex items-center justify-between rounded-md px-2.5 py-2 text-sm ring-1 ring-black/10 dark:ring-white/10 bg-white/60 dark:bg-white/5 hover:bg-muted transition"
-            >
-              <span>All {label}</span>
-              {selected.length === 0 && <CheckCircle className="h-4 w-4" />}
-            </button>
-          </div>
-
-          {/* List */}
-          <div className="p-2">
-            <Command shouldFilter>
-              <CommandEmpty>No results.</CommandEmpty>
-              <CommandGroup className="max-h-64 overflow-auto">
-                {filtered.map((o) => {
-                  const on = isOn(o);
-                  const disabled = !on && !canAddMore;
-                  return (
-                    <CommandItem key={o} value={o} onSelect={() => !disabled && toggle(o)}
-                      className={cn(
-                        "group flex items-center justify-between rounded-md px-2.5 py-2 text-sm",
-                        "ring-1 ring-black/10 dark:ring-white/10",
-                        on
-                          ? "bg-primary/10 dark:bg-primary/15 border border-primary/30"
-                          : "bg-muted/10 hover:bg-muted/60",
-                        disabled && "opacity-40 cursor-not-allowed"
-                      )}
-                      aria-selected={on}
-                    >
-                      <span className="truncate">{o}</span>
-                      <span
-                        className={cn(
-                          "ml-2 inline-grid place-items-center h-5 w-5 rounded-[6px] ring-1",
-                          on ? "bg-primary/20 ring-primary/40" : "bg-white/40 dark:bg-white/5 ring-black/10 dark:ring-white/10"
-                        )}
-                      >
-                        {on ? (
-                          <CheckCircle className="h-4 w-4" />
-                        ) : (
-                          <span className="h-2.5 w-2.5 rounded-[4px] ring-1 ring-black/10 dark:ring-white/10" />
-                        )}
-                      </span>
-                    </CommandItem>
-                  );
-                })}
-              </CommandGroup>
-            </Command>
-          </div>
-
-          {/* Selected chips */}
-          {selected.length > 0 && (
-            <div className="flex flex-wrap gap-2 p-2 border-t border-border">
-              {selected.map((n) => (
-                <span key={n} className={chip}>
-                  {n}
-                  <button className="ml-1 inline-flex" onClick={() => onChange(selected.filter(x => x !== n))}>
-                    <X className="h-3 w-3 opacity-70" />
-                  </button>
-                </span>
-              ))}
-            </div>
-          )}
-        </PopoverContent>
-      </Popover>
-    </div>
-  );
-}
+  } ${active ? "font-semibold" : "opacity-60 hover:opacity-100"}`;
 
 // ---------------- Main Component ----------------
 export default function AnalyticsExplorer({ selectedDateRange }: Props) {
@@ -223,11 +72,38 @@ export default function AnalyticsExplorer({ selectedDateRange }: Props) {
   const [chartType, setChartType] = useState<ChartType>("area");
   const [selKnowbys, setSelKnowbys] = useState<string[]>([]);
   const [selEmployees, setSelEmployees] = useState<string[]>([]);
+  const [usageView, setUsageView] = useState<"knowbys" | "employees">("knowbys");
+  const [usageQuery, setUsageQuery] = useState("");
 
-  // Derive everything with timestamped bins (day/week/month)
+  const selectedNames = usageView === "knowbys" ? selKnowbys : selEmployees;
+  const hasUsageSelection = selectedNames.length > 0;
+
+  const toggleSelection = (type: "knowbys" | "employees", name: string) => {
+    if (type === "knowbys") {
+      setSelKnowbys((prev) =>
+        prev.includes(name) ? prev.filter((n) => n !== name) : [...prev, name]
+      );
+    } else {
+      setSelEmployees((prev) =>
+        prev.includes(name) ? prev.filter((n) => n !== name) : [...prev, name]
+      );
+    }
+  };
+
+  const clearUsageSelection = (type: "knowbys" | "employees") => {
+    if (type === "knowbys") setSelKnowbys([]);
+    else setSelEmployees([]);
+  };
+
+  // ------- Derivations (unchanged logic) -------
   const computed = useMemo(() => {
-    const all = [...(views ?? []), ...(completions ?? [])];
-    const dMin = all.reduce<Date | null>((acc, r: any) => {
+    const allViews = views ?? [];
+    const allComps = completions ?? [];
+    const allRecords = [...allViews, ...allComps];
+    const allKnowbys = Array.from(new Set<string>(allRecords.map(r => r?.knowby_name).filter((v): v is string => Boolean(v)))).sort();
+    const allEmployees = Array.from(new Set<string>(allRecords.map(r => r?.member_name).filter((v): v is string => Boolean(v)))).sort();
+
+    const dMin = allRecords.reduce<Date | null>((acc, r: any) => {
       const d = parseCsvDate(r?.date); return !acc || (d && d < acc) ? d : acc;
     }, null) ?? new Date();
 
@@ -235,17 +111,18 @@ export default function AnalyticsExplorer({ selectedDateRange }: Props) {
     const dateEnd = selectedDateRange?.to ?? new Date();
     const inRange = (d: Date | null) => !!d && isWithinInterval(d, { start: startOfDay(dateStart), end: endOfDay(dateEnd) });
 
-    const filterRows = (rows: any[]) => rows.filter(r => {
-      const d = parseCsvDate(r?.date); if (!inRange(d)) return false;
+    const viewsInRange = allViews.filter(r => inRange(parseCsvDate(r?.date)));
+    const compsInRange = allComps.filter(r => inRange(parseCsvDate(r?.date)));
+
+    const filterBySelection = (rows: any[]) => rows.filter(r => {
       const kOK = selKnowbys.length === 0 || selKnowbys.includes(r?.knowby_name);
       const eOK = selEmployees.length === 0 || selEmployees.includes(r?.member_name);
       return kOK && eOK;
     });
 
-    const viewsF = filterRows(views ?? []);
-    const compsF = filterRows(completions ?? []);
+    const viewsF = filterBySelection(viewsInRange);
+    const compsF = filterBySelection(compsInRange);
 
-    // granularity
     const sameMonth =
       dateStart.getFullYear() === dateEnd.getFullYear() &&
       dateStart.getMonth() === dateEnd.getMonth();
@@ -259,7 +136,6 @@ export default function AnalyticsExplorer({ selectedDateRange }: Props) {
       (sameMonth && coversMonth) ? "day"
         : (spanDays <= 14 ? "day" : spanDays <= 120 ? "week" : "month");
 
-    // bins
     type Bin = { start: Date; end: Date; ts: number };
     const bins: Bin[] =
       gran === "day"
@@ -279,9 +155,6 @@ export default function AnalyticsExplorer({ selectedDateRange }: Props) {
               return { start: s, end: e, ts: s.getTime() };
             });
 
-    const allKnowbys = Array.from(new Set<string>([...viewsF, ...compsF].map(r => r?.knowby_name).filter(Boolean))).sort();
-    const allEmployees = Array.from(new Set<string>([...viewsF, ...compsF].map(r => r?.member_name).filter(Boolean))).sort();
-
     const names = (selKnowbys.length > 0 ? selKnowbys : ["All Knowbys"]);
     const makeCount = (rows: any[], name: string, b: Bin) =>
       rows.filter((r: any) => {
@@ -290,7 +163,6 @@ export default function AnalyticsExplorer({ selectedDateRange }: Props) {
         return ok && d && isWithinInterval(d, { start: b.start, end: b.end });
       }).length;
 
-    // keys
     const keys = names.flatMap(n =>
       metric === "both" ? [`${n} Views`, `${n} Completions`]
         : metric === "views" ? [`${n} Views`]
@@ -298,7 +170,6 @@ export default function AnalyticsExplorer({ selectedDateRange }: Props) {
             : [`${n} Completion Rate`]
     );
 
-    // series
     const seriesPoints = new Map<string, Array<[number, number]>>();
     for (const b of bins) {
       for (const n of names) {
@@ -327,13 +198,8 @@ export default function AnalyticsExplorer({ selectedDateRange }: Props) {
     const totals = { views: viewsF.length, comps: compsF.length };
     const avgRate = totals.views > 0 ? Math.round((totals.comps / totals.views) * 100) : 0;
 
-    const top3 = (rows: any[], key: "knowby_name" | "member_name") =>
-      Object.entries(rows.reduce<Record<string, number>>((m, r: any) => { const k = r[key] ?? "Unknown"; m[k] = (m[k] ?? 0) + 1; return m; }, {}))
-        .sort((a, b) => b[1] - a[1]).slice(0, 3);
-
-    // trend
-    const firstKey = keys[0];
     let trend: "up" | "down" | "neutral" = "neutral";
+    const firstKey = keys[0];
     if (firstKey) {
       const s = tsSeries.find(s => s.name === firstKey)?.data ?? [];
       if (s.length >= 2) {
@@ -343,27 +209,89 @@ export default function AnalyticsExplorer({ selectedDateRange }: Props) {
       }
     }
 
+    const initUsageMap = (names: string[]): Map<string, UsageRow> => {
+      const map = new Map<string, UsageRow>();
+      names.forEach(name => map.set(name, { name, views: 0, completions: 0 }));
+      return map;
+    };
+    const sortUsage = (rows: UsageRow[]) =>
+      rows.sort((a, b) => {
+        const totalA = a.views + a.completions;
+        const totalB = b.views + b.completions;
+        if (totalA === totalB) return a.name.localeCompare(b.name);
+        return totalB - totalA;
+      });
+
+    const knowbyUsageMap = initUsageMap(allKnowbys);
+    for (const row of viewsInRange) {
+      const name = row?.knowby_name;
+      if (name && knowbyUsageMap.has(name)) knowbyUsageMap.get(name)!.views += 1;
+    }
+    for (const row of compsInRange) {
+      const name = row?.knowby_name;
+      if (name && knowbyUsageMap.has(name)) knowbyUsageMap.get(name)!.completions += 1;
+    }
+    const usageByKnowby = sortUsage(Array.from(knowbyUsageMap.values()));
+
+    const employeeUsageMap = initUsageMap(allEmployees);
+    for (const row of viewsInRange) {
+      const name = row?.member_name;
+      if (name && employeeUsageMap.has(name)) employeeUsageMap.get(name)!.views += 1;
+    }
+    for (const row of compsInRange) {
+      const name = row?.member_name;
+      if (name && employeeUsageMap.has(name)) employeeUsageMap.get(name)!.completions += 1;
+    }
+    const usageByEmployee = sortUsage(Array.from(employeeUsageMap.values()));
+
     return {
-      dateStart, dateEnd, gran,
+      dateStart, dateEnd, gran: gran as "day" | "week" | "month",
       bins, tsSeries, keys,
       allKnowbys, allEmployees, avgRate,
-      topKnowbys: top3(compsF, "knowby_name"),
-      topEmployees: top3(compsF, "member_name"),
-      totals, trend
+      totals, trend,
+      usageByKnowby,
+      usageByEmployee,
     };
   }, [views, completions, selectedDateRange, selKnowbys, selEmployees, metric]);
 
   const series = computed.tsSeries;
 
-  // --- Chart options aligned with TodaysUsageCard ---
+  const usageResults = useMemo(() => {
+    const query = usageQuery.trim().toLowerCase();
+    const source = usageView === "knowbys" ? computed.usageByKnowby : computed.usageByEmployee;
+    const filtered = query
+      ? source.filter(item => item.name.toLowerCase().includes(query))
+      : source;
+
+    const active = filtered.filter(item => item.views + item.completions > 0);
+    const inactive = filtered.filter(item => item.views + item.completions === 0);
+    const totals = filtered.reduce(
+      (acc, item) => {
+        acc.views += item.views;
+        acc.completions += item.completions;
+        return acc;
+      },
+      { views: 0, completions: 0 }
+    );
+
+    return { active, inactive, total: filtered.length, totals };
+  }, [usageQuery, usageView, computed.usageByKnowby, computed.usageByEmployee]);
+
+  const usageHeadline = usageView === "knowbys" ? "Knowbys" : "Employees";
+  const activeCount = usageResults.active.length;
+  const inactiveCount = usageResults.inactive.length;
+  const activeShare = usageResults.total > 0
+    ? Math.round((activeCount / usageResults.total) * 100)
+    : 0;
+
+  // --- Chart options (kept) + refined paddings/labels ---
   const options = useMemo<ApexOptions>(() => {
     const base = topChartOptions(isDark);
-
     const xLabelFormat =
-      computed.gran === "month" ? "MMM yyyy" :
-      computed.gran === "week" ? "dd MMM" : "dd MMM";
+      computed.gran === "month" ? "MMM yyyy"
+        : computed.gran === "week" ? "dd MMM"
+          : "dd MMM";
 
-    // --- Add color logic here ---
     let colors: string[] = [];
     if (metric === "views") colors = ["#008FFB"];
     else if (metric === "completions") colors = ["#00E396"];
@@ -384,11 +312,7 @@ export default function AnalyticsExplorer({ selectedDateRange }: Props) {
       xaxis: {
         ...(base.xaxis ?? {}),
         type: "datetime",
-        labels: {
-          ...(base.xaxis?.labels ?? {}),
-          rotate: -15,
-          format: xLabelFormat,
-        },
+        labels: { ...(base.xaxis?.labels ?? {}), rotate: -15, format: xLabelFormat },
       },
       yaxis: {
         ...(base.yaxis ?? {}),
@@ -402,7 +326,7 @@ export default function AnalyticsExplorer({ selectedDateRange }: Props) {
       },
       grid: {
         ...(base.grid ?? {}),
-        padding: { ...base.grid?.padding, right: 8 },
+        padding: { ...base.grid?.padding, right: 6, left: 6 },
       },
       tooltip: {
         ...(base.tooltip ?? {}),
@@ -431,164 +355,327 @@ export default function AnalyticsExplorer({ selectedDateRange }: Props) {
   // ---------------- UI ----------------
   if (status === "loading") {
     return (
-      <Card className="flex flex-col p-6 rounded-3xl h-fit gap-3 border-0 dark:border dark:border-slate-700 shadow-xl/2 dark:shadow-lg dark:shadow-gray-900/50 w-full bg-card min-h-[365px]">
-        <div className="flex items-start justify-between">
-          <div className="flex items-start gap-4">
-            <div className="shrink-0 w-16 h-16 rounded-full bg-muted animate-pulse" />
-            <div className="flex-1 space-y-2">
-              <div className="h-4 w-40 bg-muted rounded animate-pulse" />
-              <div className="h-3 w-60 bg-muted rounded animate-pulse" />
-            </div>
-          </div>
-          <div className="flex gap-2">
-            {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="h-8 w-24 bg-muted rounded-full animate-pulse" />
-            ))}
-          </div>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 w-full">
-          <div className="h-9 w-full bg-muted rounded-md animate-pulse" />
-          <div className="h-9 w-full bg-muted rounded-md animate-pulse" />
-        </div>
-        <div className="h-[240px] rounded-md bg-muted animate-pulse" />
-      </Card>
+      <Card className="rounded-3xl p-5 md:p-6 border-0 shadow-xl/2 bg-card min-h-[340px]" />
     );
   }
 
   const subtitle =
-    `${format((computed as any).dateStart, "d MMM yyyy")} – ${format((computed as any).dateEnd, "d MMM yyyy")} • ${(computed as any).gran.toUpperCase()} buckets • ${metric}`;
+    `${format((computed as any).dateStart, "d MMM yyyy")} – ${format((computed as any).dateEnd, "d MMM yyyy")}`;
 
   return (
     <TooltipProvider>
-      <Card className="flex flex-col p-6 rounded-3xl h-fit gap-4 border-0 dark:border dark:border-slate-700 shadow-xl/2 dark:shadow-lg dark:shadow-gray-900/50 w-full bg-card">
+      <Card className="p-5 md:p-6 xl:p-7 rounded-3xl border-0 gap-2 shadow-xl/2 bg-card dark:border dark:border-slate-700">
         {/* Header */}
-        <div className="flex items-start justify-between">
-          <div className="flex items-start gap-4">
-            <div className="shrink-0 flex items-center justify-center w-16 h-16 rounded-full text-white bg-gradient-to-b from-lime-500 to-lime-700">
-              <Search className="h-8 w-8" />
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-start gap-4 min-w-0">
+            <div className="shrink-0 grid place-items-center w-10 h-10 rounded-full text-white bg-gradient-to-b from-lime-500 to-lime-700">
+              <Search className="h-5 w-5" />
             </div>
 
-            <div className="flex flex-col gap-0 w-full min-w-0">
-              <h3 className="text-lg font-semibold dark:text-white">Analytics Explorer</h3>
-              <span className="text-xs text-muted-foreground">{subtitle}</span>
-
-              {/* Quick summary */}
-              <div className="mt-2 flex items-center gap-4 text-xs text-muted-foreground">
-                <span className="inline-flex items-center gap-1">
-                  <Eye className="h-3.5 w-3.5" />
-                  <strong className="text-foreground">{computed.totals.views}</strong> views
-                </span>
-                <span className="inline-flex items-center gap-1">
-                  <CheckCircle className="h-3.5 w-3.5" />
-                  <strong className="text-foreground">{computed.totals.comps}</strong> completions
-                </span>
-                <span className="inline-flex items-center gap-1">
-                  <TrendingUp className="h-3.5 w-3.5" />
-                  <strong className="text-foreground">{computed.avgRate}%</strong> avg rate
-                  {computed.trend === "up" && <ArrowUpRight className="inline h-3.5 w-3.5 text-green-500" />}
-                  {computed.trend === "down" && <ArrowDownRight className="inline h-3.5 w-3.5 text-red-500" />}
-                </span>
-              </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="text-base md:text-lg font-semibold dark:text-white leading-tight">
+                Analytics Explorer
+              </h3>
+              <span className="block text-[11px] md:text-xs text-muted-foreground mt-0.5">
+                {subtitle}
+              </span>
             </div>
           </div>
-          <span className="text-xs text-muted-foreground inline-flex items-center gap-1 hover:opacity-80">
-            <InfoIcon className="h-4 w-4 inline mr-1 opacity-60" />
+
+          <span className="hidden sm:inline-flex text-[11px] text-muted-foreground items-center gap-1">
+            <InfoIcon className="h-4 w-4 opacity-60" />
             Metrics shown for chosen time period
-            </span>
+          </span>
         </div>
 
-        {/* Controls */}
-        <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-          {/* LEFT: metric filters */}
-          <div className="flex flex-wrap items-center gap-2">
-            <button className={cn(pill(metric === "views", "views"), "hover:cursor-pointer")} onClick={() => setMetric("views")} title="Show Views">
-              <Eye className="h-4 w-4" /> Views
-            </button>
-            <button className={cn(pill(metric === "completions", "completions"), "hover:cursor-pointer")} onClick={() => setMetric("completions")} title="Show Completions">
-              <CheckCircle className="h-4 w-4" /> Completions
-            </button>
-            <button className={cn(pill(metric === "both", "both"), "hover:cursor-pointer")} onClick={() => setMetric("both")} title="Views + Completions">
-              <Eye className="h-4 w-4" /> + <CheckCircle className="h-4 w-4" />
-            </button>
-            <button className={cn(pill(metric === "completionRate", "neutral"), "hover:cursor-pointer")} onClick={() => setMetric("completionRate")} title="Completion Rate">
-              <TrendingUp className="h-4 w-4" /> Rate
-            </button>
-          </div>
-
-          {/* RIGHT: chart types */}
-          <div className="flex flex-wrap items-center gap-2">
-            <button className={cn(pill(chartType === "area"),"hover:cursor-pointer")} onClick={() => setChartType("area")} title="Area chart">
-              <LineChart className="h-4 w-4" /> Area
-            </button>
-            <button className={cn(pill(chartType === "bar"),"hover:cursor-pointer")} onClick={() => setChartType("bar")} title="Bar chart">
-              <BarChart3 className="h-4 w-4" /> Bar
-            </button>
-          </div>
-        </div>
-
-        {/* Searches (Knowbys / Employees) */}
-        <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
-          <MultiSelectDropdown
-            label="Knowbys"
-            placeholder="Search Knowbys…"
-            options={computed.allKnowbys}
-            selected={selKnowbys}
-            onChange={setSelKnowbys}
-            max={4}
-          />
-          <MultiSelectDropdown
-            label="Employees"
-            placeholder="Search Employees…"
-            options={computed.allEmployees}
-            selected={selEmployees}
-            onChange={setSelEmployees}
-            max={4}
-          />
-        </div>
-
-        {/* Chart + Insights */}
         <CardContent className="p-0">
-          <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
-            <div className="xl:col-span-3">
-              <div className="h-[400px] rounded-lg bg-transparent -mt-2">
-                {computed.keys.length === 0
-                  ? <div className="h-full grid place-items-center opacity-70 text-sm">Select a Knowby or keep “All Knowbys” and choose a metric.</div>
-                  : <Chart type={chartType} height={400} options={options} series={series as any} />
-                }
-              </div>
-            </div>
+          <div className="flex flex-col gap-5 md:gap-6">
+            <section className="rounded-2xl ring-1 ring-black/5 dark:ring-white/10 p-5 md:p-6 bg-white/70 dark:bg-black/10">
+              <div className="flex flex-col gap-6 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,3fr)] lg:gap-8">
+                {/* LEFT PANEL */}
+                <div className="flex flex-col gap-5">
+                  {/* Switch — Knowbys (blue) / Employees (green) */}
+                  <Tabs
+                    value={usageView}
+                    onValueChange={(v) => setUsageView(v as "knowbys" | "employees")}
+                    className="lg:w-auto lg:min-w-[240px]"
+                  >
+                    <TabsList
+                      className={cn(
+                        "w-full justify-between rounded-2xl p-1",
+                        "border border-slate-200/70 bg-white/80 shadow-sm",
+                        "dark:border-slate-800 dark:bg-slate-900/70"
+                      )}
+                    >
+                      <TabsTrigger
+                        value="knowbys"
+                        className={cn(
+                          "flex-1 rounded-xl px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide",
+                          "text-muted-foreground hover:text-foreground cursor-pointer transition-colors",
+                          "data-[state=active]:shadow",
+                          // >> force active color
+                          "[&[data-state=active]]:bg-sky-500 [&[data-state=active]]:text-white",
+                          "dark:[&[data-state=active]]:bg-sky-600"
+                        )}
+                      >
+                        Knowbys
+                      </TabsTrigger>
 
-            <div className="xl:col-span-1 flex flex-col gap-4 border-l pl-6 dark:border-slate-800">
-              <div className="rounded-lg p-4 bg-muted/30">
-                <h3 className="font-semibold text-sm mb-2">Key Insights</h3>
+                      <TabsTrigger
+                        value="employees"
+                        className={cn(
+                          "flex-1 rounded-xl px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide",
+                          "text-muted-foreground hover:text-foreground cursor-pointer transition-colors",
+                          "data-[state=active]:shadow",
+                          // >> force active color
+                          "[&[data-state=active]]:bg-emerald-500 [&[data-state=active]]:text-white",
+                          "dark:[&[data-state=active]]:bg-emerald-600"
+                        )}
+                      >
+                        Employees
+                      </TabsTrigger>
+                    </TabsList>
+                  </Tabs>
+
+
+                  <div className="space-y-1">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Usage Directory</p>
+                    <h3 className="text-[15px] md:text-base font-semibold leading-tight">Find active and inactive {usageHeadline.toLowerCase()}</h3>
+                    <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100/70 px-2 py-0.5 font-semibold uppercase tracking-wide text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-200">
+                        Active {activeShare}%
+                      </span>
+                      <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 font-semibold uppercase tracking-wide text-muted-foreground dark:bg-muted/40">
+                        {usageResults.total} total
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* KPI grid */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="rounded-2xl border border-fuchsia-200/50 bg-fuchsia-50 px-3 py-3 dark:border-fuchsia-500/30 dark:bg-fuchsia-500/10">
+                      <p className="text-[10px] font-semibold uppercase tracking-wide text-fuchsia-700 dark:text-fuchsia-200">Active</p>
+                      <p className="text-2xl font-semibold text-fuchsia-700 dark:text-fuchsia-100">{activeCount}</p>
+                      <p className="text-[10px] text-fuchsia-700/70 dark:text-fuchsia-100/70">{activeShare}% of filtered list</p>
+                    </div>
+                    <div className="rounded-2xl border border-rose-200/50 bg-rose-50 px-3 py-3 dark:border-rose-500/30 dark:bg-rose-500/10">
+                      <p className="text-[10px] font-semibold uppercase tracking-wide text-rose-700 dark:text-rose-200">Inactive</p>
+                      <p className="text-2xl font-semibold text-rose-700 dark:text-rose-100">{inactiveCount}</p>
+                      <p className="text-[10px] text-rose-700/70 dark:text-rose-100/70">Need attention</p>
+                    </div>
+                    <div className="rounded-2xl border border-blue-200/50 bg-blue-50 px-3 py-3 dark:border-blue-500/30 dark:bg-blue-500/10">
+                      <p className="text-[10px] font-semibold uppercase tracking-wide text-blue-700 dark:text-blue-200">Views</p>
+                      <p className="text-2xl font-semibold text-blue-700 dark:text-blue-100">{usageResults.totals.views}</p>
+                      <p className="text-[10px] text-blue-700/70 dark:text-blue-100/70">Recorded in range</p>
+                    </div>
+                    <div className="rounded-2xl border border-emerald-200/50 bg-emerald-50 px-3 py-3 dark:border-emerald-500/30 dark:bg-emerald-500/10">
+                      <p className="text-[10px] font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-200">Completions</p>
+                      <p className="text-2xl font-semibold text-emerald-700 dark:text-emerald-100">{usageResults.totals.completions}</p>
+                      <p className="text-[10px] text-emerald-700/70 dark:text-emerald-100/70">Recorded in range</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* RIGHT PANEL */}
+                <div className="flex flex-col gap-1">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    {/* Left group */}
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                      <Badge variant="secondary" className="rounded-full bg-slate-900 text-[10px] font-semibold uppercase tracking-wide text-slate-100 shadow dark:bg-slate-800">{usageHeadline}
+                      </Badge>
+
+                      {/* totals/info group */}
+                      <div className="flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
+                        <span>{usageResults.total} result{usageResults.total === 1 ? "" : "s"}</span>
+                        <span>Showing {format(computed.dateStart, "d MMM")} –{" "}{format(computed.dateEnd, "d MMM yyyy")}</span>
+                      </div>
+                    </div>
+
+                    {/* Search input stays right-aligned */}
+                    <Input
+                      value={usageQuery}
+                      onChange={(e) => setUsageQuery(e.target.value)}
+                      placeholder={`Search ${usageHeadline}…`}
+                      className="h-9 w-full sm:w-auto sm:min-w-[240px] border-slate-200 bg-white/85 text-sm shadow-sm transition focus-visible:ring-sky-500/40 dark:border-slate-800 dark:bg-slate-900/70"
+                    />
+                  </div>
+
+                  <div className="grid gap-5 md:grid-cols-2">
+                    {/* Active list */}
+                    <div className="flex flex-col">
+                      <div className="flex items-center justify-between">
+                        <p className="text-[11px] font-semibold text-muted-foreground uppercase">Recent activity</p>
+                        <span className="inline-flex items-center rounded-full bg-emerald-100/80 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-100">
+                          {activeCount}
+                        </span>
+                      </div>
+                      <div className="mt-2 space-y-2 max-h-[275px] overflow-y-auto pr-1">
+                        {usageResults.active.length ? (
+                          <ul className="space-y-2">
+                            {usageResults.active.map((item) => {
+                              const isSelected = selectedNames.includes(item.name);
+                              return (
+                                <li key={item.name}>
+                                  <button
+                                    type="button"
+                                    onClick={() => toggleSelection(usageView, item.name)}
+                                    aria-pressed={isSelected}
+                                    className={cn(
+                                      "w-full flex items-center justify-between gap-3 rounded-2xl border px-3 py-2 text-left transition cursor-pointer",
+                                      "border-slate-200/60 bg-white/80 hover:border-emerald-400/60 hover:bg-emerald-50/80 dark:border-slate-800 dark:bg-slate-900/60 dark:hover:border-emerald-400/50 dark:hover:bg-emerald-500/10",
+                                      isSelected && "border-emerald-500/70 bg-emerald-50 shadow-[0_0_0_1px_rgba(16,185,129,0.25)] dark:bg-emerald-500/15"
+                                    )}
+                                  >
+                                    <div className="min-w-0">
+                                      <p className={cn("text-sm font-medium truncate", isSelected && "text-emerald-700 dark:text-emerald-200")}>{item.name}</p>
+                                      <p className="text-xs text-muted-foreground flex items-center gap-3">
+                                        <span className="inline-flex items-center gap-1"><Eye className="h-3 w-3" /> {item.views}</span>
+                                        <span className="inline-flex items-center gap-1"><CheckCircle className="h-3 w-3" /> {item.completions}</span>
+                                      </p>
+                                    </div>
+                                    <span className={cn(
+                                      "inline-flex items-center gap-1 rounded-full border border-emerald-200 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
+                                      "bg-emerald-100 text-emerald-700 dark:border-emerald-500/60 dark:bg-emerald-500/20 dark:text-emerald-100",
+                                      isSelected && "bg-emerald-500 text-white dark:bg-emerald-400/80"
+                                    )}>
+                                      {isSelected ? "Selected" : "Active"}
+                                    </span>
+                                  </button>
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        ) : (
+                          <p className="text-xs text-muted-foreground/80">No recent activity found.</p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Inactive list */}
+                    <div className="flex flex-col">
+                      <div className="flex items-center justify-between">
+                        <p className="text-[11px] font-semibold text-muted-foreground uppercase">No recent usage</p>
+                        <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground dark:bg-muted/40">
+                          {inactiveCount}
+                        </span>
+                      </div>
+                      <div className="mt-2 space-y-2 max-h-[275px] overflow-y-auto pr-1">
+                        {usageResults.inactive.length ? (
+                          <ul className="space-y-2">
+                            {usageResults.inactive.map((item) => {
+                              const isSelected = selectedNames.includes(item.name);
+                              return (
+                                <li key={item.name}>
+                                  <button
+                                    type="button"
+                                    onClick={() => toggleSelection(usageView, item.name)}
+                                    aria-pressed={isSelected}
+                                    className={cn(
+                                      "w-full flex items-center justify-between gap-3 rounded-2xl border border-dashed px-3 py-2 text-left transition cursor-pointer",
+                                      "border-slate-200/60 bg-white/70 hover:border-violet-400/50 hover:bg-violet-50/80 dark:border-slate-800 dark:bg-slate-900/50 dark:hover:border-violet-400/50 dark:hover:bg-violet-500/10",
+                                      isSelected && "border-violet-500/60 bg-violet-50 shadow-[0_0_0_1px_rgba(139,92,246,0.25)] dark:bg-violet-500/15"
+                                    )}
+                                  >
+                                    <div className="min-w-0">
+                                      <p className={cn("text-sm font-medium truncate", isSelected && "text-violet-700 dark:text-violet-200")}>{item.name}</p>
+                                      <p className="text-xs text-muted-foreground">No views or completions in this range.</p>
+                                    </div>
+                                    <span className={cn(
+                                      "inline-flex items-center gap-1 rounded-full border border-slate-200 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
+                                      "bg-slate-100 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200",
+                                      isSelected && "border-violet-500 bg-violet-500 text-white"
+                                    )}>
+                                      {isSelected ? "Selected" : "Inactive"}
+                                    </span>
+                                  </button>
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        ) : (
+                          <p className="text-xs text-muted-foreground/80">Everyone here has activity 🎉</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Selections footer */}
+                  <div className="flex flex-col gap-2 pt-2 text-[11px] text-muted-foreground">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-[10px] uppercase tracking-wide text-muted-foreground/70">Knowbys</span>
+                      {selKnowbys.length === 0 && <span className="text-[11px] text-muted-foreground/60">None selected</span>}
+                      {selKnowbys.map((name) => (
+                        <Badge key={`knowby-${name}`} variant="outline" className="rounded-full border-sky-300/60 bg-sky-50/70 px-2.5 py-1 text-[11px] font-medium text-sky-700 dark:border-sky-400/50 dark:bg-sky-500/10 dark:text-sky-100">
+                          {name}
+                        </Badge>
+                      ))}
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-[10px] uppercase tracking-wide text-muted-foreground/70">Employees</span>
+                      {selEmployees.length === 0 && <span className="text-[11px] text-muted-foreground/60">None selected</span>}
+                      {selEmployees.map((name) => (
+                        <Badge key={`employee-${name}`} variant="outline" className="rounded-full border-emerald-300/60 bg-emerald-50/70 px-2.5 py-1 text-[11px] font-medium text-emerald-700 dark:border-emerald-400/50 dark:bg-emerald-500/10 dark:text-emerald-100">
+                          {name}
+                        </Badge>
+                      ))}
+                    </div>
+                    {hasUsageSelection && (
+                      <button
+                        type="button"
+                        onClick={() => clearUsageSelection(usageView)}
+                        className="self-start text-xs font-semibold text-slate-600 underline underline-offset-4 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white"
+                      >
+                        Clear {usageHeadline.toLowerCase()} filter
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Controls */}
+              <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <button className={cn(pill(metric === "views", "views"), "cursor-pointer")} onClick={() => setMetric("views")}>
+                    <Eye className="h-4 w-4" /> Views
+                  </button>
+                  <button className={cn(pill(metric === "completions", "completions"), "cursor-pointer")} onClick={() => setMetric("completions")}>
+                    <CheckCircle className="h-4 w-4" /> Completions
+                  </button>
+                  <button className={cn(pill(metric === "both", "both"), "cursor-pointer")} onClick={() => setMetric("both")}>
+                    <Eye className="h-4 w-4" /> + <CheckCircle className="h-4 w-4" />
+                  </button>
+                  <button className={cn(pill(metric === "completionRate", "neutral"), "cursor-pointer")} onClick={() => setMetric("completionRate")}>
+                    <TrendingUp className="h-4 w-4" /> Rate
+                  </button>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <button className={cn(pill(chartType === "area"), "cursor-pointer")} onClick={() => setChartType("area")}>
+                    <LineChart className="h-4 w-4" /> Area
+                  </button>
+                  <button className={cn(pill(chartType === "bar"), "cursor-pointer")} onClick={() => setChartType("bar")}>
+                    <BarChart3 className="h-4 w-4" /> Bar
+                  </button>
+                </div>
+              </div>
+
+              {/* Chart block */}
+              <div className="mt-6 rounded-3xl border border-slate-200/60 bg-white/70 p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900/70">
                 <div className="flex items-center justify-between">
-                  <p className="text-sm text-muted-foreground">Avg. Completion Rate</p>
-                  <p className="text-lg font-semibold">
-                    {computed.avgRate}%{" "}
-                    {computed.trend === "up" && <ArrowUpRight className="inline h-4 w-4 text-green-500" />}
-                    {computed.trend === "down" && <ArrowDownRight className="inline h-4 w-4 text-red-500" />}
-                  </p>
+                  <h4 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Usage over time</h4>
+                  <span className="text-[11px] text-muted-foreground">{metric}</span>
                 </div>
-
-                <div className="mt-4">
-                  <p className="text-sm text-muted-foreground mb-1">Top Knowbys</p>
-                  <ul className="text-sm space-y-1">
-                    {computed.topKnowbys.length ? computed.topKnowbys.map(([k, v]) => (
-                      <li key={k} className="flex justify-between"><span className="truncate">{k}</span><span className="text-muted-foreground">{v}</span></li>
-                    )) : <li className="opacity-60">No data</li>}
-                  </ul>
-                </div>
-
-                <div className="mt-4">
-                  <p className="text-sm text-muted-foreground mb-1">Top Employees</p>
-                  <ul className="text-sm space-y-1">
-                    {computed.topEmployees.length ? computed.topEmployees.map(([k, v]) => (
-                      <li key={k} className="flex justify-between"><span className="truncate">{k}</span><span className="text-muted-foreground">{v}</span></li>
-                    )) : <li className="opacity-60">No data</li>}
-                  </ul>
+                <div className="mt-3 h-[260px] sm:h-[300px] md:h-[320px] lg:h-[340px]">
+                  {computed.keys.length === 0 ? (
+                    <div className="h-full grid place-items-center rounded-2xl border border-dashed border-slate-200/70 bg-white/70 text-sm text-muted-foreground dark:border-slate-800 dark:bg-slate-900/60">
+                      Select a Knowby or keep “All Knowbys” and choose a metric.
+                    </div>
+                  ) : (
+                    <Chart type={chartType} height="100%" options={options} series={series as any} />
+                  )}
                 </div>
               </div>
-            </div>
+            </section>
           </div>
         </CardContent>
       </Card>

@@ -2,8 +2,6 @@
 
 import TodaysUsageCard from "@/components/Cards/TodaysUsageCard";
 import TopKnowbyCard from "@/components/Cards/TopKnowbyCard";
-import ModularGraphCard from "@/components/Cards/InsightsCard";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import KnowbyStats from "@/components/Cards/KnowbyStats";
 import ViewsCalendarHeatmap from "@/components/Cards/HeatmapCard";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -22,7 +20,7 @@ import {
   PopoverContent
 } from "@/components/ui/popover";
 import { DatePickerWithRange } from "@/components/DateRangePicker";
-import { Calendar as CalendarIcon, LayoutDashboard, User } from "lucide-react";
+import { Calendar as CalendarIcon } from "lucide-react";
 import { useKnowbyData } from "@/lib/KnowbyDataProvider";
 import { parse } from "date-fns";
 import TopMetricsRow from "@/components/Cards/TopMetricsRow";
