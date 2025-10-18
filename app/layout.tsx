@@ -9,7 +9,6 @@ import { DateRangeProvider } from "@/lib/DateRangeContext"; // Import the DateRa
 import { SidebarProvider } from "@/components/Sidebar-Context" // Your global context
 import { KnowbyDataProvider } from "@/lib/KnowbyDataProvider"
 import { cn } from "@/lib/utils"
-import { Suspense } from "react"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -27,35 +26,33 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${inter.className} flex h-screen overflow-hidden`}>
-        <Suspense fallback={null}>
-          <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-            <KnowbyDataProvider>
-              <SidebarProvider>
-                <DateRangeProvider>
-                <Toaster 
-                    position="top-right" 
-                    richColors 
-                    closeButton 
-                  />
-                  <div className="hidden md:flex border-r bg-sidebar text-sidebar-foreground inset-shadow-sm/10">
-                    <Sidebar />
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+          <KnowbyDataProvider>
+            <SidebarProvider>
+              <DateRangeProvider>
+              <Toaster 
+                  position="top-right" 
+                  richColors 
+                  closeButton 
+                />
+                <div className="hidden md:flex border-r bg-sidebar text-sidebar-foreground inset-shadow-sm/10">
+                  <Sidebar />
+                </div>
+                <main className="flex flex-col w-full h-full">
+                  <Header />
+                   <div
+                    className={cn(
+                      "flex-1 overflow-y-auto -mt-12 pt-16 pb-10",
+                      "px-3 sm:px-5 md:px-8 lg:px-16 xl:px-24 2xl:px-30"
+                    )}
+                  >
+                    {children}
                   </div>
-                  <main className="flex flex-col w-full h-full">
-                    <Header />
-                    <div
-                      className={cn(
-                        "flex-1 overflow-y-auto -mt-12 pt-16 pb-10",
-                        "px-3 sm:px-5 md:px-8 lg:px-16 xl:px-24 2xl:px-30"
-                      )}
-                    >
-                      {children}
-                    </div>
-                  </main>
-                </DateRangeProvider>
-              </SidebarProvider>
-            </KnowbyDataProvider>
-          </ThemeProvider>
-        </Suspense>
+                </main>
+              </DateRangeProvider>
+            </SidebarProvider>
+          </KnowbyDataProvider>
+        </ThemeProvider>
       </body>
     </html>
   )
