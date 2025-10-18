@@ -146,10 +146,6 @@ export default function Home() {
             {mounted ? label : "\u00A0" /* keep layout without showing mismatched text */}
           </div>
 
-<<<<<<< HEAD
-        <div className="grid grid-cols-1 gap-[20px]">
-          <AnalyticsExplorer selectedDateRange={dateRange} />
-=======
           {/* PAGE CONTENT (block that reacts to global dateRange) */}
           <div className="p-6 pt-0">
             <div className="grid gap-[20px]">
@@ -177,7 +173,6 @@ export default function Home() {
               </div>
             </div>
           </div>
->>>>>>> parent of 4296529 (Test new page + persistent date range)
         </div>
       </div>
     </Tabs>
