@@ -124,6 +124,14 @@ const makeUsage = (
   });
 };
 
+const countActiveInactive = (items: UsageRow[]) => {
+  const total = items.length;
+  const active = items.filter(i => i.views + i.completions > 0).length;
+  const inactive = total - active;
+  const pct = (n: number) => (total ? Math.round((n / total) * 100) : 0);
+  return { total, active, inactive, pctActive: pct(active), pctInactive: pct(inactive) };
+};
+
 const resolveGranularity = (start: Date, end: Date) => {
   const span = Math.max(1, differenceInCalendarDays(endOfDay(end), startOfDay(start)));
   const sameMonth = start.getFullYear() === end.getFullYear() && start.getMonth() === end.getMonth();
@@ -366,40 +374,37 @@ const buildOptions = (
 };
 
 const summaryCards = (
-  active: number,
-  inactive: number,
-  totals: { views: number; comps: number },
-  totalCount: number
+  k: { total: number; active: number; inactive: number; pctActive: number; pctInactive: number },
+  e: { total: number; active: number; inactive: number; pctActive: number; pctInactive: number },
 ) => {
-  const activeShare = totalCount ? Math.round((active / totalCount) * 100) : 0;
   return [
     {
-      title: "Active",
-      subtitle: `${activeShare}% of filtered list`,
-      value: active,
+      title: "Active Knowbys",
+      subtitle: `${k.pctActive}% of knowbys`,
+      value: k.active,
       className:
         "border-fuchsia-200/60 bg-fuchsia-50 text-fuchsia-700 dark:border-fuchsia-500/30 dark:bg-fuchsia-500/10 dark:text-fuchsia-200",
     },
     {
-      title: "Inactive",
-      subtitle: "Need attention",
-      value: inactive,
+      title: "Inactive Knowbys",
+      subtitle: `${k.pctInactive}% of knowbys`,
+      value: k.inactive,
       className:
         "border-rose-200/60 bg-rose-50 text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-200",
     },
     {
-      title: "Views",
-      subtitle: "Recorded in range",
-      value: totals.views,
-      className:
-        "border-blue-200/60 bg-blue-50 text-blue-700 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-200",
-    },
-    {
-      title: "Completions",
-      subtitle: "Recorded in range",
-      value: totals.comps,
+      title: "Active Employees",
+      subtitle: `${e.pctActive}% of employees`,
+      value: e.active,
       className:
         "border-emerald-200/60 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200",
+    },
+    {
+      title: "Inactive Employees",
+      subtitle: `${e.pctInactive}% of employees`,
+      value: e.inactive,
+      className:
+        "border-violet-200/60 bg-violet-50 text-violet-700 dark:border-violet-500/30 dark:bg-violet-500/10 dark:text-violet-200",
     },
   ] as const;
 };
@@ -769,12 +774,10 @@ export default function AnalyticsExplorer({ selectedDateRange }: Props) {
     setActivityPage((prev) => (prev > maxPage ? maxPage : prev));
   }, [activityRows.length, hasUsageSelection]);
 
-  const summary = summaryCards(
-    usageResults.active.length,
-    usageResults.inactive.length,
-    usageResults.totals,
-    usageResults.total
-  );
+  const knowbyStats = countActiveInactive(data.usage.knowbys);
+  const employeeStats = countActiveInactive(data.usage.employees);
+  const summary = summaryCards(knowbyStats, employeeStats);
+
 
   if (status === "loading") {
     return (
