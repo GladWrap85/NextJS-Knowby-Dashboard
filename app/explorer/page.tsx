@@ -16,23 +16,7 @@ export default function Home() {
   return (
     <DatePeriodContainer initialPeriod="weekly" className="w-full">
       <div className="grid gap-[20px]">
-        <TopMetricsRow selectedDateRange={dateRange} />
-
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-[20px]">
-          <div className="col-span-1 xl:col-span-2">
-            <TodaysUsageCard selectedDateRange={dateRange} />
-          </div>
-          <TopKnowbyCard selectedDateRange={dateRange} />
-        </div>
-
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-[20px]">
-          <KnowbyStats selectedDateRange={dateRange} />
-          <ViewsCalendarHeatmap selectedDateRange={dateRange} />
-        </div>
-
-        <div className="grid grid-cols-1 gap-[20px]">
-          {/* <AnalyticsExplorer selectedDateRange={dateRange} /> */}
-        </div>
+        <AnalyticsExplorer selectedDateRange={dateRange} />
       </div>
     </DatePeriodContainer>
   );
