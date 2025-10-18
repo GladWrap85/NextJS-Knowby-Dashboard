@@ -509,7 +509,7 @@ export default function AnalyticsExplorer({ selectedDateRange }: Props) {
                           {activeCount}
                         </span>
                       </div>
-                      <div className="mt-2 space-y-2 max-h-[275px] overflow-y-auto pr-1">
+                      <div className="mt-2 space-y-2 max-h-[275px] overflow-y-auto p-1">
                         {usageResults.active.length ? (
                           <ul className="space-y-2">
                             {usageResults.active.map((item) => {
@@ -559,7 +559,7 @@ export default function AnalyticsExplorer({ selectedDateRange }: Props) {
                           {inactiveCount}
                         </span>
                       </div>
-                      <div className="mt-2 space-y-2 max-h-[275px] overflow-y-auto pr-1">
+                      <div className="mt-2 space-y-2 max-h-[275px] overflow-y-auto p-1">
                         {usageResults.inactive.length ? (
                           <ul className="space-y-2">
                             {usageResults.inactive.map((item) => {
@@ -571,7 +571,7 @@ export default function AnalyticsExplorer({ selectedDateRange }: Props) {
                                     onClick={() => toggleSelection(usageView, item.name)}
                                     aria-pressed={isSelected}
                                     className={cn(
-                                      "w-full flex items-center justify-between gap-3 rounded-2xl border border-dashed px-3 py-2 text-left transition cursor-pointer",
+                                      "w-full flex items-center justify-between gap-3 rounded-2xl border px-3 py-2 text-left transition cursor-pointer",
                                       "border-slate-200/60 bg-white/70 hover:border-violet-400/50 hover:bg-violet-50/80 dark:border-slate-800 dark:bg-slate-900/50 dark:hover:border-violet-400/50 dark:hover:bg-violet-500/10",
                                       isSelected && "border-violet-500/60 bg-violet-50 shadow-[0_0_0_1px_rgba(139,92,246,0.25)] dark:bg-violet-500/15"
                                     )}
@@ -633,7 +633,7 @@ export default function AnalyticsExplorer({ selectedDateRange }: Props) {
               </div>
 
               {/* Controls */}
-              <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
+              <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t pt-4">
                 <div className="flex flex-wrap items-center gap-2">
                   <button className={cn(pill(metric === "views", "views"), "cursor-pointer")} onClick={() => setMetric("views")}>
                     <Eye className="h-4 w-4" /> Views

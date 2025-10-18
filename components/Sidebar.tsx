@@ -198,9 +198,14 @@ export default function Sidebar() {
 
   const menuList: { group: string; items: MenuItem[] }[] = [
     {
-      group: 'Navigate',
+      group: 'Dashboard',
       items: [
         { link: '/', icon: LayoutDashboard, text: 'Dashboard' },
+      ],
+    },
+    {
+      group: 'Explorer',
+      items: [
         { link: '/explorer', icon: Compass, text: 'Explorer' },
       ],
     },
@@ -277,7 +282,7 @@ export default function Sidebar() {
                                 expanded
                                   ? 'flex items-center gap-2 px-3 py-2 justify-start hover:bg-[var(--accent)]/50'
                                   : 'w-12 h-12 flex items-center justify-center hover:bg-[var(--accent)]/50',
-                                activeRow && 'bg-[var(--accent)]/90' // subtle bg when active
+                                activeRow && 'bg-[var(--accent)]/90'
                               )}
                             >
                               {/* Icon */}
