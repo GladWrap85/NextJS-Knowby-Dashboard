@@ -31,7 +31,7 @@ export default function Home() {
         </div>
 
         <div className="grid grid-cols-1 gap-[20px]">
-          {/* <AnalyticsExplorer selectedDateRange={dateRange} /> */}
+          <AnalyticsExplorer selectedDateRange={dateRange} />
         </div>
       </div>
     </DatePeriodContainer>

@@ -1,52 +1,75 @@
-// components/Cards/AnalyticsExplorer.tsx
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { DateRange } from "react-day-picker";
 import {
+  differenceInCalendarDays,
+  eachDayOfInterval,
+  eachMonthOfInterval,
+  eachWeekOfInterval,
+  endOfDay,
+  endOfMonth,
+  endOfWeek,
+  format,
+  isWithinInterval,
   parse as parseDateFn,
-  startOfDay, endOfDay,
-  startOfWeek, endOfWeek,
-  startOfMonth, endOfMonth,
-  eachDayOfInterval, eachWeekOfInterval, eachMonthOfInterval,
-  isWithinInterval, differenceInCalendarDays, format
+  startOfDay,
+  startOfMonth,
+  startOfWeek,
 } from "date-fns";
+import { Eye, CheckCircle, TrendingUp, BarChart3, LineChart, Search, InfoIcon } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { Tabs, TabsList, TabsTrigger } from "../ui/tabs";
 import { useKnowbyData } from "@/lib/KnowbyDataProvider";
 import { useDarkMode } from "@/components/NivoWrapper";
 import { topChartOptions } from "@/lib/chartOptions";
 import type { ApexOptions } from "apexcharts";
-import {
-  Eye, CheckCircle, TrendingUp,
-  BarChart3, LineChart,
-  ArrowUpRight, ArrowDownRight, Search,
-  InfoIcon
-} from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Tabs, TabsList, TabsTrigger } from "../ui/tabs";
 
 const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
-// ---------------- Types ----------------
+// ---------- types ----------
 type Props = { selectedDateRange: DateRange | undefined };
 type Metric = "views" | "completions" | "completionRate" | "both";
 type ChartType = "area" | "bar";
+type RawRow = {
+  date?: string | null;
+  knowby_name?: string | null;
+  member_name?: string | null;
+};
 type UsageRow = { name: string; views: number; completions: number };
-
-// ---------------- Helpers ----------------
-const parseCache = new Map<string, Date>();
-const parseCsvDate = (d?: string) => {
-  if (!d) return null;
-  const hit = parseCache.get(d); if (hit) return hit;
-  const dt = parseDateFn(d, "dd/MM/yyyy", new Date());
-  if (!isNaN(dt.getTime())) parseCache.set(d, dt);
-  return isNaN(dt.getTime()) ? null : dt;
+type SelectionEventRow = {
+  knowbyName: string;
+  employeeName: string;
+  type: "view" | "completion";
+  date: Date;
 };
 
+
+type Bin = { start: Date; end: Date; ts: number };
+
+type AnalyticsModel = {
+  dateStart: Date;
+  dateEnd: Date;
+  gran: "day" | "week" | "month";
+  bins: Bin[];
+  keys: string[];
+  series: { name: string; data: Array<[number, number]> }[];
+  totals: { views: number; comps: number };
+  avgRate: number;
+  trend: "up" | "down" | "neutral";
+  usage: { knowbys: UsageRow[]; employees: UsageRow[] };
+  viewsInRange: RawRow[];
+  compsInRange: RawRow[];
+  allKnowbys: string[];
+  allEmployees: string[];
+};
+
+const ACTIVITY_PAGE_SIZE = 10;
 const pill = (
   active: boolean,
   tone: "views" | "completions" | "both" | "neutral" = "neutral"
@@ -60,12 +83,596 @@ const pill = (
       "bg-violet-100 text-violet-700 ring-violet-200 dark:bg-violet-500/20 dark:text-violet-300 dark:ring-white/10",
     neutral:
       "bg-muted/60 text-foreground/80 ring-black/5 dark:ring-white/10",
-  } as const)[tone]
-  } ${active ? "font-semibold" : "opacity-60 hover:opacity-100"}`;
+  } as const)[tone]}
+  ${active ? "font-semibold" : "opacity-60 hover:opacity-100"}`;
 
-// ---------------- Main Component ----------------
+// ---------- helpers ----------
+const parseCache = new Map<string, Date>();
+const parseCsvDate = (input?: string | null) => {
+  if (!input) return null;
+  if (parseCache.has(input)) return parseCache.get(input)!;
+  const dt = parseDateFn(input, "dd/MM/yyyy", new Date());
+  if (!isNaN(dt.getTime())) parseCache.set(input, dt);
+  return isNaN(dt.getTime()) ? null : dt;
+};
+
+const uniqueSorted = (values: Array<string | null | undefined>) =>
+  Array.from(new Set(values.filter(Boolean) as string[])).sort((a, b) =>
+    a.localeCompare(b)
+  );
+
+const makeUsage = (
+  names: string[],
+  views: RawRow[],
+  comps: RawRow[],
+  field: "knowby_name" | "member_name"
+) => {
+  const map = new Map<string, UsageRow>();
+  names.forEach((name) => map.set(name, { name, views: 0, completions: 0 }));
+  const hit = (row: RawRow | undefined, key: "views" | "completions") => {
+    if (!row) return;
+    const name = row[field];
+    if (!name || !map.has(name)) return;
+    map.get(name)![key === "views" ? "views" : "completions"] += 1;
+  };
+  views.forEach((r) => hit(r, "views"));
+  comps.forEach((r) => hit(r, "completions"));
+  return [...map.values()].sort((a, b) => {
+    const totalA = a.views + a.completions;
+    const totalB = b.views + b.completions;
+    return totalB === totalA ? a.name.localeCompare(b.name) : totalB - totalA;
+  });
+};
+
+const resolveGranularity = (start: Date, end: Date) => {
+  const span = Math.max(1, differenceInCalendarDays(endOfDay(end), startOfDay(start)));
+  const sameMonth = start.getFullYear() === end.getFullYear() && start.getMonth() === end.getMonth();
+  const coversWholeMonth =
+    startOfMonth(start).getTime() === startOfDay(start).getTime() &&
+    endOfMonth(end).getTime() === endOfDay(end).getTime();
+  if (sameMonth && coversWholeMonth) return "day" as const;
+  if (span <= 14) return "day" as const;
+  if (span <= 120) return "week" as const;
+  return "month" as const;
+};
+
+const buildBins = (gran: "day" | "week" | "month", start: Date, end: Date): Bin[] => {
+  const base =
+    gran === "day"
+      ? eachDayOfInterval({ start, end })
+      : gran === "week"
+        ? eachWeekOfInterval({ start, end }, { weekStartsOn: 1 })
+        : eachMonthOfInterval({ start, end });
+  return base.map((point) => {
+    if (gran === "day") {
+      const s = startOfDay(point), e = endOfDay(point);
+      return { start: s, end: e, ts: s.getTime() };
+    }
+    if (gran === "week") {
+      const s = startOfWeek(point, { weekStartsOn: 1 }), e = endOfWeek(point, { weekStartsOn: 1 });
+      return { start: startOfDay(s), end: endOfDay(e), ts: startOfDay(s).getTime() };
+    }
+    const s = startOfMonth(point), e = endOfMonth(point);
+    return { start: startOfDay(s), end: endOfDay(e), ts: startOfDay(s).getTime() };
+  });
+};
+
+const buildSeries = (
+  bins: Bin[],
+  metric: Metric,
+  names: string[],
+  views: RawRow[],
+  comps: RawRow[]
+) => {
+  const series = new Map<string, Array<[number, number]>>();
+  const count = (rows: RawRow[], name: string, bin: Bin) =>
+    rows.filter((r) => {
+      const d = parseCsvDate(r.date);
+      if (!d) return false;
+      const matchesName = name === "All Knowbys" || r.knowby_name === name;
+      return matchesName && isWithinInterval(d, { start: bin.start, end: bin.end });
+    }).length;
+
+  bins.forEach((bin) => {
+    names.forEach((name) => {
+      const viewsCount = count(views, name, bin);
+      const compsCount = count(comps, name, bin);
+      const push = (key: string, value: number) => {
+        if (!series.has(key)) series.set(key, []);
+        series.get(key)!.push([bin.ts, value]);
+      };
+      if (metric === "views") push(`${name} Views`, viewsCount);
+      else if (metric === "completions") push(`${name} Completions`, compsCount);
+      else if (metric === "both") {
+        push(`${name} Views`, viewsCount);
+        push(`${name} Completions`, compsCount);
+      } else {
+        push(`${name} Completion Rate`, viewsCount > 0 ? Math.round((compsCount / viewsCount) * 100) : 0);
+      }
+    });
+  });
+
+  const keys = names.flatMap((name) =>
+    metric === "both"
+      ? [`${name} Views`, `${name} Completions`]
+      : metric === "views"
+        ? [`${name} Views`]
+        : metric === "completions"
+          ? [`${name} Completions`]
+          : [`${name} Completion Rate`]
+  );
+  const tsSeries = [...series.entries()].map(([name, data]) => ({ name, data }));
+
+  const totals = {
+    views: views.length,
+    comps: comps.length,
+  };
+  const avgRate = totals.views ? Math.round((totals.comps / totals.views) * 100) : 0;
+
+  let trend: "up" | "down" | "neutral" = "neutral";
+  const firstKey = keys[0];
+  if (firstKey) {
+    const points = tsSeries.find((s) => s.name === firstKey)?.data ?? [];
+    if (points.length >= 2) {
+      const [prev, last] = [points.at(-2)?.[1] ?? 0, points.at(-1)?.[1] ?? 0];
+      trend = last > prev ? "up" : last < prev ? "down" : "neutral";
+    }
+  }
+
+  return { keys, tsSeries, totals, avgRate, trend };
+};
+
+const buildAnalytics = (
+  views: RawRow[] = [],
+  completions: RawRow[] = [],
+  selectedDateRange: DateRange | undefined,
+  selKnowbys: string[],
+  selEmployees: string[],
+  metric: Metric
+): AnalyticsModel => {
+  const allRows = [...views, ...completions];
+  const allKnowbys = uniqueSorted(allRows.map((r) => r.knowby_name));
+  const allEmployees = uniqueSorted(allRows.map((r) => r.member_name));
+  const defaultDate = new Date();
+  const earliest = allRows.reduce<Date | null>((acc, row) => {
+    const d = parseCsvDate(row.date);
+    if (!d) return acc;
+    return !acc || d < acc ? d : acc;
+  }, null);
+
+  const start = startOfDay(selectedDateRange?.from ?? earliest ?? defaultDate);
+  const end = endOfDay(selectedDateRange?.to ?? selectedDateRange?.from ?? earliest ?? defaultDate);
+
+  const inRange = (row: RawRow) => {
+    const d = parseCsvDate(row.date);
+    if (!d) return false;
+    return isWithinInterval(d, { start, end });
+  };
+
+  const matchesSelection = (row: RawRow) => {
+    const knowbyOK = !selKnowbys.length || (row.knowby_name && selKnowbys.includes(row.knowby_name));
+    const employeeOK = !selEmployees.length || (row.member_name && selEmployees.includes(row.member_name));
+    return knowbyOK && employeeOK;
+  };
+
+  const viewsInRange = views.filter((row) => inRange(row));
+  const compsInRange = completions.filter((row) => inRange(row));
+  const filteredViews = viewsInRange.filter(matchesSelection);
+  const filteredComps = compsInRange.filter(matchesSelection);
+
+  const gran = resolveGranularity(start, end);
+  const bins = buildBins(gran, start, end);
+  const chartNames = selKnowbys.length ? selKnowbys : ["All Knowbys"];
+  const { keys, tsSeries, totals, avgRate, trend } = buildSeries(
+    bins,
+    metric,
+    chartNames,
+    filteredViews,
+    filteredComps
+  );
+
+  const usage = {
+    knowbys: makeUsage(allKnowbys, viewsInRange, compsInRange, "knowby_name"),
+    employees: makeUsage(allEmployees, viewsInRange, compsInRange, "member_name"),
+  };
+
+  return {
+    dateStart: start,
+    dateEnd: end,
+    gran,
+    bins,
+    keys,
+    series: tsSeries,
+    totals,
+    avgRate,
+    trend,
+    usage,
+    viewsInRange,
+    compsInRange,
+    allKnowbys,
+    allEmployees,
+  };
+};
+
+const buildOptions = (
+  isDark: boolean,
+  chartType: ChartType,
+  gran: "day" | "week" | "month",
+  bins: Bin[],
+  metric: Metric
+): ApexOptions => {
+  const base = topChartOptions(isDark);
+  const labelFormat = gran === "month" ? "MMM yyyy" : "dd MMM";
+  const colors =
+    metric === "views"
+      ? ["#008FFB"]
+      : metric === "completions"
+        ? ["#00E396"]
+        : metric === "both"
+          ? ["#38bdf8", "#10b981"]
+          : ["#8b5cf6"];
+
+  return {
+    ...base,
+    colors,
+    chart: {
+      ...(base.chart ?? {}),
+      type: chartType,
+      toolbar: { show: false },
+      redrawOnParentResize: true,
+      redrawOnWindowResize: false,
+    },
+    dataLabels: { enabled: false },
+    xaxis: {
+      ...(base.xaxis ?? {}),
+      type: "datetime",
+      labels: { ...(base.xaxis?.labels ?? {}), rotate: -15, format: labelFormat },
+    },
+    yaxis: {
+      ...(base.yaxis ?? {}),
+      min: 0,
+      max: metric === "completionRate" ? 100 : undefined,
+      labels: {
+        ...(Array.isArray(base.yaxis) ? {} : base.yaxis?.labels ?? {}),
+        formatter: (value: number) => (metric === "completionRate" ? `${value}%` : `${value}`),
+      },
+    },
+    grid: {
+      ...(base.grid ?? {}),
+      padding: { ...base.grid?.padding, right: 6, left: 6 },
+    },
+    tooltip: {
+      ...(base.tooltip ?? {}),
+      shared: true,
+      theme: isDark ? "dark" : "light",
+      x: {
+        formatter: (ts: number) => {
+          const date = new Date(ts);
+          if (gran === "day") return format(date, "dd MMM yyyy");
+          if (gran === "week") {
+            const bin = bins.find((b) => b.ts === ts);
+            return bin
+              ? `${format(bin.start, "dd MMM")} – ${format(bin.end, "dd MMM yyyy")}`
+              : format(date, "dd MMM yyyy");
+          }
+          return format(date, "MMM yyyy");
+        },
+      },
+      y: {
+        formatter: (value: number) => (metric === "completionRate" ? `${value}%` : `${value}`),
+      },
+    },
+  };
+};
+
+const summaryCards = (
+  active: number,
+  inactive: number,
+  totals: { views: number; comps: number },
+  totalCount: number
+) => {
+  const activeShare = totalCount ? Math.round((active / totalCount) * 100) : 0;
+  return [
+    {
+      title: "Active",
+      subtitle: `${activeShare}% of filtered list`,
+      value: active,
+      className:
+        "border-fuchsia-200/60 bg-fuchsia-50 text-fuchsia-700 dark:border-fuchsia-500/30 dark:bg-fuchsia-500/10 dark:text-fuchsia-200",
+    },
+    {
+      title: "Inactive",
+      subtitle: "Need attention",
+      value: inactive,
+      className:
+        "border-rose-200/60 bg-rose-50 text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-200",
+    },
+    {
+      title: "Views",
+      subtitle: "Recorded in range",
+      value: totals.views,
+      className:
+        "border-blue-200/60 bg-blue-50 text-blue-700 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-200",
+    },
+    {
+      title: "Completions",
+      subtitle: "Recorded in range",
+      value: totals.comps,
+      className:
+        "border-emerald-200/60 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200",
+    },
+  ] as const;
+};
+
+const metricButtons = (
+  metric: Metric,
+  setMetric: (metric: Metric) => void,
+  chartType: ChartType,
+  setChartType: (type: ChartType) => void
+) => (
+  <div className="flex flex-wrap items-center justify-between gap-2">
+    <div className="flex flex-wrap items-center gap-2">
+      {[
+        { key: "views" as const, label: "Views", icon: Eye, tone: "views" as const },
+        { key: "completions" as const, label: "Completions", icon: CheckCircle, tone: "completions" as const },
+        {
+          key: "both" as const,
+          label: "Views + Completions",
+          icon: Eye,
+          secondary: CheckCircle,
+          tone: "both" as const,
+        },
+        { key: "completionRate" as const, label: "Rate", icon: TrendingUp, tone: "neutral" as const },
+      ].map(({ key, label, icon: Icon, secondary: Secondary, tone }) => (
+        <button
+          key={key}
+          onClick={() => setMetric(key)}
+          className={cn(pill(metric === key, tone), "cursor-pointer px-2 py-1")}
+        >
+          <Icon className="h-3.5 w-3.5" />
+          <span>{label}</span>
+          {Secondary && <Secondary className="h-3.5 w-3.5" />}
+        </button>
+      ))}
+    </div>
+    <div className="flex flex-wrap items-center gap-2">
+      {[{ key: "area" as const, icon: LineChart, label: "Area" }, { key: "bar" as const, icon: BarChart3, label: "Bar" }].map(
+        ({ key, icon: Icon, label }) => (
+          <button
+            key={key}
+            onClick={() => setChartType(key)}
+            className={cn(pill(chartType === key), "cursor-pointer px-2 py-1")}
+          >
+            <Icon className="h-3.5 w-3.5" />
+            <span>{label}</span>
+          </button>
+        )
+      )}
+    </div>
+  </div>
+);
+
+type UsageListProps = {
+  items: UsageRow[];
+  selected: string[];
+  tone: "emerald" | "violet";
+  empty: string;
+  badge: string;
+  onToggle: (name: string) => void;
+};
+
+const UsageList = ({
+  items,
+  selected,
+  tone,
+  empty,
+  badge,
+  onToggle,
+}: UsageListProps) => {
+  const toneClasses =
+    tone === "emerald"
+      ? {
+        base: "border-slate-200/60 bg-white/80 hover:border-emerald-400/60 hover:bg-emerald-50/70 dark:border-slate-800 dark:bg-slate-900/60 dark:hover:border-emerald-400/50 dark:hover:bg-emerald-500/10",
+        active:
+          "border-emerald-500/70 bg-emerald-50 shadow-[0_0_0_1px_rgba(16,185,129,0.2)] dark:bg-emerald-500/15",
+        text: "text-emerald-700 dark:text-emerald-200",
+        badge:
+          "border-emerald-200 bg-emerald-100 text-emerald-700 dark:border-emerald-500/60 dark:bg-emerald-500/20 dark:text-emerald-100",
+        badgeActive: "bg-emerald-500 text-white dark:bg-emerald-400/80",
+      }
+      : {
+        base: "border-slate-200/60 bg-white/70 hover:border-violet-400/50 hover:bg-violet-50/70 dark:border-slate-800 dark:bg-slate-900/50 dark:hover:border-violet-400/50 dark:hover:bg-violet-500/10",
+        active:
+          "border-violet-500/60 bg-violet-50 shadow-[0_0_0_1px_rgba(139,92,246,0.2)] dark:bg-violet-500/15",
+        text: "text-violet-700 dark:text-violet-200",
+        badge:
+          "border-slate-200 bg-slate-100 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200",
+        badgeActive: "border-violet-500 bg-violet-500 text-white",
+      };
+
+  return (
+    <div className="rounded-lg border border-slate-200/60 bg-white/80 p-3 text-xs dark:border-slate-800 dark:bg-slate-900/60">
+      <div className="flex items-center justify-between text-[11px] font-semibold uppercase text-muted-foreground">
+        <span>{badge}</span>
+        <span
+          className={cn(
+            "inline-flex items-center rounded-full px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide",
+            tone === "emerald"
+              ? "bg-emerald-100/80 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-100"
+              : "bg-muted text-muted-foreground dark:bg-muted/40"
+          )}
+        >
+          {items.length}
+        </span>
+      </div>
+      <div className="mt-2 max-h-[220px] space-y-1.5 overflow-y-auto pr-1">
+        {items.length ? (
+          <ul className="space-y-1.5">
+            {items.map((item) => {
+              const isSelected = selected.includes(item.name);
+              return (
+                <li key={item.name}>
+                  <button
+                    type="button"
+                    onClick={() => onToggle(item.name)}
+                    aria-pressed={isSelected}
+                    className={cn(
+                      "w-full flex items-center justify-between gap-2 rounded-lg border px-2.5 py-2 text-left text-xs transition",
+                      toneClasses.base,
+                      isSelected && toneClasses.active
+                    )}
+                  >
+                    <div className="min-w-0">
+                      <p className={cn("truncate font-medium", isSelected && toneClasses.text)}>
+                        {item.name}
+                      </p>
+                      <p className="mt-0.5 flex items-center gap-2 text-[11px] text-muted-foreground">
+                        <span className="inline-flex items-center gap-1">
+                          <Eye className="h-3 w-3" /> {item.views}
+                        </span>
+                        <span className="inline-flex items-center gap-1">
+                          <CheckCircle className="h-3 w-3" /> {item.completions}
+                        </span>
+                      </p>
+                    </div>
+                    <span
+                      className={cn(
+                        "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide",
+                        toneClasses.badge,
+                        isSelected ? toneClasses.badgeActive : ""
+                      )}
+                    >
+                      {isSelected ? "Selected" : tone === "emerald" ? "Active" : "Inactive"}
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        ) : (
+          <p className="text-[11px] text-muted-foreground/80">{empty}</p>
+        )}
+      </div>
+    </div>
+  );
+};
+
+type ActivityTableProps = {
+  rows: SelectionEventRow[];
+  page: number;
+  setPage: React.Dispatch<React.SetStateAction<number>>;
+  pageSize: number;
+};
+
+const ActivityTable = ({ rows, page, setPage, pageSize }: ActivityTableProps) => {
+  if (!rows.length) {
+    return (
+      <p className="text-[11px] text-muted-foreground/80">
+        No activity found for the current filters in the chosen range.
+      </p>
+    );
+  }
+
+  const start = page * pageSize;
+  const end = Math.min(start + pageSize, rows.length);
+  const paged = rows.slice(start, end);
+  const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
+  return (
+    <div className="space-y-3">
+      <div className="overflow-x-auto">
+        <table className="w-full text-[11px]">
+          <thead className="sticky top-0 z-10 bg-white/90 backdrop-blur-sm dark:bg-black/30 border-b border-slate-200/70 dark:border-white/10">
+            <tr className="[&>th]:py-2 [&>th]:px-3 text-left">
+              {[
+                "Knowby",
+                "Employee",
+                "Event",
+                "When",
+              ].map((header) => (
+                <th key={header} className="font-bold text-slate-700 dark:text-slate-100">
+                  {header}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {paged.map((row, idx) => (
+              <tr
+                key={`${row.type}-${row.date.getTime()}-${row.knowbyName}-${row.employeeName}-${start + idx}`}
+                className={cn(
+                  "[&>td]:py-1.5 [&>td]:px-3",
+                  idx % 2 === 0
+                    ? "bg-white/80 dark:bg-slate-800/70"
+                    : "bg-slate-50/80 dark:bg-slate-900/50",
+                  "hover:bg-slate-100/80 dark:hover:bg-slate-800/80 transition-colors"
+                )}
+              >
+                <td
+                  className="whitespace-nowrap max-w-[28ch] truncate text-slate-700 dark:text-slate-200"
+                  title={row.knowbyName}
+                >
+                  {row.knowbyName}
+                </td>
+                <td
+                  className="whitespace-nowrap max-w-[28ch] truncate text-slate-600 dark:text-slate-300"
+                  title={row.employeeName}
+                >
+                  {row.employeeName}
+                </td>
+                <td className="text-slate-600 dark:text-slate-300">
+                  {row.type === "completion" ? "Completed" : "Viewed"}
+                </td>
+                <td className="text-slate-600 dark:text-slate-300">
+                  {format(row.date, "d MMM yyyy")}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-muted-foreground">
+        <span>
+          Showing {start + 1}–{end} of {rows.length}
+        </span>
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => setPage((prev) => Math.max(prev - 1, 0))}
+            disabled={page === 0}
+            className={cn(
+              "inline-flex items-center rounded border px-2 py-0.5 font-semibold uppercase tracking-wide transition",
+              page === 0
+                ? "cursor-not-allowed border-slate-200 text-slate-300 dark:border-slate-700 dark:text-slate-600"
+                : "border-slate-300 text-slate-600 hover:border-slate-400 hover:text-slate-900 dark:border-slate-600 dark:text-slate-200 dark:hover:border-slate-500 dark:hover:text-white"
+            )}
+          >
+            Prev
+          </button>
+          <span className="px-1">
+            Page {page + 1} of {totalPages}
+          </span>
+          <button
+            type="button"
+            onClick={() => setPage((prev) => Math.min(prev + 1, totalPages - 1))}
+            disabled={page >= totalPages - 1}
+            className={cn(
+              "inline-flex items-center rounded border px-2 py-0.5 font-semibold uppercase tracking-wide transition",
+              page >= totalPages - 1
+                ? "cursor-not-allowed border-slate-200 text-slate-300 dark:border-slate-700 dark:text-slate-600"
+                : "border-slate-300 text-slate-600 hover:border-slate-400 hover:text-slate-900 dark:border-slate-600 dark:text-slate-200 dark:hover:border-slate-500 dark:hover:text-white"
+            )}
+          >
+            Next
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ---------- main component ----------
 export default function AnalyticsExplorer({ selectedDateRange }: Props) {
-  const { views, completions, status } = useKnowbyData();
+  const { views = [], completions = [], status } = useKnowbyData();
   const isDark = useDarkMode();
 
   const [metric, setMetric] = useState<Metric>("views");
@@ -74,20 +681,24 @@ export default function AnalyticsExplorer({ selectedDateRange }: Props) {
   const [selEmployees, setSelEmployees] = useState<string[]>([]);
   const [usageView, setUsageView] = useState<"knowbys" | "employees">("knowbys");
   const [usageQuery, setUsageQuery] = useState("");
+  const [activityPage, setActivityPage] = useState(0);
 
-  const selectedNames = usageView === "knowbys" ? selKnowbys : selEmployees;
-  const hasUsageSelection = selectedNames.length > 0;
+  const data = useMemo(
+    () => buildAnalytics(views as RawRow[], completions as RawRow[], selectedDateRange, selKnowbys, selEmployees, metric),
+    [views, completions, selectedDateRange, selKnowbys, selEmployees, metric]
+  );
+
+  const options = useMemo(
+    () => buildOptions(isDark, chartType, data.gran, data.bins, metric),
+    [isDark, chartType, data.gran, data.bins, metric]
+  );
 
   const toggleSelection = (type: "knowbys" | "employees", name: string) => {
-    if (type === "knowbys") {
-      setSelKnowbys((prev) =>
-        prev.includes(name) ? prev.filter((n) => n !== name) : [...prev, name]
-      );
-    } else {
-      setSelEmployees((prev) =>
-        prev.includes(name) ? prev.filter((n) => n !== name) : [...prev, name]
-      );
-    }
+    const setter = type === "knowbys" ? setSelKnowbys : setSelEmployees;
+    setter((prev) => {
+      const exists = prev.includes(name);
+      return exists ? prev.filter((n) => n !== name) : [...prev, name];
+    });
   };
 
   const clearUsageSelection = (type: "knowbys" | "employees") => {
@@ -95,588 +706,269 @@ export default function AnalyticsExplorer({ selectedDateRange }: Props) {
     else setSelEmployees([]);
   };
 
-  // ------- Derivations (unchanged logic) -------
-  const computed = useMemo(() => {
-    const allViews = views ?? [];
-    const allComps = completions ?? [];
-    const allRecords = [...allViews, ...allComps];
-    const allKnowbys = Array.from(new Set<string>(allRecords.map(r => r?.knowby_name).filter((v): v is string => Boolean(v)))).sort();
-    const allEmployees = Array.from(new Set<string>(allRecords.map(r => r?.member_name).filter((v): v is string => Boolean(v)))).sort();
-
-    const dMin = allRecords.reduce<Date | null>((acc, r: any) => {
-      const d = parseCsvDate(r?.date); return !acc || (d && d < acc) ? d : acc;
-    }, null) ?? new Date();
-
-    const dateStart = selectedDateRange?.from ?? dMin;
-    const dateEnd = selectedDateRange?.to ?? new Date();
-    const inRange = (d: Date | null) => !!d && isWithinInterval(d, { start: startOfDay(dateStart), end: endOfDay(dateEnd) });
-
-    const viewsInRange = allViews.filter(r => inRange(parseCsvDate(r?.date)));
-    const compsInRange = allComps.filter(r => inRange(parseCsvDate(r?.date)));
-
-    const filterBySelection = (rows: any[]) => rows.filter(r => {
-      const kOK = selKnowbys.length === 0 || selKnowbys.includes(r?.knowby_name);
-      const eOK = selEmployees.length === 0 || selEmployees.includes(r?.member_name);
-      return kOK && eOK;
-    });
-
-    const viewsF = filterBySelection(viewsInRange);
-    const compsF = filterBySelection(compsInRange);
-
-    const sameMonth =
-      dateStart.getFullYear() === dateEnd.getFullYear() &&
-      dateStart.getMonth() === dateEnd.getMonth();
-
-    const coversMonth =
-      startOfMonth(dateStart).getTime() === startOfDay(dateStart).getTime() &&
-      endOfMonth(dateEnd).getTime() === endOfDay(dateEnd).getTime();
-
-    const spanDays = Math.max(1, differenceInCalendarDays(endOfDay(dateEnd), startOfDay(dateStart)));
-    const gran: "day" | "week" | "month" =
-      (sameMonth && coversMonth) ? "day"
-        : (spanDays <= 14 ? "day" : spanDays <= 120 ? "week" : "month");
-
-    type Bin = { start: Date; end: Date; ts: number };
-    const bins: Bin[] =
-      gran === "day"
-        ? eachDayOfInterval({ start: dateStart, end: dateEnd }).map(d => {
-          const s = startOfDay(d), e = endOfDay(d);
-          return { start: s, end: e, ts: s.getTime() };
-        })
-        : gran === "week"
-          ? eachWeekOfInterval({ start: dateStart, end: dateEnd }, { weekStartsOn: 1 })
-            .map(ws => {
-              const s = startOfDay(ws), e = endOfWeek(ws, { weekStartsOn: 1 });
-              return { start: s, end: e, ts: s.getTime() };
-            })
-          : eachMonthOfInterval({ start: dateStart, end: dateEnd })
-            .map(ms => {
-              const s = startOfMonth(ms), e = endOfMonth(ms);
-              return { start: s, end: e, ts: s.getTime() };
-            });
-
-    const names = (selKnowbys.length > 0 ? selKnowbys : ["All Knowbys"]);
-    const makeCount = (rows: any[], name: string, b: Bin) =>
-      rows.filter((r: any) => {
-        const d = parseCsvDate(r?.date);
-        const ok = name === "All Knowbys" || r?.knowby_name === name;
-        return ok && d && isWithinInterval(d, { start: b.start, end: b.end });
-      }).length;
-
-    const keys = names.flatMap(n =>
-      metric === "both" ? [`${n} Views`, `${n} Completions`]
-        : metric === "views" ? [`${n} Views`]
-          : metric === "completions" ? [`${n} Completions`]
-            : [`${n} Completion Rate`]
-    );
-
-    const seriesPoints = new Map<string, Array<[number, number]>>();
-    for (const b of bins) {
-      for (const n of names) {
-        const v = makeCount(viewsF, n, b), c = makeCount(compsF, n, b);
-        if (metric === "views") {
-          const key = `${n} Views`;
-          (seriesPoints.get(key) ?? seriesPoints.set(key, []).get(key)!).push([b.ts, v]);
-        } else if (metric === "completions") {
-          const key = `${n} Completions`;
-          (seriesPoints.get(key) ?? seriesPoints.set(key, []).get(key)!).push([b.ts, c]);
-        } else if (metric === "both") {
-          const keyV = `${n} Views`;
-          const keyC = `${n} Completions`;
-          (seriesPoints.get(keyV) ?? seriesPoints.set(keyV, []).get(keyV)!).push([b.ts, v]);
-          (seriesPoints.get(keyC) ?? seriesPoints.set(keyC, []).get(keyC)!).push([b.ts, c]);
-        } else {
-          const key = `${n} Completion Rate`;
-          const rate = v > 0 ? Math.round((c / v) * 100) : 0;
-          (seriesPoints.get(key) ?? seriesPoints.set(key, []).get(key)!).push([b.ts, rate]);
-        }
-      }
-    }
-
-    const tsSeries = Array.from(seriesPoints.entries()).map(([name, data]) => ({ name, data }));
-
-    const totals = { views: viewsF.length, comps: compsF.length };
-    const avgRate = totals.views > 0 ? Math.round((totals.comps / totals.views) * 100) : 0;
-
-    let trend: "up" | "down" | "neutral" = "neutral";
-    const firstKey = keys[0];
-    if (firstKey) {
-      const s = tsSeries.find(s => s.name === firstKey)?.data ?? [];
-      if (s.length >= 2) {
-        const last = s[s.length - 1][1];
-        const prev = s[s.length - 2][1];
-        trend = last > prev ? "up" : last < prev ? "down" : "neutral";
-      }
-    }
-
-    const initUsageMap = (names: string[]): Map<string, UsageRow> => {
-      const map = new Map<string, UsageRow>();
-      names.forEach(name => map.set(name, { name, views: 0, completions: 0 }));
-      return map;
-    };
-    const sortUsage = (rows: UsageRow[]) =>
-      rows.sort((a, b) => {
-        const totalA = a.views + a.completions;
-        const totalB = b.views + b.completions;
-        if (totalA === totalB) return a.name.localeCompare(b.name);
-        return totalB - totalA;
-      });
-
-    const knowbyUsageMap = initUsageMap(allKnowbys);
-    for (const row of viewsInRange) {
-      const name = row?.knowby_name;
-      if (name && knowbyUsageMap.has(name)) knowbyUsageMap.get(name)!.views += 1;
-    }
-    for (const row of compsInRange) {
-      const name = row?.knowby_name;
-      if (name && knowbyUsageMap.has(name)) knowbyUsageMap.get(name)!.completions += 1;
-    }
-    const usageByKnowby = sortUsage(Array.from(knowbyUsageMap.values()));
-
-    const employeeUsageMap = initUsageMap(allEmployees);
-    for (const row of viewsInRange) {
-      const name = row?.member_name;
-      if (name && employeeUsageMap.has(name)) employeeUsageMap.get(name)!.views += 1;
-    }
-    for (const row of compsInRange) {
-      const name = row?.member_name;
-      if (name && employeeUsageMap.has(name)) employeeUsageMap.get(name)!.completions += 1;
-    }
-    const usageByEmployee = sortUsage(Array.from(employeeUsageMap.values()));
-
-    return {
-      dateStart, dateEnd, gran: gran as "day" | "week" | "month",
-      bins, tsSeries, keys,
-      allKnowbys, allEmployees, avgRate,
-      totals, trend,
-      usageByKnowby,
-      usageByEmployee,
-    };
-  }, [views, completions, selectedDateRange, selKnowbys, selEmployees, metric]);
-
-  const series = computed.tsSeries;
-
+  const usageSource = data.usage[usageView];
   const usageResults = useMemo(() => {
     const query = usageQuery.trim().toLowerCase();
-    const source = usageView === "knowbys" ? computed.usageByKnowby : computed.usageByEmployee;
     const filtered = query
-      ? source.filter(item => item.name.toLowerCase().includes(query))
-      : source;
-
-    const active = filtered.filter(item => item.views + item.completions > 0);
-    const inactive = filtered.filter(item => item.views + item.completions === 0);
+      ? usageSource.filter((item) => item.name.toLowerCase().includes(query))
+      : usageSource;
+    const active = filtered.filter((item) => item.views + item.completions > 0);
+    const inactive = filtered.filter((item) => item.views + item.completions === 0);
     const totals = filtered.reduce(
       (acc, item) => {
         acc.views += item.views;
-        acc.completions += item.completions;
+        acc.comps += item.completions;
         return acc;
       },
-      { views: 0, completions: 0 }
+      { views: 0, comps: 0 }
     );
-
     return { active, inactive, total: filtered.length, totals };
-  }, [usageQuery, usageView, computed.usageByKnowby, computed.usageByEmployee]);
+  }, [usageQuery, usageSource]);
 
-  const usageHeadline = usageView === "knowbys" ? "Knowbys" : "Employees";
-  const activeCount = usageResults.active.length;
-  const inactiveCount = usageResults.inactive.length;
-  const activeShare = usageResults.total > 0
-    ? Math.round((activeCount / usageResults.total) * 100)
-    : 0;
+  const selectedNames = usageView === "knowbys" ? selKnowbys : selEmployees;
+  const hasUsageSelection = selectedNames.length > 0;
 
-  // --- Chart options (kept) + refined paddings/labels ---
-  const options = useMemo<ApexOptions>(() => {
-    const base = topChartOptions(isDark);
-    const xLabelFormat =
-      computed.gran === "month" ? "MMM yyyy"
-        : computed.gran === "week" ? "dd MMM"
-          : "dd MMM";
+  const activityRows = useMemo(() => {
+    const rows: SelectionEventRow[] = [];
 
-    let colors: string[] = [];
-    if (metric === "views") colors = ["#008FFB"];
-    else if (metric === "completions") colors = ["#00E396"];
-    else if (metric === "both") colors = ["#38bdf8", "#10b981"];
-    else if (metric === "completionRate") colors = ["#8b5cf6"];
+    const include = (row: RawRow, type: SelectionEventRow["type"]) => {
+      const date = parseCsvDate(row.date);
+      if (!date) return;
 
-    return {
-      ...base,
-      colors,
-      chart: {
-        ...(base.chart ?? {}),
-        type: chartType,
-        toolbar: { show: false },
-        redrawOnParentResize: true,
-        redrawOnWindowResize: false,
-      },
-      dataLabels: { enabled: false },
-      xaxis: {
-        ...(base.xaxis ?? {}),
-        type: "datetime",
-        labels: { ...(base.xaxis?.labels ?? {}), rotate: -15, format: xLabelFormat },
-      },
-      yaxis: {
-        ...(base.yaxis ?? {}),
-        min: 0,
-        max: metric === "completionRate" ? 100 : undefined,
-        labels: {
-          ...(Array.isArray(base.yaxis) ? {} : base.yaxis?.labels ?? {}),
-          formatter: (v: number) =>
-            metric === "completionRate" ? `${v}%` : `${v}`,
-        },
-      },
-      grid: {
-        ...(base.grid ?? {}),
-        padding: { ...base.grid?.padding, right: 6, left: 6 },
-      },
-      tooltip: {
-        ...(base.tooltip ?? {}),
-        shared: true,
-        theme: isDark ? "dark" : "light",
-        x: {
-          formatter: (ts: number) => {
-            if (computed.gran === "day") return format(new Date(ts), "dd MMM yyyy");
-            if (computed.gran === "week") {
-              const b = computed.bins.find(b => b.ts === ts);
-              return b
-                ? `${format(b.start, "dd MMM")} – ${format(b.end, "dd MMM yyyy")}`
-                : format(new Date(ts), "dd MMM yyyy");
-            }
-            return format(new Date(ts), "MMM yyyy");
-          },
-        },
-        y: {
-          formatter: (v: number) =>
-            metric === "completionRate" ? `${v}%` : String(v),
-        },
-      },
+      if (selKnowbys.length && (!row.knowby_name || !selKnowbys.includes(row.knowby_name))) {
+        return;
+      }
+      if (selEmployees.length && (!row.member_name || !selEmployees.includes(row.member_name))) {
+        return;
+      }
+
+      rows.push({
+        knowbyName: row.knowby_name ?? "Unknown knowby",
+        employeeName: row.member_name ?? "Unknown member",
+        type,
+        date,
+      });
     };
-  }, [isDark, chartType, computed.gran, computed.bins, metric]);
 
-  // ---------------- UI ----------------
+    data.viewsInRange.forEach((row) => include(row, "view"));
+    data.compsInRange.forEach((row) => include(row, "completion"));
+
+    return rows.sort((a, b) => b.date.getTime() - a.date.getTime());
+  }, [data.viewsInRange, data.compsInRange, selKnowbys, selEmployees]);
+
+  useEffect(() => {
+    setActivityPage(0);
+  }, [usageView, selKnowbys.join("|"), selEmployees.join("|"), activityRows.length]);
+
+  useEffect(() => {
+    if (!hasUsageSelection) {
+      setActivityPage(0);
+      return;
+    }
+    const maxPage = Math.max(0, Math.ceil(activityRows.length / ACTIVITY_PAGE_SIZE) - 1);
+    setActivityPage((prev) => (prev > maxPage ? maxPage : prev));
+  }, [activityRows.length, hasUsageSelection]);
+
+  const summary = summaryCards(
+    usageResults.active.length,
+    usageResults.inactive.length,
+    usageResults.totals,
+    usageResults.total
+  );
+
   if (status === "loading") {
     return (
       <Card className="rounded-3xl p-5 md:p-6 border-0 shadow-xl/2 bg-card min-h-[340px]" />
     );
   }
 
-  const subtitle =
-    `${format((computed as any).dateStart, "d MMM yyyy")} – ${format((computed as any).dateEnd, "d MMM yyyy")}`;
+  const subtitle = `${format(data.dateStart, "d MMM yyyy")} – ${format(data.dateEnd, "d MMM yyyy")}`;
 
   return (
     <TooltipProvider>
-      <Card className="p-5 md:p-6 xl:p-7 rounded-3xl border-0 gap-2 shadow-xl/2 bg-card dark:border dark:border-slate-700">
-        {/* Header */}
+      <Card className="md:p-5 p-6 rounded-3xl h-fit gap-3 border-0 dark:border dark:border-slate-700 shadow-xl/2 dark:shadow-lg dark:shadow-gray-900/50 w-full bg-card">
         <div className="flex items-start justify-between gap-3">
-          <div className="flex items-start gap-4 min-w-0">
-            <div className="shrink-0 grid place-items-center w-10 h-10 rounded-full text-white bg-gradient-to-b from-lime-500 to-lime-700">
+          <div className="flex items-start gap-3 min-w-0">
+            <div className="shrink-0 flex h-10 w-10 items-center justify-center rounded-full text-white bg-gradient-to-b from-lime-500 to-lime-700">
               <Search className="h-5 w-5" />
             </div>
-
-            <div className="flex-1 min-w-0">
-              <h3 className="text-base md:text-lg font-semibold dark:text-white leading-tight">
-                Analytics Explorer
-              </h3>
-              <span className="block text-[11px] md:text-xs text-muted-foreground mt-0.5">
-                {subtitle}
-              </span>
+            <div className="flex flex-col">
+              <h3 className="text-base md:text-lg dark:text-white font-semibold">Analytics Explorer</h3>
+              <span className="text-xs text-muted-foreground">{subtitle}</span>
             </div>
           </div>
-
           <span className="hidden sm:inline-flex text-[11px] text-muted-foreground items-center gap-1">
-            <InfoIcon className="h-4 w-4 opacity-60" />
+            <InfoIcon className="h-3 w-3 opacity-60" />
             Metrics shown for chosen time period
           </span>
         </div>
 
         <CardContent className="p-0">
-          <div className="flex flex-col gap-5 md:gap-6">
-            <section className="rounded-2xl ring-1 ring-black/5 dark:ring-white/10 p-5 md:p-6 bg-white/70 dark:bg-black/10">
-              <div className="flex flex-col gap-6 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,3fr)] lg:gap-8">
-                {/* LEFT PANEL */}
-                <div className="flex flex-col gap-5">
-                  {/* Switch — Knowbys (blue) / Employees (green) */}
-                  <Tabs
-                    value={usageView}
-                    onValueChange={(v) => setUsageView(v as "knowbys" | "employees")}
-                    className="lg:w-auto lg:min-w-[240px]"
-                  >
-                    <TabsList
-                      className={cn(
-                        "w-full justify-between rounded-2xl p-1",
-                        "border border-slate-200/70 bg-white/80 shadow-sm",
-                        "dark:border-slate-800 dark:bg-slate-900/70"
-                      )}
-                    >
-                      <TabsTrigger
-                        value="knowbys"
-                        className={cn(
-                          "flex-1 rounded-xl px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide",
-                          "text-muted-foreground hover:text-foreground cursor-pointer transition-colors",
-                          "data-[state=active]:shadow",
-                          // >> force active color
-                          "[&[data-state=active]]:bg-sky-500 [&[data-state=active]]:text-white",
-                          "dark:[&[data-state=active]]:bg-sky-600"
-                        )}
-                      >
-                        Knowbys
-                      </TabsTrigger>
-
-                      <TabsTrigger
-                        value="employees"
-                        className={cn(
-                          "flex-1 rounded-xl px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide",
-                          "text-muted-foreground hover:text-foreground cursor-pointer transition-colors",
-                          "data-[state=active]:shadow",
-                          // >> force active color
-                          "[&[data-state=active]]:bg-emerald-500 [&[data-state=active]]:text-white",
-                          "dark:[&[data-state=active]]:bg-emerald-600"
-                        )}
-                      >
-                        Employees
-                      </TabsTrigger>
-                    </TabsList>
-                  </Tabs>
-
-
-                  <div className="space-y-1">
-                    <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Usage Directory</p>
-                    <h3 className="text-[15px] md:text-base font-semibold leading-tight">Find active and inactive {usageHeadline.toLowerCase()}</h3>
-                    <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
-                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100/70 px-2 py-0.5 font-semibold uppercase tracking-wide text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-200">
-                        Active {activeShare}%
-                      </span>
-                      <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 font-semibold uppercase tracking-wide text-muted-foreground dark:bg-muted/40">
-                        {usageResults.total} total
-                      </span>
-                    </div>
+          <section className="rounded-2xl ring-1 ring-black/10 dark:ring-white/10 bg-white/60 dark:bg-black/10 p-4 md:p-5 space-y-4">
+            <div className="grid grid-cols-2 gap-6 md:grid-cols-4">
+              {summary.map((item) => (
+                <div
+                  key={item.title}
+                  className={cn(
+                    "flex items-center justify-between rounded-xl border px-3 py-1.5",
+                    "bg-white/60 dark:bg-slate-900/40 backdrop-blur-sm",
+                    "text-xs md:text-sm font-medium",
+                    "shadow-sm hover:shadow transition-all",
+                    item.className
+                  )}
+                >
+                  <div className="flex flex-col leading-tight">
+                    <p className="text-[10px] font-semibold uppercase tracking-wide opacity-70">
+                      {item.title}
+                    </p>
+                    <p className="text-sm md:text-base font-bold">{item.value}</p>
                   </div>
-
-                  {/* KPI grid */}
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="rounded-2xl border border-fuchsia-200/50 bg-fuchsia-50 px-3 py-3 dark:border-fuchsia-500/30 dark:bg-fuchsia-500/10">
-                      <p className="text-[10px] font-semibold uppercase tracking-wide text-fuchsia-700 dark:text-fuchsia-200">Active</p>
-                      <p className="text-2xl font-semibold text-fuchsia-700 dark:text-fuchsia-100">{activeCount}</p>
-                      <p className="text-[10px] text-fuchsia-700/70 dark:text-fuchsia-100/70">{activeShare}% of filtered list</p>
-                    </div>
-                    <div className="rounded-2xl border border-rose-200/50 bg-rose-50 px-3 py-3 dark:border-rose-500/30 dark:bg-rose-500/10">
-                      <p className="text-[10px] font-semibold uppercase tracking-wide text-rose-700 dark:text-rose-200">Inactive</p>
-                      <p className="text-2xl font-semibold text-rose-700 dark:text-rose-100">{inactiveCount}</p>
-                      <p className="text-[10px] text-rose-700/70 dark:text-rose-100/70">Need attention</p>
-                    </div>
-                    <div className="rounded-2xl border border-blue-200/50 bg-blue-50 px-3 py-3 dark:border-blue-500/30 dark:bg-blue-500/10">
-                      <p className="text-[10px] font-semibold uppercase tracking-wide text-blue-700 dark:text-blue-200">Views</p>
-                      <p className="text-2xl font-semibold text-blue-700 dark:text-blue-100">{usageResults.totals.views}</p>
-                      <p className="text-[10px] text-blue-700/70 dark:text-blue-100/70">Recorded in range</p>
-                    </div>
-                    <div className="rounded-2xl border border-emerald-200/50 bg-emerald-50 px-3 py-3 dark:border-emerald-500/30 dark:bg-emerald-500/10">
-                      <p className="text-[10px] font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-200">Completions</p>
-                      <p className="text-2xl font-semibold text-emerald-700 dark:text-emerald-100">{usageResults.totals.completions}</p>
-                      <p className="text-[10px] text-emerald-700/70 dark:text-emerald-100/70">Recorded in range</p>
-                    </div>
-                  </div>
+                  <p className="text-[10px] opacity-70">{item.subtitle}</p>
                 </div>
+              ))}
+            </div>
 
-                {/* RIGHT PANEL */}
-                <div className="flex flex-col gap-1">
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    {/* Left group */}
-                    <div className="flex items-center gap-3 flex-1 min-w-0">
-                      <Badge variant="secondary" className="rounded-full bg-slate-900 text-[10px] font-semibold uppercase tracking-wide text-slate-100 shadow dark:bg-slate-800">{usageHeadline}
-                      </Badge>
-
-                      {/* totals/info group */}
-                      <div className="flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
-                        <span>{usageResults.total} result{usageResults.total === 1 ? "" : "s"}</span>
-                        <span>Showing {format(computed.dateStart, "d MMM")} –{" "}{format(computed.dateEnd, "d MMM yyyy")}</span>
-                      </div>
-                    </div>
-
-                    {/* Search input stays right-aligned */}
-                    <Input
-                      value={usageQuery}
-                      onChange={(e) => setUsageQuery(e.target.value)}
-                      placeholder={`Search ${usageHeadline}…`}
-                      className="h-9 w-full sm:w-auto sm:min-w-[240px] border-slate-200 bg-white/85 text-sm shadow-sm transition focus-visible:ring-sky-500/40 dark:border-slate-800 dark:bg-slate-900/70"
-                    />
-                  </div>
-
-                  <div className="grid gap-5 md:grid-cols-2">
-                    {/* Active list */}
-                    <div className="flex flex-col">
-                      <div className="flex items-center justify-between">
-                        <p className="text-[11px] font-semibold text-muted-foreground uppercase">Recent activity</p>
-                        <span className="inline-flex items-center rounded-full bg-emerald-100/80 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-100">
-                          {activeCount}
-                        </span>
-                      </div>
-                      <div className="mt-2 space-y-2 max-h-[275px] overflow-y-auto p-1">
-                        {usageResults.active.length ? (
-                          <ul className="space-y-2">
-                            {usageResults.active.map((item) => {
-                              const isSelected = selectedNames.includes(item.name);
-                              return (
-                                <li key={item.name}>
-                                  <button
-                                    type="button"
-                                    onClick={() => toggleSelection(usageView, item.name)}
-                                    aria-pressed={isSelected}
-                                    className={cn(
-                                      "w-full flex items-center justify-between gap-3 rounded-2xl border px-3 py-2 text-left transition cursor-pointer",
-                                      "border-slate-200/60 bg-white/80 hover:border-emerald-400/60 hover:bg-emerald-50/80 dark:border-slate-800 dark:bg-slate-900/60 dark:hover:border-emerald-400/50 dark:hover:bg-emerald-500/10",
-                                      isSelected && "border-emerald-500/70 bg-emerald-50 shadow-[0_0_0_1px_rgba(16,185,129,0.25)] dark:bg-emerald-500/15"
-                                    )}
-                                  >
-                                    <div className="min-w-0">
-                                      <p className={cn("text-sm font-medium truncate", isSelected && "text-emerald-700 dark:text-emerald-200")}>{item.name}</p>
-                                      <p className="text-xs text-muted-foreground flex items-center gap-3">
-                                        <span className="inline-flex items-center gap-1"><Eye className="h-3 w-3" /> {item.views}</span>
-                                        <span className="inline-flex items-center gap-1"><CheckCircle className="h-3 w-3" /> {item.completions}</span>
-                                      </p>
-                                    </div>
-                                    <span className={cn(
-                                      "inline-flex items-center gap-1 rounded-full border border-emerald-200 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
-                                      "bg-emerald-100 text-emerald-700 dark:border-emerald-500/60 dark:bg-emerald-500/20 dark:text-emerald-100",
-                                      isSelected && "bg-emerald-500 text-white dark:bg-emerald-400/80"
-                                    )}>
-                                      {isSelected ? "Selected" : "Active"}
-                                    </span>
-                                  </button>
-                                </li>
-                              );
-                            })}
-                          </ul>
-                        ) : (
-                          <p className="text-xs text-muted-foreground/80">No recent activity found.</p>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Inactive list */}
-                    <div className="flex flex-col">
-                      <div className="flex items-center justify-between">
-                        <p className="text-[11px] font-semibold text-muted-foreground uppercase">No recent usage</p>
-                        <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground dark:bg-muted/40">
-                          {inactiveCount}
-                        </span>
-                      </div>
-                      <div className="mt-2 space-y-2 max-h-[275px] overflow-y-auto p-1">
-                        {usageResults.inactive.length ? (
-                          <ul className="space-y-2">
-                            {usageResults.inactive.map((item) => {
-                              const isSelected = selectedNames.includes(item.name);
-                              return (
-                                <li key={item.name}>
-                                  <button
-                                    type="button"
-                                    onClick={() => toggleSelection(usageView, item.name)}
-                                    aria-pressed={isSelected}
-                                    className={cn(
-                                      "w-full flex items-center justify-between gap-3 rounded-2xl border px-3 py-2 text-left transition cursor-pointer",
-                                      "border-slate-200/60 bg-white/70 hover:border-violet-400/50 hover:bg-violet-50/80 dark:border-slate-800 dark:bg-slate-900/50 dark:hover:border-violet-400/50 dark:hover:bg-violet-500/10",
-                                      isSelected && "border-violet-500/60 bg-violet-50 shadow-[0_0_0_1px_rgba(139,92,246,0.25)] dark:bg-violet-500/15"
-                                    )}
-                                  >
-                                    <div className="min-w-0">
-                                      <p className={cn("text-sm font-medium truncate", isSelected && "text-violet-700 dark:text-violet-200")}>{item.name}</p>
-                                      <p className="text-xs text-muted-foreground">No views or completions in this range.</p>
-                                    </div>
-                                    <span className={cn(
-                                      "inline-flex items-center gap-1 rounded-full border border-slate-200 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
-                                      "bg-slate-100 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200",
-                                      isSelected && "border-violet-500 bg-violet-500 text-white"
-                                    )}>
-                                      {isSelected ? "Selected" : "Inactive"}
-                                    </span>
-                                  </button>
-                                </li>
-                              );
-                            })}
-                          </ul>
-                        ) : (
-                          <p className="text-xs text-muted-foreground/80">Everyone here has activity 🎉</p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Selections footer */}
-                  <div className="flex flex-col gap-2 pt-2 text-[11px] text-muted-foreground">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-[10px] uppercase tracking-wide text-muted-foreground/70">Knowbys</span>
-                      {selKnowbys.length === 0 && <span className="text-[11px] text-muted-foreground/60">None selected</span>}
-                      {selKnowbys.map((name) => (
-                        <Badge key={`knowby-${name}`} variant="outline" className="rounded-full border-sky-300/60 bg-sky-50/70 px-2.5 py-1 text-[11px] font-medium text-sky-700 dark:border-sky-400/50 dark:bg-sky-500/10 dark:text-sky-100">
-                          {name}
-                        </Badge>
-                      ))}
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-[10px] uppercase tracking-wide text-muted-foreground/70">Employees</span>
-                      {selEmployees.length === 0 && <span className="text-[11px] text-muted-foreground/60">None selected</span>}
-                      {selEmployees.map((name) => (
-                        <Badge key={`employee-${name}`} variant="outline" className="rounded-full border-emerald-300/60 bg-emerald-50/70 px-2.5 py-1 text-[11px] font-medium text-emerald-700 dark:border-emerald-400/50 dark:bg-emerald-500/10 dark:text-emerald-100">
-                          {name}
-                        </Badge>
-                      ))}
-                    </div>
-                    {hasUsageSelection && (
-                      <button
-                        type="button"
-                        onClick={() => clearUsageSelection(usageView)}
-                        className="self-start text-xs font-semibold text-slate-600 underline underline-offset-4 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white"
-                      >
-                        Clear {usageHeadline.toLowerCase()} filter
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Controls */}
-              <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t pt-4">
-                <div className="flex flex-wrap items-center gap-2">
-                  <button className={cn(pill(metric === "views", "views"), "cursor-pointer")} onClick={() => setMetric("views")}>
-                    <Eye className="h-4 w-4" /> Views
-                  </button>
-                  <button className={cn(pill(metric === "completions", "completions"), "cursor-pointer")} onClick={() => setMetric("completions")}>
-                    <CheckCircle className="h-4 w-4" /> Completions
-                  </button>
-                  <button className={cn(pill(metric === "both", "both"), "cursor-pointer")} onClick={() => setMetric("both")}>
-                    <Eye className="h-4 w-4" /> + <CheckCircle className="h-4 w-4" />
-                  </button>
-                  <button className={cn(pill(metric === "completionRate", "neutral"), "cursor-pointer")} onClick={() => setMetric("completionRate")}>
-                    <TrendingUp className="h-4 w-4" /> Rate
-                  </button>
-                </div>
-
-                <div className="flex flex-wrap items-center gap-2">
-                  <button className={cn(pill(chartType === "area"), "cursor-pointer")} onClick={() => setChartType("area")}>
-                    <LineChart className="h-4 w-4" /> Area
-                  </button>
-                  <button className={cn(pill(chartType === "bar"), "cursor-pointer")} onClick={() => setChartType("bar")}>
-                    <BarChart3 className="h-4 w-4" /> Bar
-                  </button>
-                </div>
-              </div>
-
-              {/* Chart block */}
-              <div className="mt-6 rounded-3xl border border-slate-200/60 bg-white/70 p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900/70">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Usage over time</h4>
-                  <span className="text-[11px] text-muted-foreground">{metric}</span>
-                </div>
-                <div className="mt-3 h-[260px] sm:h-[300px] md:h-[320px] lg:h-[340px]">
-                  {computed.keys.length === 0 ? (
-                    <div className="h-full grid place-items-center rounded-2xl border border-dashed border-slate-200/70 bg-white/70 text-sm text-muted-foreground dark:border-slate-800 dark:bg-slate-900/60">
+            <div className="space-y-3">
+                {metricButtons(metric, setMetric, chartType, setChartType)}
+                <div className="h-[220px] sm:h-[260px] md:h-[280px]">
+                  {data.keys.length === 0 ? (
+                    <div className="h-full grid place-items-center rounded-lg border border-dashed border-slate-200/70 bg-white/70 text-xs text-muted-foreground dark:border-slate-800 dark:bg-slate-900/60">
                       Select a Knowby or keep “All Knowbys” and choose a metric.
                     </div>
                   ) : (
-                    <Chart type={chartType} height="100%" options={options} series={series as any} />
+                    <Chart type={chartType} height="100%" options={options} series={data.series as any} />
                   )}
                 </div>
+            </div>
+
+            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between border-t pt-3">
+              <div className="flex flex-col gap-2 md:flex-row md:items-center md:gap-3">
+                <Tabs
+                  value={usageView}
+                  onValueChange={(v) => setUsageView(v as "knowbys" | "employees")}
+                  className="w-full md:w-auto"
+                >
+                  <TabsList
+                    className={cn(
+                      "w-full justify-between rounded-xl p-1",
+                      "border border-slate-200/70 bg-white/80 text-[11px]",
+                      "dark:border-slate-800 dark:bg-slate-900/70"
+                    )}
+                  >
+                    <TabsTrigger
+                      value="knowbys"
+                      className={cn(
+                        "flex-1 rounded-lg px-3 py-1 text-[11px] font-semibold uppercase tracking-wide",
+                        "text-muted-foreground hover:text-foreground transition-colors",
+                        "data-[state=active]:shadow",
+                        "[&[data-state=active]]:bg-sky-500 [&[data-state=active]]:text-white",
+                        "dark:[&[data-state=active]]:bg-sky-600"
+                      )}
+                    >
+                      Knowbys
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value="employees"
+                      className={cn(
+                        "flex-1 rounded-lg px-3 py-1 text-[11px] font-semibold uppercase tracking-wide",
+                        "text-muted-foreground hover:text-foreground transition-colors",
+                        "data-[state=active]:shadow",
+                        "[&[data-state=active]]:bg-emerald-500 [&[data-state=active]]:text-white",
+                        "dark:[&[data-state=active]]:bg-emerald-600"
+                      )}
+                    >
+                      Employees
+                    </TabsTrigger>
+                  </TabsList>
+                </Tabs>
+                <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
+                  <span>
+                    {usageResults.total} result{usageResults.total === 1 ? "" : "s"}
+                  </span>
+                  <span>
+                    {format(data.dateStart, "d MMM")} – {format(data.dateEnd, "d MMM yyyy")}
+                  </span>
+                </div>
               </div>
-            </section>
-          </div>
+              <Input
+                value={usageQuery}
+                onChange={(event) => setUsageQuery(event.target.value)}
+                placeholder={`Search ${usageView === "knowbys" ? "Knowbys" : "Employees"}…`}
+                className="h-8 w-full text-sm md:w-56 border-slate-200 bg-white/85 shadow-sm transition focus-visible:ring-sky-500/40 dark:border-slate-800 dark:bg-slate-900/70"
+              />
+            </div>
+
+            <div className="grid gap-3 md:grid-cols-2">
+              <UsageList
+                items={usageResults.active}
+                selected={selectedNames}
+                tone="emerald"
+                empty="No recent activity found."
+                badge="Recent activity"
+                onToggle={(name) => toggleSelection(usageView, name)}
+              />
+              <UsageList
+                items={usageResults.inactive}
+                selected={selectedNames}
+                tone="violet"
+                empty="Everyone here has activity 🎉"
+                badge="No recent usage"
+                onToggle={(name) => toggleSelection(usageView, name)}
+              />
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
+              <div className="flex flex-wrap items-center gap-1">
+                <span className="uppercase tracking-wide text-muted-foreground/70">Knowbys</span>
+                {selKnowbys.length === 0 && <span className="text-muted-foreground/60">None selected</span>}
+                {selKnowbys.map((name) => (
+                  <Badge
+                    key={`knowby-${name}`}
+                    variant="outline"
+                    className="rounded-full border-sky-300/60 bg-sky-50/70 px-2 py-0.5 text-[11px] font-medium text-sky-700 dark:border-sky-400/50 dark:bg-sky-500/10 dark:text-sky-100"
+                  >
+                    {name}
+                  </Badge>
+                ))}
+              </div>
+              <div className="flex flex-wrap items-center gap-1">
+                <span className="uppercase tracking-wide text-muted-foreground/70">Employees</span>
+                {selEmployees.length === 0 && <span className="text-muted-foreground/60">None selected</span>}
+                {selEmployees.map((name) => (
+                  <Badge
+                    key={`employee-${name}`}
+                    variant="outline"
+                    className="rounded-full border-emerald-300/60 bg-emerald-50/70 px-2 py-0.5 text-[11px] font-medium text-emerald-700 dark:border-emerald-400/50 dark:bg-emerald-500/10 dark:text-emerald-100"
+                  >
+                    {name}
+                  </Badge>
+                ))}
+              </div>
+              {hasUsageSelection && (
+                <button
+                  type="button"
+                  onClick={() => clearUsageSelection(usageView)}
+                  className="text-[11px] font-semibold text-slate-600 underline underline-offset-4 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white"
+                >
+                  Clear {(usageView === "knowbys" ? "knowbys" : "employees").toLowerCase()} filter
+                </button>
+              )}
+            </div>
+
+            <div className="rounded-lg border border-slate-200/60 bg-white/80 p-3 text-xs shadow-sm dark:border-slate-800 dark:bg-slate-900/60">
+              {hasUsageSelection ? (
+                <>
+                  <ActivityTable rows={activityRows} page={activityPage} setPage={setActivityPage} pageSize={ACTIVITY_PAGE_SIZE} />
+                </>
+              ) : (
+                <div className="space-y-1 text-[11px] text-muted-foreground/80">
+                  <p className="font-semibold uppercase tracking-wide text-muted-foreground">Activity table</p>
+                  <p>Select at least one {usageView === "knowbys" ? "knowby" : "employee"} to review activity events.</p>
+                </div>
+              )}
+            </div>
+
+          </section>
         </CardContent>
       </Card>
     </TooltipProvider>
