@@ -1,8 +1,15 @@
 'use client'
 
-import { LayoutDashboard, Settings, User, Loader2, CheckCircle, AlertCircle, ExternalLink, Compass } from 'lucide-react'
+import {
+  LayoutDashboard,
+  Settings,
+  User,
+  Loader2,
+  CheckCircle,
+  AlertCircle,
+  ExternalLink,
+} from 'lucide-react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation' // ✅ NEW
 import { Command, CommandGroup, CommandItem, CommandList } from './ui/command'
 import { useSidebar } from './Sidebar-Context'
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip'
@@ -38,7 +45,6 @@ type DialogEntry = {
 
 export default function Sidebar() {
   const { expanded } = useSidebar()
-  const pathname = usePathname() // ✅ NEW
 
   // --- Dialog state ---
   const [open, setOpen] = useState(false)
@@ -65,18 +71,22 @@ export default function Sidebar() {
   const [accountMessage, setAccountMessage] = useState('')
   const abortControllerRef = useRef<AbortController | null>(null)
 
+  // Handle the header extraction process
   const handleExtractHeaders = async () => {
     setIsLoading(true)
     setAccountStatus('idle')
     setAccountMessage('')
 
+    // AbortController for this request
     const abortController = new AbortController();
     abortControllerRef.current = abortController;
 
     try {
+      // Call the API to extract headers
       const response = await fetch('/api/extract-headers', {
         method: 'POST',
         signal: abortController.signal,
+
       })
 
       const data = await response.json()
@@ -104,11 +114,13 @@ export default function Sidebar() {
     }
   }
 
+  // --- Dialog content ---
   const dialogContent = useMemo<Record<DialogKey, DialogEntry>>(
     () => ({
       Account: {
         title: 'Account',
-        description: 'Manage your profile, organization, and notification preferences.',
+        description:
+          'Manage your profile, organization, and notification preferences.',
         body: (
           <div className="space-y-4 text-sm">
             <div className="space-y-2">
@@ -120,7 +132,11 @@ export default function Sidebar() {
               </div>
             </div>
 
-            <Button onClick={handleExtractHeaders} disabled={isLoading} className="w-full">
+            <Button
+              onClick={handleExtractHeaders}
+              disabled={isLoading}
+              className="w-full"
+            >
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -170,17 +186,23 @@ export default function Sidebar() {
                 </TabsList>
 
                 <TabsContent value="sample" className="mt-3">
-                  <p className="text-muted-foreground">Use bundled CSVs / demo endpoints for fast iteration.</p>
+                  <p className="text-muted-foreground">
+                    Use bundled CSVs / demo endpoints for fast iteration.
+                  </p>
                 </TabsContent>
                 <TabsContent value="real" className="mt-3">
-                  <p className="text-muted-foreground">Pull from the live Knowby/production sources.</p>
+                  <p className="text-muted-foreground">
+                    Pull from the live Knowby/production sources.
+                  </p>
                 </TabsContent>
               </Tabs>
             </div>
 
             <div className="text-xs opacity-70">
               Current mode: <code>{source}</code>
-              {hasUnsaved && <span className="ml-2 text-amber-500">(unsaved changes)</span>}
+              {hasUnsaved && (
+                <span className="ml-2 text-amber-500">(unsaved changes)</span>
+              )}
             </div>
           </div>
         ),
@@ -196,46 +218,24 @@ export default function Sidebar() {
     [source, switchSource, isLoading, accountStatus, accountMessage, pendingSource, hasUnsaved]
   )
 
+  // --- Menu list (no Refresh) ---
   const menuList: { group: string; items: MenuItem[] }[] = [
     {
-      group: 'Dashboard',
-      items: [
-        { link: '/', icon: LayoutDashboard, text: 'Dashboard' },
-      ],
-    },
-    {
-      group: 'Explorer',
-      items: [
-        { link: '/explorer', icon: Compass, text: 'Explorer' },
-      ],
-    },
-    {
       group: 'Account',
-      items: [{ link: '/', icon: User, text: 'Account' }], // dialog
+      items: [
+        { link: '/', icon: User, text: 'Account' },
+      ],
     },
     {
       group: 'Settings',
-      items: [{ link: '/', icon: Settings, text: 'Settings' }], // dialog
+      items: [{ link: '/', icon: Settings, text: 'Settings' }],
     },
   ]
 
-  function isDialogItem(text: MenuItem['text']) {
-    return text === 'Account' || text === 'Settings'
-  }
-
-  // ✅ Route matcher for active state
-  function isActive(link: string, text: MenuItem['text']) {
-    if (isDialogItem(text)) return false
-    if (link === '/') return pathname === '/'
-    return pathname.startsWith(link)
-  }
-
   function handleOpenDialog(item: MenuItem, e?: React.MouseEvent) {
-    if (isDialogItem(item.text)) {
-      e?.preventDefault()
-      setActiveKey(item.text)
-      setOpen(true)
-    }
+    if (e) e.preventDefault()
+    setActiveKey(item.text)
+    setOpen(true)
   }
 
   const active =
@@ -250,10 +250,23 @@ export default function Sidebar() {
       >
         {/* Logo block */}
         <div className="p-3 flex items-center justify-start">
-          <div className="relative overflow-hidden transition-all duration-300" style={{ width: expanded ? '128px' : '58px', height: '45px' }}>
+          <div
+            className="relative overflow-hidden transition-all duration-300"
+            style={{ width: expanded ? '128px' : '58px', height: '45px' }}
+          >
             <div style={{ width: '123px', height: '45px' }}>
-              <img src="./ffs_logo_full.png" alt="Logo Light" className="block dark:hidden" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-              <img src="./ffs_logo_full_dark.png" alt="Logo Dark" className="hidden dark:block" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              <img
+                src="./ffs_logo_full.png"
+                alt="Logo Light"
+                className="block dark:hidden"
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              />
+              <img
+                src="./ffs_logo_full_dark.png"
+                alt="Logo Dark"
+                className="hidden dark:block"
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              />
             </div>
           </div>
         </div>
@@ -271,47 +284,29 @@ export default function Sidebar() {
                 <CommandGroup key={key} heading={expanded ? menu.group : undefined}>
                   {menu.items.map((item) => {
                     const Icon = item.icon
-                    const activeRow = isActive(item.link, item.text) // ✅
                     return (
                       <Tooltip key={`${menu.group}-${item.text}`}>
                         <TooltipTrigger asChild>
                           <Link href={item.link} onClick={(e) => handleOpenDialog(item, e)}>
                             <CommandItem
                               className={cn(
-                                'group relative cursor-pointer transition-all duration-300 rounded-md',
+                                'group cursor-pointer transition-all duration-300 rounded-md',
                                 expanded
-                                  ? 'flex items-center gap-2 px-3 py-2 justify-start hover:bg-[var(--accent)]/50'
-                                  : 'w-12 h-12 flex items-center justify-center hover:bg-[var(--accent)]/50',
-                                activeRow && 'bg-[var(--accent)]/90'
+                                  ? 'flex items-center gap-2 px-3 py-2 justify-start hover:bg-[var(--accent)]'
+                                  : 'w-12 h-12 flex items-center justify-center hover:bg-[var(--accent)]'
                               )}
                             >
-                              {/* Icon */}
                               <Icon
                                 className={cn(
-                                  'transition-all duration-300 text-muted-foreground group-hover:text-[var(--accent-foreground)]',
-                                  activeRow && 'text-[var(--accent-foreground)]'
+                                  'transition-all duration-300 text-muted-foreground group-hover:text-[var(--accent-foreground)]'
                                 )}
-                                style={{ width: expanded ? '14px' : '18px', height: expanded ? '14px' : '18px' }}
+                                style={{
+                                  width: expanded ? '14px' : '18px',
+                                  height: expanded ? '14px' : '18px',
+                                }}
                               />
-
-                              <span
-                                aria-hidden
-                                className={cn(
-                                  'rounded-full transition-all duration-200',
-                                  expanded ? 'ml-2 h-5 w-[3px]' : 'absolute right-2 top-1/2 -translate-y-1/2 h-5 w-[3px]',
-                                  'bg-sky-500',
-                                  activeRow ? 'opacity-100 scale-100' : 'opacity-0 scale-75'
-                                )}
-                              />
-
-                              {/* Label (expanded only) */}
                               {expanded && (
-                                <span
-                                  className={cn(
-                                    'text-sm transition-colors duration-200',
-                                    activeRow ? 'text-[var(--accent-foreground)]' : 'text-foreground group-hover:text-[var(--accent-foreground)]'
-                                  )}
-                                >
+                                <span className="text-sm transition-opacity duration-200 group-hover:text-[var(--accent-foreground)]">
                                   {item.text}
                                 </span>
                               )}
@@ -335,7 +330,7 @@ export default function Sidebar() {
         </div>
       </aside>
 
-      {/* Global dialog */}
+  {/* Global dialog: we hide the top-right X so users use footer buttons instead */}
       <Dialog
         open={open}
         onOpenChange={(v) => {
@@ -345,7 +340,8 @@ export default function Sidebar() {
           }
         }}
       >
-        <DialogContent hideClose>
+  {/* hideClose removes the default X button from the dialog header */}
+  <DialogContent hideClose>
           {active ? (
             <>
               <DialogHeader>
@@ -355,6 +351,7 @@ export default function Sidebar() {
 
               <div className="mt-2">{active.body}</div>
 
+              {/* Footer buttons: simple close for Account, cancel + save for Settings */}
               <DialogFooter className="flex gap-2">
                 {activeKey === 'Settings' ? (
                   <>
@@ -371,7 +368,13 @@ export default function Sidebar() {
                     </Button>
                   </>
                 ) : (
-                  <Button variant="ghost" onClick={() => setOpen(false)}>
+                  <Button
+                    variant="ghost"
+                    onClick={() => {
+                      // Single close action for Account
+                      setOpen(false)
+                    }}
+                  >
                     Close
                   </Button>
                 )}
