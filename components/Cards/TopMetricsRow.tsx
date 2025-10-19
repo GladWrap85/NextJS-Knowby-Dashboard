@@ -248,6 +248,41 @@ export default function TopMetricsRow({ selectedDateRange }: Props) {
   const deltaRate =
     compRate === 0 && prevCompRate === 0 ? 0 : compRate - prevCompRate;
 
+  const { isAllTime } = useMemo(() => {
+    // find dataset min/max across views + completions
+    let minD: Date | null = null;
+    let maxD: Date | null = null;
+
+    const ingest = (rows: any[]) => {
+      for (const r of rows) {
+        const d = parseCsvDate(r?.date);
+        if (!d) continue;
+        if (!minD || d < minD) minD = d;
+        if (!maxD || d > maxD) maxD = d;
+      }
+    };
+
+    ingest(views ?? []);
+    ingest(completions ?? []);
+
+    // if no data, never treat as all-time
+    if (!minD || !maxD) return { isAllTime: false };
+
+    // normalize to day bounds for inclusive compare
+    const norm0 = (x: Date) => { const y = new Date(x); y.setHours(0, 0, 0, 0); return y; };
+    const normEnd = (x: Date) => { const y = new Date(x); y.setHours(23, 59, 59, 999); return y; };
+
+    const f = norm0(from);
+    const t = normEnd(to);
+    const mind = norm0(minD);
+    const maxd = normEnd(maxD);
+
+    // selected range fully covers dataset span?
+    const all = f <= mind && t >= maxd;
+
+    return { isAllTime: all };
+  }, [views, completions, from, to]);
+
   if (status === "loading") {
     return (
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-6">
@@ -289,7 +324,7 @@ export default function TopMetricsRow({ selectedDateRange }: Props) {
               <span className="text-2xl font-semibold tabular-nums dark:text-white">
                 {activeMembers.toLocaleString()}
               </span>
-              <DeltaBadge delta={deltaMembers} />
+              {!isAllTime && <DeltaBadge delta={deltaMembers} />}
             </div>
           </div>
         </Card>
@@ -313,7 +348,7 @@ export default function TopMetricsRow({ selectedDateRange }: Props) {
               <span className="text-2xl font-semibold tabular-nums dark:text-white">
                 {totalNow.toLocaleString()}
               </span>
-              <DeltaBadge delta={deltaKnowbys} />
+              {!isAllTime && <DeltaBadge delta={deltaKnowbys} />}
             </div>
           </div>
         </Card>
@@ -337,7 +372,7 @@ export default function TopMetricsRow({ selectedDateRange }: Props) {
               <span className="text-2xl font-semibold tabular-nums dark:text-white">
                 {vCount.toLocaleString()}
               </span>
-              <DeltaBadge delta={deltaViews} />
+              {!isAllTime && <DeltaBadge delta={deltaViews} />}
             </div>
           </div>
         </Card>
@@ -361,7 +396,7 @@ export default function TopMetricsRow({ selectedDateRange }: Props) {
               <span className="text-2xl font-semibold tabular-nums dark:text-white">
                 {cCount.toLocaleString()}
               </span>
-              <DeltaBadge delta={deltaCompletions} />
+              {!isAllTime && <DeltaBadge delta={deltaCompletions} />}
             </div>
           </div>
         </Card>
@@ -385,7 +420,7 @@ export default function TopMetricsRow({ selectedDateRange }: Props) {
               <span className="text-2xl font-semibold tabular-nums dark:text-white">
                 {pct(compRate || 0)}
               </span>
-              <DeltaBadge delta={deltaRate} isRate />
+              {!isAllTime && <DeltaBadge delta={deltaRate} />}
             </div>
           </div>
         </Card>
