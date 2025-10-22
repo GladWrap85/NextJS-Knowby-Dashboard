@@ -1,4 +1,3 @@
-// components/Cards/KnowbyStatsMiniCardCompact.tsx
 "use client";
 
 import React, { useMemo, useState, useEffect } from "react";
@@ -345,7 +344,7 @@ export default function KnowbyStats({ selectedDateRange, className }: Props) {
 
               {/* Sparkline (h-8) */}
               <div
-                className="hidden sm:flex items-center rounded-lg pl-2.5 pr-2 py-0 ring-1 h-8 bg-white/60 text-slate-700 ring-black/10 dark:bg-black/10 dark:text-slate-200 dark:ring-white/10"
+                className="hidden sm:flex items-center rounded-lg pl-2 pr-2 py-0 ring-1 h-8 bg-white/60 text-slate-700 ring-black/10 dark:bg-black/10 dark:text-slate-200 dark:ring-white/10"
                 title="Activity trend for selected metric"
               >
                 <div className="h-[24px] w-[100px] -my-[2px]">
@@ -404,7 +403,7 @@ export default function KnowbyStats({ selectedDateRange, className }: Props) {
           <div
             className={cn(
               "flex-1 min-h-0 rounded-2xl ring-1 ring-black/10 dark:ring-white/10",
-              "bg-white/60 dark:bg-black/10 p-3"
+              "dark:bg-black/10 p-3"
             )}
           >
             <div className="mb-2 flex items-center justify-between">
@@ -413,7 +412,7 @@ export default function KnowbyStats({ selectedDateRange, className }: Props) {
             </div>
 
             {/* Accent + paged table (no scroll in card) */}
-            <div className="min-h-0 rounded-lg ring-1 ring-black/10 dark:ring-white/10">
+            <div className="h-[200px] rounded-2xl ring-1 ring-black/10 dark:ring-white/10 pt-0 px-0 bg-white/60 dark:bg-black/10 overflow-hidden">
               <div className={cn("h-1 w-full", activeMeta.color)} />
 
               <MiniTable rows={pageRows} />
@@ -421,7 +420,7 @@ export default function KnowbyStats({ selectedDateRange, className }: Props) {
               {/* Pager */}
               <div className="flex items-center justify-between px-3 py-2">
                 <div className="text-[11px] text-muted-foreground">
-                  {total === 0 ? "0 results" : `${startIdx + 1}–${endIdx} of ${total}`}
+                  {total === 0 ? "0 results" : `Showing ${startIdx + 1}–${endIdx} of ${total}`}
                 </div>
                 <div className="flex items-center gap-1.5">
                   <Button
@@ -495,9 +494,9 @@ function MiniTable({ rows }: { rows: any[] }) {
   ];
 
   return (
-    <table className="w-full text-[11px]">
+    <table className="w-full text-[12px]">
       <thead
-        className="sticky top-0 z-10 bg-white/90 backdrop-blur-sm dark:bg-black/30 border-b border-slate-200/70 dark:border-white/10">
+        className="sticky top-0 z-10 bg-white/90 dark:bg-black/30 border-b border-slate-200/70 dark:border-white/10">
         <tr className="[&>th]:py-2 [&>th]:px-3 text-left">
           {cols.map((h) => (
             <th

@@ -18,7 +18,7 @@ import {
   startOfMonth,
   startOfWeek,
 } from "date-fns";
-import { Eye, CheckCircle, TrendingUp, BarChart3, LineChart, Search, InfoIcon } from "lucide-react";
+import { Eye, CheckCircle, TrendingUp, BarChart3, LineChart, Search, InfoIcon, ChevronLeft, ChevronRight } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -29,6 +29,7 @@ import { useDarkMode } from "@/components/NivoWrapper";
 import { topChartOptions } from "@/lib/chartOptions";
 import type { ApexOptions } from "apexcharts";
 import { cn } from "@/lib/utils";
+import { Button } from "../ui/button";
 
 const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
@@ -80,7 +81,7 @@ const pill = (
     completions:
       "bg-emerald-100 text-emerald-700 ring-emerald-200 dark:bg-emerald-500/20 dark:text-emerald-300 dark:ring-white/10",
     both:
-      "bg-violet-100 text-violet-700 ring-violet-200 dark:bg-violet-500/20 dark:text-violet-300 dark:ring-white/10",
+      "bg-purple-100 text-purple-700 ring-purple-200 dark:bg-purple-500/20 dark:text-purple-300 dark:ring-white/10",
     neutral:
       "bg-muted/60 text-foreground/80 ring-black/5 dark:ring-white/10",
   } as const)[tone]}
@@ -420,37 +421,24 @@ const metricButtons = (
       {[
         { key: "views" as const, label: "Views", icon: Eye, tone: "views" as const },
         { key: "completions" as const, label: "Completions", icon: CheckCircle, tone: "completions" as const },
-        {
-          key: "both" as const,
-          label: "Views + Completions",
-          icon: Eye,
-          secondary: CheckCircle,
-          tone: "both" as const,
-        },
+        { key: "both" as const, label: "Views + Completions", icon: Eye, secondary: CheckCircle, tone: "both" as const },
         { key: "completionRate" as const, label: "Rate", icon: TrendingUp, tone: "neutral" as const },
       ].map(({ key, label, icon: Icon, secondary: Secondary, tone }) => (
-        <button
-          key={key}
-          onClick={() => setMetric(key)}
-          className={cn(pill(metric === key, tone), "cursor-pointer px-2 py-1")}
-        >
-          <Icon className="h-3.5 w-3.5" />
-          <span>{label}</span>
-          {Secondary && <Secondary className="h-3.5 w-3.5" />}
+        <button key={key} onClick={() => setMetric(key)} className={cn(pill(metric === key, tone), "flex items-center gap-1 cursor-pointer px-2 py-1")}>
+          {key === "both" ? (
+            <>
+              <Icon className="h-3.5 w-3.5" />
+              <span className="flex items-center gap-1">
+                Views + <Secondary className="h-3.5 w-3.5" /> Completions
+              </span>
+            </>
+          ) : (
+            <>
+              <Icon className="h-3.5 w-3.5" />
+              <span>{label}</span>
+            </>
+          )}
         </button>
-      ))}
-    </div>
-    <div className="flex flex-wrap items-center gap-2">
-      {[{ key: "area" as const, icon: LineChart, label: "Area" }, { key: "bar" as const, icon: BarChart3, label: "Bar" }].map(
-        ({ key, icon: Icon, label }) => (
-          <button
-            key={key}
-            onClick={() => setChartType(key)}
-            className={cn(pill(chartType === key), "cursor-pointer px-2 py-1")}
-          >
-            <Icon className="h-3.5 w-3.5" />
-            <span>{label}</span>
-          </button>
         )
       )}
     </div>
@@ -497,7 +485,7 @@ const UsageList = ({
 
   return (
     <div className="rounded-lg border border-slate-200/60 bg-white/80 p-3 text-xs dark:border-slate-800 dark:bg-slate-900/60">
-      <div className="flex items-center justify-between text-[11px] font-semibold uppercase text-muted-foreground">
+      <div className="flex items-center justify-between text-[11px] font-semibold text-muted-foreground">
         <span>{badge}</span>
         <span
           className={cn(
@@ -531,7 +519,7 @@ const UsageList = ({
                       <p className={cn("truncate font-medium", isSelected && toneClasses.text)}>
                         {item.name}
                       </p>
-                      <p className="mt-0.5 flex items-center gap-2 text-[11px] text-muted-foreground">
+                      <p className="mt-0.5 flex items-center gap-2 text-[12px] text-muted-foreground">
                         <span className="inline-flex items-center gap-1">
                           <Eye className="h-3 w-3" /> {item.views}
                         </span>
@@ -583,10 +571,11 @@ const ActivityTable = ({ rows, page, setPage, pageSize }: ActivityTableProps) =>
   const paged = rows.slice(start, end);
   const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
   return (
-    <div className="space-y-3">
+    <div className="h-full rounded-2xl ring-1 ring-black/10 dark:ring-white/10 pt-0 px-0 bg-white/60 dark:bg-black/10 overflow-hidden">
+      <div className="h-1 w-full bg-lime-500"></div>
       <div className="overflow-x-auto">
-        <table className="w-full text-[11px]">
-          <thead className="sticky top-0 z-10 bg-white/90 backdrop-blur-sm dark:bg-black/30 border-b border-slate-200/70 dark:border-white/10">
+        <table className="w-full text-[12px]">
+          <thead className="sticky top-0 z-10 bg-white/90 dark:bg-black/30 border-b border-slate-200/70 dark:border-white/10">
             <tr className="[&>th]:py-2 [&>th]:px-3 text-left">
               {[
                 "Knowby",
@@ -635,40 +624,32 @@ const ActivityTable = ({ rows, page, setPage, pageSize }: ActivityTableProps) =>
           </tbody>
         </table>
       </div>
-      <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-muted-foreground">
-        <span>
-          Showing {start + 1}–{end} of {rows.length}
-        </span>
-        <div className="flex items-center gap-1">
-          <button
-            type="button"
-            onClick={() => setPage((prev) => Math.max(prev - 1, 0))}
+      {/* Pager */}
+      <div className="flex items-center justify-between px-3 py-2">
+        <div className="text-[11px] text-muted-foreground">
+          {rows.length === 0 ? "0 results" : `Showing ${start + 1}–${end} of ${rows.length}`}
+        </div>
+        <div className="flex items-center gap-1.5">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 px-2"
+            onClick={() => setPage((p) => Math.max(0, p - 1))}
             disabled={page === 0}
-            className={cn(
-              "inline-flex items-center rounded border px-2 py-0.5 font-semibold uppercase tracking-wide transition",
-              page === 0
-                ? "cursor-not-allowed border-slate-200 text-slate-300 dark:border-slate-700 dark:text-slate-600"
-                : "border-slate-300 text-slate-600 hover:border-slate-400 hover:text-slate-900 dark:border-slate-600 dark:text-slate-200 dark:hover:border-slate-500 dark:hover:text-white"
-            )}
           >
-            Prev
-          </button>
-          <span className="px-1">
-            Page {page + 1} of {totalPages}
-          </span>
-          <button
-            type="button"
-            onClick={() => setPage((prev) => Math.min(prev + 1, totalPages - 1))}
-            disabled={page >= totalPages - 1}
-            className={cn(
-              "inline-flex items-center rounded border px-2 py-0.5 font-semibold uppercase tracking-wide transition",
-              page >= totalPages - 1
-                ? "cursor-not-allowed border-slate-200 text-slate-300 dark:border-slate-700 dark:text-slate-600"
-                : "border-slate-300 text-slate-600 hover:border-slate-400 hover:text-slate-900 dark:border-slate-600 dark:text-slate-200 dark:hover:border-slate-500 dark:hover:text-white"
-            )}
+            <ChevronLeft className="h-4 w-4" />
+            <span className="ml-1 text-xs hover:cursor-pointer">Prev</span>
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 px-2"
+            onClick={() => setPage((p) => (end < rows.length ? p + 1 : p))}
+            disabled={end >= rows.length}
           >
-            Next
-          </button>
+            <span className="mr-1 text-xs hover:cursor-pointer">Next</span>
+            <ChevronRight className="h-4 w-4" />
+          </Button>
         </div>
       </div>
     </div>
@@ -778,6 +759,8 @@ export default function AnalyticsExplorer({ selectedDateRange }: Props) {
   const employeeStats = countActiveInactive(data.usage.employees);
   const summary = summaryCards(knowbyStats, employeeStats);
 
+  const hasKnowbySelection = selKnowbys.length > 0;
+  const hasEmployeeSelection = selEmployees.length > 0;
 
   if (status === "loading") {
     return (
@@ -814,19 +797,19 @@ export default function AnalyticsExplorer({ selectedDateRange }: Props) {
                   key={item.title}
                   className={cn(
                     "flex items-center justify-between rounded-xl border px-3 py-1.5",
-                    "bg-white/60 dark:bg-slate-900/40 backdrop-blur-sm",
+                    "bg-white/60 dark:bg-slate-900/40",
                     "text-xs md:text-sm font-medium",
                     "shadow-sm hover:shadow transition-all",
                     item.className
                   )}
                 >
                   <div className="flex flex-col leading-tight">
-                    <p className="text-[10px] font-semibold uppercase tracking-wide opacity-70">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide opacity-70">
                       {item.title}
                     </p>
                     <p className="text-sm md:text-base font-bold">{item.value}</p>
                   </div>
-                  <p className="text-[10px] opacity-70">{item.subtitle}</p>
+                  <p className="text-[11px] opacity-70">{item.subtitle}</p>
                 </div>
               ))}
             </div>
@@ -853,9 +836,9 @@ export default function AnalyticsExplorer({ selectedDateRange }: Props) {
                 >
                   <TabsList
                     className={cn(
-                      "w-full justify-between rounded-xl p-1",
-                      "border border-slate-200/70 bg-white/80 text-[11px]",
-                      "dark:border-slate-800 dark:bg-slate-900/70"
+                      "w-full justify-between rounded-lg p-1",
+                      "ring-1 ring-black/10 dark:ring-white/10 text-[11px]",
+                      "bg-white/60 dark:bg-black/10"
                     )}
                   >
                     <TabsTrigger
@@ -897,7 +880,7 @@ export default function AnalyticsExplorer({ selectedDateRange }: Props) {
                 value={usageQuery}
                 onChange={(event) => setUsageQuery(event.target.value)}
                 placeholder={`Search ${usageView === "knowbys" ? "Knowbys" : "Employees"}…`}
-                className="h-8 w-full text-sm md:w-56 border-slate-200 bg-white/85 shadow-sm transition focus-visible:ring-sky-500/40 dark:border-slate-800 dark:bg-slate-900/70"
+                className="h-8 w-full text-sm md:w-56 shadow-sm transition rounded-2xl ring-1 ring-black/10 dark:ring-white/10 p-3 bg-white/60 dark:bg-black/10"
               />
             </div>
 
@@ -915,57 +898,91 @@ export default function AnalyticsExplorer({ selectedDateRange }: Props) {
                 selected={selectedNames}
                 tone="violet"
                 empty="Everyone here has activity 🎉"
-                badge="No recent usage"
+                badge="No Recent Usage"
                 onToggle={(name) => toggleSelection(usageView, name)}
               />
             </div>
 
-            <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
-              <div className="flex flex-wrap items-center gap-1">
-                <span className="uppercase tracking-wide text-muted-foreground/70">Knowbys</span>
-                {selKnowbys.length === 0 && <span className="text-muted-foreground/60">None selected</span>}
-                {selKnowbys.map((name) => (
-                  <Badge
-                    key={`knowby-${name}`}
-                    variant="outline"
-                    className="rounded-full border-sky-300/60 bg-sky-50/70 px-2 py-0.5 text-[11px] font-medium text-sky-700 dark:border-sky-400/50 dark:bg-sky-500/10 dark:text-sky-100"
-                  >
-                    {name}
-                  </Badge>
-                ))}
+            <div className="flex flex-col gap-2">
+              {/* Selected chips */}
+              <div className="flex flex-wrap items-center gap-2 text-[11px]">
+                <div className="flex flex-wrap items-center gap-1">
+                  <span className="uppercase tracking-wide text-muted-foreground/70">Knowbys</span>
+                  {selKnowbys.length === 0 && <span className="text-muted-foreground/60">None selected</span>}
+                  {selKnowbys.map((name) => (
+                    <Badge
+                      key={`knowby-${name}`}
+                      variant="outline"
+                      className="rounded-full border-sky-300/60 bg-sky-50/70 px-2 py-0.5 text-[11px] font-medium text-sky-700 dark:border-sky-400/50 dark:bg-sky-500/10 dark:text-sky-100"
+                    >
+                      {name}
+                    </Badge>
+                  ))}
+                </div>
+
+                <div className="flex flex-wrap items-center gap-1">
+                  <span className="uppercase tracking-wide text-muted-foreground/70">Employees</span>
+                  {selEmployees.length === 0 && <span className="text-muted-foreground/60">None selected</span>}
+                  {selEmployees.map((name) => (
+                    <Badge
+                      key={`employee-${name}`}
+                      variant="outline"
+                      className="rounded-full border-emerald-300/60 bg-emerald-50/70 px-2 py-0.5 text-[11px] font-medium text-emerald-700 dark:border-emerald-400/50 dark:bg-emerald-500/10 dark:text-emerald-100"
+                    >
+                      {name}
+                    </Badge>
+                  ))}
+                </div>
               </div>
-              <div className="flex flex-wrap items-center gap-1">
-                <span className="uppercase tracking-wide text-muted-foreground/70">Employees</span>
-                {selEmployees.length === 0 && <span className="text-muted-foreground/60">None selected</span>}
-                {selEmployees.map((name) => (
-                  <Badge
-                    key={`employee-${name}`}
-                    variant="outline"
-                    className="rounded-full border-emerald-300/60 bg-emerald-50/70 px-2 py-0.5 text-[11px] font-medium text-emerald-700 dark:border-emerald-400/50 dark:bg-emerald-500/10 dark:text-emerald-100"
+
+              {/* Clear actions */}
+              <div className="flex flex-wrap items-center gap-3">
+                {hasKnowbySelection && (
+                  <button
+                    type="button"
+                    onClick={() => clearUsageSelection("knowbys")}
+                    className="text-[11px] font-semibold text-slate-600 underline underline-offset-4 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white"
                   >
-                    {name}
-                  </Badge>
-                ))}
+                    Clear knowbys filter
+                  </button>
+                )}
+                {hasEmployeeSelection && (
+                  <button
+                    type="button"
+                    onClick={() => clearUsageSelection("employees")}
+                    className="text-[11px] font-semibold text-slate-600 underline underline-offset-4 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white"
+                  >
+                    Clear employees filter
+                  </button>
+                )}
+                {(hasKnowbySelection || hasEmployeeSelection) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelKnowbys([]);
+                      setSelEmployees([]);
+                    }}
+                    className="text-[11px] font-semibold text-slate-600 underline underline-offset-4 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white"
+                  >
+                    Clear all
+                  </button>
+                )}
               </div>
-              {hasUsageSelection && (
-                <button
-                  type="button"
-                  onClick={() => clearUsageSelection(usageView)}
-                  className="text-[11px] font-semibold text-slate-600 underline underline-offset-4 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white"
-                >
-                  Clear {(usageView === "knowbys" ? "knowbys" : "employees").toLowerCase()} filter
-                </button>
-              )}
             </div>
 
-            <div className="rounded-lg border border-slate-200/60 bg-white/80 p-3 text-xs shadow-sm dark:border-slate-800 dark:bg-slate-900/60">
+
+            <div className="">
+              <div className="mb-2 flex items-center justify-between">
+                <div className="text-sm font-medium">Activity Log</div>
+                <div className="text-[11px] text-muted-foreground">Log shows data from list above</div>
+              </div>
+
               {hasUsageSelection ? (
                 <>
                   <ActivityTable rows={activityRows} page={activityPage} setPage={setActivityPage} pageSize={ACTIVITY_PAGE_SIZE} />
                 </>
               ) : (
                 <div className="space-y-1 text-[11px] text-muted-foreground/80">
-                  <p className="font-semibold uppercase tracking-wide text-muted-foreground">Activity table</p>
                   <p>Select at least one {usageView === "knowbys" ? "knowby" : "employee"} to review activity events.</p>
                 </div>
               )}
