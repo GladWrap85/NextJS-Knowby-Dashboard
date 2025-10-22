@@ -285,20 +285,20 @@ export default function TopKnowbyCard({ selectedDateRange }: TopKnowbyCardProps)
         </div>
 
         {/* ======= TABLE (styled like Knowby Stats) ======= */}
-        <CardContent className="h-full rounded-2xl ring-1 ring-black/10 dark:ring-white/10 pt-0 px-0 bg-white/60 dark:bg-black/10 overflow-hidden">
+        <CardContent className="h-full rounded-2xl ring-1 ring-black/10 dark:ring-white/10 pt-0 px-0 overflow-hidden dark:bg-black/10">
           {/* Accent bar to match the Stats card feel */}
           <div className="h-1 w-full bg-indigo-500/60 dark:bg-indigo-500/50" />
 
           {/* no horizontal scroll */}
           <div className="overflow-hidden">
-            <table className="w-full text-[11.5px] table-fixed">
+            <table className="w-full text-[12px] table-fixed">
               {/* name flexes; rate is a fixed, responsive width */}
               <colgroup>
                 <col />
                 <col className="w-[4.75rem] 2xl:w-[8.5rem]" />
               </colgroup>
 
-              <thead className="bg-white/80 backdrop-blur-sm dark:bg-black/30">
+              <thead className="bg-white/80 dark:bg-black/30">
                 <tr className="border-b border-slate-200/70 dark:border-white/10 text-left">
                   <th className="font-bold text-slate-700 dark:text-slate-100 py-2 pl-6 pr-2">
                     Knowby

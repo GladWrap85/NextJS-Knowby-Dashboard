@@ -156,11 +156,11 @@ const RAMPS: Record<Metric, string[]> = {
   ],
   both: [
     "bg-slate-100 dark:bg-white/5",
-    "bg-violet-100 dark:bg-violet-950/30",
-    "bg-violet-200 dark:bg-violet-900/40",
-    "bg-violet-300 dark:bg-violet-800/50",
-    "bg-violet-400 dark:bg-violet-700/60",
-    "bg-violet-500 text-white dark:bg-violet-500/80 shadow-[0_2px_10px_-4px] shadow-violet-400/40 dark:shadow-[0_0_12px] dark:shadow-violet-500/30",
+    "bg-purple-100 dark:bg-purple-950/30",
+    "bg-purple-200 dark:bg-purple-900/40",
+    "bg-purple-300 dark:bg-purple-800/50",
+    "bg-purple-400 dark:bg-purple-700/60",
+    "bg-purple-500 text-white dark:bg-purple-500/80 shadow-[0_2px_10px_-4px] shadow-purple-400/40 dark:shadow-[0_0_12px] dark:shadow-purple-500/30",
   ],
 };
 
@@ -443,44 +443,39 @@ export default function UsageHeatmap({ selectedDateRange }: Props) {
 
           {/* Metric chips */}
           <div className="ml-auto flex items-center gap-2 text-xs">
+            {/* Views */}
             <button
               onClick={() => setMetric("views")}
-              className={`inline-flex items-center hover:cursor-pointer gap-1 rounded-full px-2.5 py-1 ring-1 transition
-              ${"bg-sky-100 text-sky-700 ring-sky-200 dark:bg-sky-500/20 dark:text-sky-300 dark:ring-white/10"}
-              ${
-                metric === "views"
-                  ? "font-semibold"
-                  : "opacity-35 hover:opacity-90"
-              }`}
+              className={`inline-flex items-center hover:cursor-pointer gap-1 rounded-full px-2.5 py-1 ring-1 transition bg-sky-100 text-sky-700 ring-sky-200 dark:bg-sky-500/20 dark:text-sky-300 dark:ring-white/10
+              ${metric === "views" ? "font-semibold" : "opacity-35 hover:opacity-90"}`}
               title="Show views"
             >
-              <Eye className="h-3.5 w-3.5" /> Views
+              <Eye className="h-3.5 w-3.5" />
+              Views
             </button>
+
+            {/* Completions */}
             <button
               onClick={() => setMetric("completions")}
-              className={`inline-flex items-center hover:cursor-pointer gap-1 rounded-full px-2.5 py-1 ring-1 transition
-              ${"bg-emerald-100 text-emerald-700 ring-emerald-200 dark:bg-emerald-500/20 dark:text-emerald-300 dark:ring-white/10"}
-              ${
-                metric === "completions"
-                  ? "font-semibold"
-                  : "opacity-35 hover:opacity-90"
-              }`}
+              className={`inline-flex items-center hover:cursor-pointer gap-1 rounded-full px-2.5 py-1 ring-1 transition bg-emerald-100 text-emerald-700 ring-emerald-200 dark:bg-emerald-500/20 dark:text-emerald-300 dark:ring-white/10
+            ${metric === "completions" ? "font-semibold" : "opacity-35 hover:opacity-90"}`}
               title="Show completions"
             >
-              <CheckCircle className="h-3.5 w-3.5" /> Completions
+              <CheckCircle className="h-3.5 w-3.5" />
+              Completions
             </button>
+
+            {/* Both */}
             <button
               onClick={() => setMetric("both")}
-              className={`inline-flex items-center hover:cursor-pointer gap-1 rounded-full px-2.5 py-1 ring-1 transition
-              ${"bg-fuchsia-100 text-fuchsia-700 ring-fuchsia-200 dark:bg-fuchsia-500/20 dark:text-fuchsia-300 dark:ring-white/10"}
-              ${
-                metric === "both"
-                  ? "font-semibold"
-                  : "opacity-35 hover:opacity-90"
-              }`}
+              className={`inline-flex items-center hover:cursor-pointer gap-1 rounded-full px-2.5 py-1 ring-1 transition bg-purple-100 text-purple-700 ring-purple-200 dark:bg-purple-500/20 dark:text-purple-300 dark:ring-white/10
+              ${metric === "both" ? "font-semibold" : "opacity-35 hover:opacity-90"}`}
               title="Show both"
             >
-              Views + Comp
+              <Eye className="h-3.5 w-3.5" />
+              <span className="flex items-center gap-1">
+                Views + <CheckCircle className="h-3.5 w-3.5" /> Completions
+              </span>
             </button>
           </div>
         </div>
