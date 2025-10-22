@@ -27,12 +27,12 @@ export interface CompletionData {
   knowby_name?: string;
   member_id?: string;
   member_name?: string;
-  date: string;                 // dd/MM/yyyy (original)
-  time?: string;                // HH:mm:ss (optional)
-  datetime?: string;            // ISO string (optional, if you ever add it)
-  parsedDateTime?: Date;        // added: parsed once (date+time)
-  ts?: number;                  // added: parsedDateTime.getTime()
-  ymd?: string;                 // added: 'YYYY-MM-DD' key
+  date: string; // dd/MM/yyyy (original)
+  time?: string; // HH:mm:ss (optional)
+  datetime?: string; // ISO string (optional, if you ever add it)
+  parsedDateTime?: Date; // added: parsed once (date+time)
+  ts?: number; // added: parsedDateTime.getTime()
+  ymd?: string; // added: 'YYYY-MM-DD' key
 }
 
 export interface ViewData {
@@ -41,12 +41,12 @@ export interface ViewData {
   knowby_name?: string;
   member_id?: string;
   member_name?: string;
-  date: string;                 // dd/MM/yyyy (original)
-  time?: string;                // HH:mm:ss (optional)
-  datetime?: string;            // ISO string (optional)
-  parsedDateTime?: Date;        // added
-  ts?: number;                  // added
-  ymd?: string;                 // added
+  date: string; // dd/MM/yyyy (original)
+  time?: string; // HH:mm:ss (optional)
+  datetime?: string; // ISO string (optional)
+  parsedDateTime?: Date; // added
+  ts?: number; // added
+  ymd?: string; // added
 }
 
 /** Knowby catalog row (from knowbys.csv / scraperpublished.csv) */
@@ -97,7 +97,12 @@ type KnowbyCtx = {
   lastUpdated: number | null;
 };
 
-type CacheEntry = { c: CompletionData[]; v: ViewData[]; k: KnowbyMeta[]; t: number };
+type CacheEntry = {
+  c: CompletionData[];
+  v: ViewData[];
+  k: KnowbyMeta[];
+  t: number;
+};
 const Ctx = createContext<KnowbyCtx | null>(null);
 
 /* -------------------- Helpers -------------------- */
@@ -122,11 +127,16 @@ function parseDDMMYYYY_withTime(
   if (isoDateTimeStr) {
     const d = new Date(isoDateTimeStr);
     if (!isNaN(d.getTime())) {
-      const y = d.getFullYear(), m = d.getMonth() + 1, day = d.getDate();
+      const y = d.getFullYear(),
+        m = d.getMonth() + 1,
+        day = d.getDate();
       return {
         parsedDateTime: d,
         ts: d.getTime(),
-        ymd: `${y}-${String(m).padStart(2, "0")}-${String(day).padStart(2, "0")}`,
+        ymd: `${y}-${String(m).padStart(2, "0")}-${String(day).padStart(
+          2,
+          "0"
+        )}`,
       };
     }
   }
@@ -134,7 +144,9 @@ function parseDDMMYYYY_withTime(
   if (!dateStr) return null;
 
   // Parse dd/MM/yyyy
-  const [dd, mm, yyyy] = String(dateStr).split("/").map((x) => parseInt(String(x).trim(), 10));
+  const [dd, mm, yyyy] = String(dateStr)
+    .split("/")
+    .map((x) => parseInt(String(x).trim(), 10));
   if (!yyyy || !mm || !dd) return null;
 
   const d = new Date(yyyy, mm - 1, dd);
@@ -142,13 +154,21 @@ function parseDDMMYYYY_withTime(
   // Apply time if available (HH:mm or HH:mm:ss)
   if (timeStr) {
     const [hh = "0", min = "0", ss = "0"] = timeStr.split(":");
-    d.setHours(parseInt(hh, 10) || 0, parseInt(min, 10) || 0, parseInt(ss, 10) || 0, 0);
+    d.setHours(
+      parseInt(hh, 10) || 0,
+      parseInt(min, 10) || 0,
+      parseInt(ss, 10) || 0,
+      0
+    );
   }
 
   return {
     parsedDateTime: d,
     ts: d.getTime(),
-    ymd: `${yyyy}-${String(mm).padStart(2, "0")}-${String(dd).padStart(2, "0")}`,
+    ymd: `${yyyy}-${String(mm).padStart(2, "0")}-${String(dd).padStart(
+      2,
+      "0"
+    )}`,
   };
 }
 
@@ -205,25 +225,39 @@ function asViewRow(row: any): ViewData | null {
 
 /** Parse a catalog row from knowbys.csv / scraperpublished.csv */
 function asKnowbyRow(row: any): KnowbyMeta | null {
-  const knowby_id = String(coalesce(row, ["knowby_id", "id", "Knowby Id"]) ?? "").trim();
+  const knowby_id = String(
+    coalesce(row, ["knowby_id", "id", "Knowby Id"]) ?? ""
+  ).trim();
   if (!knowby_id) return null;
 
   const knowby_name =
     coalesce(row, ["knowby_name", "name", "title", "Knowby Name"]) ?? undefined;
 
   // in asKnowbyRow
-  const created_date =
-    (coalesce(row, ["created_date", "published_date", "date", "created_at"]) as string | undefined)?.trim();
+  const created_date = (
+    coalesce(row, ["created_date", "published_date", "date", "created_at"]) as
+      | string
+      | undefined
+  )?.trim();
 
-  const created_time =
-    (coalesce(row, ["created_time", "published_time", "time"]) as string | undefined)?.trim();
+  const created_time = (
+    coalesce(row, ["created_time", "published_time", "time"]) as
+      | string
+      | undefined
+  )?.trim();
 
   // only real datetime-like fields here
-  const created_datetime =
-    (coalesce(row, ["created_datetime", "published_datetime", "datetime"]) as string | undefined)?.trim();
+  const created_datetime = (
+    coalesce(row, ["created_datetime", "published_datetime", "datetime"]) as
+      | string
+      | undefined
+  )?.trim();
 
-
-  const parsed = parseDDMMYYYY_withTime(created_date, created_time, created_datetime);
+  const parsed = parseDDMMYYYY_withTime(
+    created_date,
+    created_time,
+    created_datetime
+  );
 
   return {
     knowby_id,
@@ -239,18 +273,32 @@ function asKnowbyRow(row: any): KnowbyMeta | null {
 
 /* -------------------- Provider -------------------- */
 
-export function KnowbyDataProvider({ children }: { children: React.ReactNode }) {
+export function KnowbyDataProvider({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   // pick initial mode: localStorage -> env -> 'sample'
   const [source, setSource] = useState<DataSource>(() => {
-    const envDefault = (process.env.NEXT_PUBLIC_DATA_SOURCE as DataSource | undefined) ?? "sample";
+    const envDefault =
+      (process.env.NEXT_PUBLIC_DATA_SOURCE as DataSource | undefined) ??
+      "sample";
     if (typeof window === "undefined") return envDefault;
-    return (localStorage.getItem("ffs:dataMode") as DataSource | null) ?? envDefault;
+    return (
+      (localStorage.getItem("ffs:dataMode") as DataSource | null) ?? envDefault
+    );
   });
 
   useEffect(() => {
-    try { localStorage.setItem("ffs:dataMode", source); } catch { /* no-op */ }
+    try {
+      localStorage.setItem("ffs:dataMode", source);
+    } catch {
+      /* no-op */
+    }
     if (typeof window !== "undefined") {
-      window.dispatchEvent(new CustomEvent("ffs:dataMode-change", { detail: { dataMode: source } }));
+      window.dispatchEvent(
+        new CustomEvent("ffs:dataMode-change", { detail: { dataMode: source } })
+      );
     }
   }, [source]);
 
@@ -267,7 +315,11 @@ export function KnowbyDataProvider({ children }: { children: React.ReactNode }) 
 
   const fetchFor = useCallback(
     async (src: DataSource, signal?: AbortSignal) => {
-      const { completions: compUrl, views: viewUrl, knowbys: knowbyUrl } = ENDPOINTS[src];
+      const {
+        completions: compUrl,
+        views: viewUrl,
+        knowbys: knowbyUrl,
+      } = ENDPOINTS[src];
 
       const [compText, viewText, knowbyText] = await Promise.all([
         fetch(compUrl, { signal }).then((r) => r.text()),
@@ -275,25 +327,30 @@ export function KnowbyDataProvider({ children }: { children: React.ReactNode }) 
         fetch(knowbyUrl, { signal }).then((r) => r.text()),
       ]);
 
-      const rawC = Papa.parse(compText, { header: true, skipEmptyLines: true }).data as any[];
-      const rawV = Papa.parse(viewText, { header: true, skipEmptyLines: true }).data as any[];
-      const rawK = Papa.parse(knowbyText, { header: true, skipEmptyLines: true }).data as any[];
+      const rawC = Papa.parse(compText, { header: true, skipEmptyLines: true })
+        .data as any[];
+      const rawV = Papa.parse(viewText, { header: true, skipEmptyLines: true })
+        .data as any[];
+      const rawK = Papa.parse(knowbyText, {
+        header: true,
+        skipEmptyLines: true,
+      }).data as any[];
 
       // Map → type-safe arrays; drop clearly invalid rows; attach parsed fields once.
       const c: CompletionData[] = rawC
         .map(asCompletionRow)
         .filter((r): r is CompletionData => r !== null)
-        .sort((a, b) => (a.ts! - b.ts!));
+        .sort((a, b) => a.ts! - b.ts!);
 
       const v: ViewData[] = rawV
         .map(asViewRow)
         .filter((r): r is ViewData => r !== null)
-        .sort((a, b) => (a.ts! - b.ts!));
+        .sort((a, b) => a.ts! - b.ts!);
 
       const k: KnowbyMeta[] = rawK
         .map(asKnowbyRow)
         .filter((r): r is KnowbyMeta => !!r && r.createdTs != null)
-        .sort((a, b) => (a.createdTs! - b.createdTs!));
+        .sort((a, b) => a.createdTs! - b.createdTs!);
 
       return { c, v, k };
     },
@@ -366,16 +423,21 @@ export function KnowbyDataProvider({ children }: { children: React.ReactNode }) 
   useEffect(() => {
     switchSource(source);
     return () => abortRef.current?.abort();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
     const handler = (e: Event) => {
-      const mode = (e as CustomEvent).detail?.dataMode as DataSource | undefined;
+      const mode = (e as CustomEvent).detail?.dataMode as
+        | DataSource
+        | undefined;
       if (mode === "sample" || mode === "real") switchSource(mode);
     };
     window.addEventListener("ffs:dataMode-change", handler as EventListener);
-    return () => window.removeEventListener("ffs:dataMode-change", handler as EventListener);
+    return () =>
+      window.removeEventListener(
+        "ffs:dataMode-change",
+        handler as EventListener
+      );
   }, [switchSource]);
 
   const value = useMemo<KnowbyCtx>(
@@ -390,7 +452,17 @@ export function KnowbyDataProvider({ children }: { children: React.ReactNode }) 
       error,
       lastUpdated,
     }),
-    [source, switchSource, reload, completions, views, knowbys, status, error, lastUpdated]
+    [
+      source,
+      switchSource,
+      reload,
+      completions,
+      views,
+      knowbys,
+      status,
+      error,
+      lastUpdated,
+    ]
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
@@ -399,6 +471,7 @@ export function KnowbyDataProvider({ children }: { children: React.ReactNode }) 
 /** Hook */
 export function useKnowbyData() {
   const ctx = useContext(Ctx);
-  if (!ctx) throw new Error("useKnowbyData must be used within KnowbyDataProvider");
+  if (!ctx)
+    throw new Error("useKnowbyData must be used within KnowbyDataProvider");
   return ctx;
 }

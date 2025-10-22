@@ -5,25 +5,42 @@
 import { useEffect, useState, useMemo } from "react";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { useDarkMode } from "@/components/NivoWrapper";
-import { Eye, CheckCircle, TrendingUp, Activity, LucideGitCompareArrows } from "lucide-react";
+import {
+  Eye,
+  CheckCircle,
+  TrendingUp,
+  Activity,
+  LucideGitCompareArrows,
+} from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
-  TooltipTrigger
+  TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { subDays, format, parse, isWithinInterval, eachDayOfInterval, startOfMonth, 
-  endOfMonth, addMonths, isSameDay, differenceInCalendarDays, startOfYear, endOfYear,
-  addYears, startOfWeek, endOfWeek
+import {
+  subDays,
+  format,
+  parse,
+  isWithinInterval,
+  eachDayOfInterval,
+  startOfMonth,
+  endOfMonth,
+  addMonths,
+  isSameDay,
+  differenceInCalendarDays,
+  startOfYear,
+  endOfYear,
+  addYears,
+  startOfWeek,
+  endOfWeek,
 } from "date-fns";
 import { DateRange } from "react-day-picker";
 import dynamic from "next/dynamic";
 import { topChartOptions } from "@/lib/chartOptions";
 import { ApexOptions } from "apexcharts";
 import { useKnowbyData } from "@/lib/KnowbyDataProvider"; // <-- use shared data
-import { Button } from "../ui/button";
 const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
-
 
 // ------------ HELPER FUNCTIONS ------------
 
@@ -43,12 +60,15 @@ type DailyRow = {
 // --- NEW: types for comparison badge ---
 type WindowKind = "day" | "week" | "month" | "year" | "custom";
 
-
 // -------------- MAIN COMPONENT -------------
 
-export default function TodaysUsageCard({ selectedDateRange }: TodaysUsageCardProps) {
+export default function TodaysUsageCard({
+  selectedDateRange,
+}: TodaysUsageCardProps) {
   // State variables
-  const [sevenDayCompletionRate, setSevenDayCompletionRate] = useState<number | null>(null);
+  const [sevenDayCompletionRate, setSevenDayCompletionRate] = useState<
+    number | null
+  >(null);
   const [dailyData, setDailyData] = useState<DailyRow[]>([]);
   const isDark = useDarkMode();
   // Default to today if no date range is selected
@@ -59,7 +79,10 @@ export default function TodaysUsageCard({ selectedDateRange }: TodaysUsageCardPr
 
   // Calculate the start and end dates
   const endDate = selectedDateRange?.to ?? today;
-  const startDate = useMemo(() => selectedDateRange?.from ?? subDays(endDate, 6), [selectedDateRange?.from, endDate]);
+  const startDate = useMemo(
+    () => selectedDateRange?.from ?? subDays(endDate, 6),
+    [selectedDateRange?.from, endDate]
+  );
 
   // Effect to fetch and parse CSV data
   const { completions, views, status } = useKnowbyData(); // read shared arrays + status
@@ -67,19 +90,28 @@ export default function TodaysUsageCard({ selectedDateRange }: TodaysUsageCardPr
   // -------- NEW: compute full data-span (min/max date found in data) --------
   const dataMinMax = useMemo(() => {
     const parseD = (ds: string) => parse(ds, "dd/MM/yyyy", new Date());
-    let min: Date | null = null, max: Date | null = null;
+    let min: Date | null = null,
+      max: Date | null = null;
     const bump = (d: Date) => {
       if (!min || d < min) min = d;
       if (!max || d > max) max = d;
     };
-    for (const r of completions) { const ds = (r as any)?.date; if (ds) bump(parseD(ds)); }
-    for (const r of views) { const ds = (r as any)?.date; if (ds) bump(parseD(ds)); }
+    for (const r of completions) {
+      const ds = (r as any)?.date;
+      if (ds) bump(parseD(ds));
+    }
+    for (const r of views) {
+      const ds = (r as any)?.date;
+      if (ds) bump(parseD(ds));
+    }
     return { min: min ?? startOfYear(today), max: max ?? endOfYear(today) };
   }, [completions, views, today]);
 
   // -------- NEW: detect “All-time” selection (range equals data span) --------
   const isAllTime = useMemo(() => {
-    return isSameDay(startDate, dataMinMax.min) && isSameDay(endDate, dataMinMax.max);
+    return (
+      isSameDay(startDate, dataMinMax.min) && isSameDay(endDate, dataMinMax.max)
+    );
   }, [startDate, endDate, dataMinMax]);
 
   // -------- NEW: infer “period” from the selected window --------
@@ -91,8 +123,8 @@ export default function TodaysUsageCard({ selectedDateRange }: TodaysUsageCardPr
   // For short ranges chart daily; medium → monthly; long → yearly
   type BucketMode = "daily" | "monthly" | "yearly";
   const bucketMode = useMemo<BucketMode>(() => {
-    if (spanDays > 1300) return "yearly";      // ~3.5y+
-    if (spanDays > 92) return "monthly";       // >3 months
+    if (spanDays > 1300) return "yearly"; // ~3.5y+
+    if (spanDays > 92) return "monthly"; // >3 months
     return "daily";
   }, [spanDays]);
 
@@ -111,28 +143,34 @@ export default function TodaysUsageCard({ selectedDateRange }: TodaysUsageCardPr
     const weekStart = startOfWeek(endDate, { weekStartsOn: 1 });
     const weekEnd = endOfWeek(endDate, { weekStartsOn: 1 });
     if (isSameDay(startDate, endDate)) return "day";
-    if (isSameDay(startDate, startOfMonth(startDate)) && isSameDay(endDate, endOfMonth(startDate)) && isSameDay(startOfMonth(startDate), startOfMonth(endDate))) {
+    if (
+      isSameDay(startDate, startOfMonth(startDate)) &&
+      isSameDay(endDate, endOfMonth(startDate)) &&
+      isSameDay(startOfMonth(startDate), startOfMonth(endDate))
+    ) {
       return "month";
     }
-    if (isSameDay(startDate, startOfYear(startDate)) && isSameDay(endDate, endOfYear(startDate)) && isSameDay(startOfYear(startDate), startOfYear(endDate))) {
+    if (
+      isSameDay(startDate, startOfYear(startDate)) &&
+      isSameDay(endDate, endOfYear(startDate)) &&
+      isSameDay(startOfYear(startDate), startOfYear(endDate))
+    ) {
       return "year";
     }
-    if (isSameDay(startDate, weekStart) && isSameDay(endDate, weekEnd)) return "week";
+    if (isSameDay(startDate, weekStart) && isSameDay(endDate, weekEnd))
+      return "week";
     return "custom";
   }, [startDate, endDate]);
 
-  // Subtitle text for the chart footer
-  const subtitleText = useMemo(() => {
-    if (bucketMode === "yearly") return "Completions vs Views per Year";
-    if (bucketMode === "monthly") return "Completions vs Views per Month";
-    return spanDays <= 8
-      ? "Completions vs Views over the Past 7 Days"
-      : "Completions vs Views per Day";
-  }, [bucketMode, spanDays]);
-
   // Convert start and end dates to milliseconds for easier calculations
-  const startMs = useMemo(() => new Date(startDate).setHours(0, 0, 0, 0), [startDate]);
-  const endMs = useMemo(() => new Date(endDate).setHours(23, 59, 59, 999), [endDate]);
+  const startMs = useMemo(
+    () => new Date(startDate).setHours(0, 0, 0, 0),
+    [startDate]
+  );
+  const endMs = useMemo(
+    () => new Date(endDate).setHours(23, 59, 59, 999),
+    [endDate]
+  );
 
   // -------- NEW: build display buckets based on bucketMode --------
   const datesToDisplay = useMemo<string[]>(() => {
@@ -141,7 +179,7 @@ export default function TodaysUsageCard({ selectedDateRange }: TodaysUsageCardPr
       return eachDayOfInterval({
         start: new Date(startMs),
         end: new Date(endMs),
-      }).map(d => format(d, "dd/MM/yyyy"));
+      }).map((d) => format(d, "dd/MM/yyyy"));
     } else if (bucketMode === "monthly") {
       // monthly buckets from start month to end month
       const startM = startOfMonth(startDate);
@@ -168,7 +206,10 @@ export default function TodaysUsageCard({ selectedDateRange }: TodaysUsageCardPr
   }, [bucketMode, startMs, endMs, startDate, endDate]);
 
   // Create a unique key for the dates to avoid unnecessary re-renders
-  const datesKey = useMemo(() => `${startMs}-${endMs}-${bucketMode}`, [startMs, endMs, bucketMode]);
+  const datesKey = useMemo(
+    () => `${startMs}-${endMs}-${bucketMode}`,
+    [startMs, endMs, bucketMode]
+  );
 
   // --- NEW: helpers to build previous comparable window and compute totals ---
   const previousRange = useMemo((): { from: Date; to: Date; label: string } => {
@@ -210,7 +251,8 @@ export default function TodaysUsageCard({ selectedDateRange }: TodaysUsageCardPr
     let cancelled = false;
 
     try {
-      const dateCounts: Record<string, { completions: number; views: number }> = {};
+      const dateCounts: Record<string, { completions: number; views: number }> =
+        {};
       for (const label of datesToDisplay) {
         dateCounts[label] = { completions: 0, views: 0 };
       }
@@ -228,7 +270,13 @@ export default function TodaysUsageCard({ selectedDateRange }: TodaysUsageCardPr
         const ds = row?.date as string | undefined;
         if (!ds) continue;
         const rowDate = parse(ds, "dd/MM/yyyy", new Date());
-        if (!isWithinInterval(rowDate, { start: new Date(startMs), end: new Date(endMs) })) continue;
+        if (
+          !isWithinInterval(rowDate, {
+            start: new Date(startMs),
+            end: new Date(endMs),
+          })
+        )
+          continue;
         const key = keyFor(ds);
         if (dateCounts[key]) dateCounts[key].completions += 1;
       }
@@ -238,7 +286,13 @@ export default function TodaysUsageCard({ selectedDateRange }: TodaysUsageCardPr
         const ds = row?.date as string | undefined;
         if (!ds) continue;
         const rowDate = parse(ds, "dd/MM/yyyy", new Date());
-        if (!isWithinInterval(rowDate, { start: new Date(startMs), end: new Date(endMs) })) continue;
+        if (
+          !isWithinInterval(rowDate, {
+            start: new Date(startMs),
+            end: new Date(endMs),
+          })
+        )
+          continue;
         const key = keyFor(ds);
         if (dateCounts[key]) dateCounts[key].views += 1;
       }
@@ -276,7 +330,8 @@ export default function TodaysUsageCard({ selectedDateRange }: TodaysUsageCardPr
       // Calculate the completion rate for the selected window
       const totalC = rows.reduce((s, r) => s + r.Completions, 0);
       const totalV = rows.reduce((s, r) => s + r.Views, 0);
-      const curRate = totalV > 0 ? parseFloat(((totalC / totalV) * 100).toFixed(2)) : null;
+      const curRate =
+        totalV > 0 ? parseFloat(((totalC / totalV) * 100).toFixed(2)) : null;
       setSevenDayCompletionRate(curRate);
 
       // --- compute previous-period totals & delta ---
@@ -284,14 +339,17 @@ export default function TodaysUsageCard({ selectedDateRange }: TodaysUsageCardPr
       const prevTo = new Date(previousRange.to.setHours(23, 59, 59, 999));
 
       // --- build previous-period rows, then align them to current x-axis ---
-      const prevDateCounts: Record<string, { completions: number; views: number }> = {};
+      const prevDateCounts: Record<
+        string,
+        { completions: number; views: number }
+      > = {};
       // generate prev labels using the same bucketing rules, so arrays are the same length
       const prevLabels: string[] = (() => {
         if (bucketMode === "daily") {
           return eachDayOfInterval({
             start: new Date(prevFrom),
             end: new Date(prevTo),
-          }).map(d => format(d, "dd/MM/yyyy"));
+          }).map((d) => format(d, "dd/MM/yyyy"));
         } else if (bucketMode === "monthly") {
           const startM = startOfMonth(prevFrom);
           const endM = endOfMonth(prevTo);
@@ -316,7 +374,8 @@ export default function TodaysUsageCard({ selectedDateRange }: TodaysUsageCardPr
       })();
 
       // zero-fill counts for previous labels
-      for (const label of prevLabels) prevDateCounts[label] = { completions: 0, views: 0 };
+      for (const label of prevLabels)
+        prevDateCounts[label] = { completions: 0, views: 0 };
 
       // helper for prev bucketing
       const prevKeyFor = (d: Date) => {
@@ -367,8 +426,8 @@ export default function TodaysUsageCard({ selectedDateRange }: TodaysUsageCardPr
       const prevRowsAligned: DailyRow[] = rows.map((curRow, i) => {
         const src = prevRowsNative[i];
         return {
-          date: curRow.date,     // display label aligned to current bucket
-          ts: curRow.ts,         // <--- critical: use current ts for overlay
+          date: curRow.date, // display label aligned to current bucket
+          ts: curRow.ts, // <--- critical: use current ts for overlay
           Completions: src ? src.Completions : 0,
           Views: src ? src.Views : 0,
         };
@@ -376,25 +435,31 @@ export default function TodaysUsageCard({ selectedDateRange }: TodaysUsageCardPr
 
       setPrevDailyData(prevRowsAligned);
 
-
-      let pC = 0, pV = 0;
+      let pC = 0,
+        pV = 0;
       for (const row of completions) {
-        const ds = row?.date as string | undefined; if (!ds) continue;
+        const ds = row?.date as string | undefined;
+        if (!ds) continue;
         const d = parse(ds, "dd/MM/yyyy", new Date());
         if (isWithinInterval(d, { start: prevFrom, end: prevTo })) pC += 1;
       }
       for (const row of views) {
-        const ds = row?.date as string | undefined; if (!ds) continue;
+        const ds = row?.date as string | undefined;
+        if (!ds) continue;
         const d = parse(ds, "dd/MM/yyyy", new Date());
         if (isWithinInterval(d, { start: prevFrom, end: prevTo })) pV += 1;
       }
       const pRate = pV > 0 ? parseFloat(((pC / pV) * 100).toFixed(2)) : null;
 
-      
       setPrevRate(pRate);
       setCompareLabel(previousRange.label);
-      setDeltaRate(curRate != null && pRate != null ? parseFloat((curRate - pRate).toFixed(2)) : null);
+      setDeltaRate(
+        curRate != null && pRate != null
+          ? parseFloat((curRate - pRate).toFixed(2))
+          : null
+      );
     } catch (e) {
+      // eslint-disable-next-line no-console
       console.error("Failed to compute window stats", e);
     }
 
@@ -413,23 +478,37 @@ export default function TodaysUsageCard({ selectedDateRange }: TodaysUsageCardPr
     startMs,
     endMs,
     bucketMode,
-    previousRange
+    previousRange,
   ]);
-
 
   // ----------- DATA PREPARATION -----------
 
   // Prepare the series data for the chart
   const series = useMemo(() => {
     const base = [
-      { name: "Views", data: dailyData.map((r) => [r.ts, r.Views]) as [number, number][] },
-      { name: "Completions", data: dailyData.map((r) => [r.ts, r.Completions]) as [number, number][] },
+      {
+        name: "Views",
+        data: dailyData.map((r) => [r.ts, r.Views]) as [number, number][],
+      },
+      {
+        name: "Completions",
+        data: dailyData.map((r) => [r.ts, r.Completions]) as [number, number][],
+      },
     ];
 
     if (showCompare && prevDailyData.length) {
       base.push(
-        { name: `Views (${compareLabel})`, data: prevDailyData.map((r) => [r.ts, r.Views]) as [number, number][] },
-        { name: `Completions (${compareLabel})`, data: prevDailyData.map((r) => [r.ts, r.Completions]) as [number, number][] },
+        {
+          name: `Views (${compareLabel})`,
+          data: prevDailyData.map((r) => [r.ts, r.Views]) as [number, number][],
+        },
+        {
+          name: `Completions (${compareLabel})`,
+          data: prevDailyData.map((r) => [r.ts, r.Completions]) as [
+            number,
+            number
+          ][],
+        }
       );
     }
 
@@ -446,9 +525,11 @@ export default function TodaysUsageCard({ selectedDateRange }: TodaysUsageCardPr
 
     // date format for x-axis / tooltip depending on bucket
     const xLabelFormat =
-      bucketMode === "yearly" ? "yyyy" :
-      bucketMode === "monthly" ? "MMM yyyy" :
-      "dd MMM";
+      bucketMode === "yearly"
+        ? "yyyy"
+        : bucketMode === "monthly"
+        ? "MMM yyyy"
+        : "dd MMM";
     const tooltipFormat = xLabelFormat;
 
     return {
@@ -506,11 +587,19 @@ export default function TodaysUsageCard({ selectedDateRange }: TodaysUsageCardPr
       <span
         className={
           "text-xs font-medium inline-flex items-center gap-1 " +
-          (deltaRate > 0 ? "text-green-600" : deltaRate < 0 ? "text-red-600" : "text-muted-foreground")
+          (deltaRate > 0
+            ? "text-green-600"
+            : deltaRate < 0
+            ? "text-red-600"
+            : "text-muted-foreground")
         }
-        title={`Prev rate: ${prevRate ?? "--"}%\nDifference: ${deltaRate > 0 ? "+" : ""}${deltaRate}%`}
+        title={`Prev rate: ${prevRate ?? "--"}%\nDifference: ${
+          deltaRate > 0 ? "+" : ""
+        }${deltaRate}%`}
       >
-        {deltaRate > 0 ? "▲" : deltaRate < 0 ? "▼" : "•"} {Math.abs(deltaRate).toFixed(2)}% <span className="text-muted-foreground">vs {compareLabel}</span>
+        {deltaRate > 0 ? "▲" : deltaRate < 0 ? "▼" : "•"}{" "}
+        {Math.abs(deltaRate).toFixed(2)}%{" "}
+        <span className="text-muted-foreground">vs {compareLabel}</span>
       </span>
     );
 
@@ -528,9 +617,13 @@ export default function TodaysUsageCard({ selectedDateRange }: TodaysUsageCardPr
             <div className="flex flex-col gap-0 w-full min-w-0">
               <div className="flex items-center justify-between">
                 {/* ---- dynamic title ---- */}
-                <h3 className="text-lg font-semibold dark:text-white">{titleText}</h3>
+                <h3 className="text-lg font-semibold dark:text-white">
+                  {titleText}
+                </h3>
                 {isRefreshing && (
-                  <span className="text-xs text-muted-foreground">Refreshing…</span>
+                  <span className="text-xs text-muted-foreground">
+                    Refreshing…
+                  </span>
                 )}
               </div>
 
@@ -541,7 +634,9 @@ export default function TodaysUsageCard({ selectedDateRange }: TodaysUsageCardPr
                     : "--%"}
                 </div>
                 <div className="flex items-center gap-1">
-                  <p className="text-xs text-muted-foreground">Completion Rate</p>
+                  <p className="text-xs text-muted-foreground">
+                    Completion Rate
+                  </p>
                   {deltaBadge}
                 </div>
               </div>
@@ -555,12 +650,14 @@ export default function TodaysUsageCard({ selectedDateRange }: TodaysUsageCardPr
               </div>
               <div className="flex items-center gap-1">
                 <span className="w-3 h-3 rounded-sm bg-green-500"></span>
-                <span className="text-xs text-muted-foreground">Completions</span>
+                <span className="text-xs text-muted-foreground">
+                  Completions
+                </span>
               </div>
             </div>
 
             <button
-              onClick={() => setShowCompare(v => !v)}
+              onClick={() => setShowCompare((v) => !v)}
               className={`inline-flex text-xs hover:cursor-pointer font-semibold items-center gap-1 rounded-full px-2.5 py-1 ring-1
               ${"bg-indigo-100 text-indigo-700 ring-indigo-200 hover:bg-indigo-200 dark:bg-indigo-500/20 dark:text-indigo-300 dark:ring-white/10 hover:dark:bg-indigo-500/50"}`}
               title={`Toggle comparison with ${compareLabel}`}
@@ -569,9 +666,7 @@ export default function TodaysUsageCard({ selectedDateRange }: TodaysUsageCardPr
               {showCompare ? "Hide Compare" : `Compare ${compareLabel}`}
             </button>
           </div>
-
         </div>
-
 
         <hr className="border-border" />
         {/* Apex chart */}
@@ -596,7 +691,8 @@ export default function TodaysUsageCard({ selectedDateRange }: TodaysUsageCardPr
               <TooltipTrigger asChild>
                 <span className="inline-flex items-center gap-1">
                   <Eye className="h-3.5 w-3.5" />
-                  <strong className="text-foreground">{totalViews}</strong> views
+                  <strong className="text-foreground">{totalViews}</strong>{" "}
+                  views
                 </span>
               </TooltipTrigger>
               <TooltipContent>Total Views for Selected Period</TooltipContent>
@@ -606,20 +702,32 @@ export default function TodaysUsageCard({ selectedDateRange }: TodaysUsageCardPr
               <TooltipTrigger asChild>
                 <span className="inline-flex items-center gap-1">
                   <CheckCircle className="h-3.5 w-3.5" />
-                  <strong className="text-foreground">{totalCompletions}</strong> completions
+                  <strong className="text-foreground">
+                    {totalCompletions}
+                  </strong>{" "}
+                  completions
                 </span>
               </TooltipTrigger>
-              <TooltipContent>Total Completions for Selected Period</TooltipContent>
+              <TooltipContent>
+                Total Completions for Selected Period
+              </TooltipContent>
             </Tooltip>
 
             <Tooltip>
               <TooltipTrigger asChild>
                 <span className="inline-flex items-center gap-1">
-                <TrendingUp className="h-3.5 w-3.5" />
-                  <strong className="text-foreground">{sevenDayCompletionRate !== null ? `${sevenDayCompletionRate.toFixed(2)}%` : "--%"}</strong> comp. rate
+                  <TrendingUp className="h-3.5 w-3.5" />
+                  <strong className="text-foreground">
+                    {sevenDayCompletionRate !== null
+                      ? `${sevenDayCompletionRate.toFixed(2)}%`
+                      : "--%"}
+                  </strong>{" "}
+                  comp. rate
                 </span>
               </TooltipTrigger>
-              <TooltipContent>Completion Rate for Selected Period</TooltipContent>
+              <TooltipContent>
+                Completion Rate for Selected Period
+              </TooltipContent>
             </Tooltip>
           </CardFooter>
         </div>
