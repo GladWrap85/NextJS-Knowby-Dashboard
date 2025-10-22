@@ -3,36 +3,80 @@
 import React, { useMemo, useState, useEffect } from "react";
 import dynamic from "next/dynamic";
 import {
-  format, isWithinInterval,
-  startOfDay, endOfDay, eachDayOfInterval
+  format,
+  isWithinInterval,
+  startOfDay,
+  endOfDay,
+  eachDayOfInterval,
 } from "date-fns";
 import { DateRange } from "react-day-picker";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-  Tooltip, TooltipProvider, TooltipTrigger, TooltipContent
+  Tooltip,
+  TooltipProvider,
+  TooltipTrigger,
+  TooltipContent,
 } from "@/components/ui/tooltip";
 import {
-  Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter
+  Dialog,
+  DialogTrigger,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
 } from "@/components/ui/dialog";
-import { BarChart3, Download, ChevronLeft, ChevronRight, Maximize2 } from "lucide-react";
+import { BarChart3, ChevronLeft, ChevronRight, Maximize2 } from "lucide-react";
 import { useKnowbyData } from "@/lib/KnowbyDataProvider";
 import { cn } from "@/lib/utils";
 import type { ApexOptions } from "apexcharts";
 import {
-  Select, SelectTrigger, SelectContent, SelectItem, SelectValue
+  Select,
+  SelectTrigger,
+  SelectContent,
+  SelectItem,
+  SelectValue,
 } from "@/components/ui/select";
 
 const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
-type MetricKey = "activeMembers" | "recentlyViewed" | "newKnowbys" | "unusedKnowbys";
+type MetricKey =
+  | "activeMembers"
+  | "recentlyViewed"
+  | "newKnowbys"
+  | "unusedKnowbys";
 
-const METRICS: Array<{ key: MetricKey; label: string; hint: string; color: string }> = [
-  { key: "activeMembers",  label: "Active Members",  hint: "Members with views or completions",  color: "bg-sky-500" },
-  { key: "recentlyViewed", label: "Recently Viewed", hint: "Views in range",                      color: "bg-blue-500" },
-  { key: "newKnowbys",     label: "New Knowbys",     hint: "Created in range",                    color: "bg-violet-500" },
-  { key: "unusedKnowbys",  label: "Unused Knowbys",  hint: "No views in range",                   color: "bg-orange-500" },
+const METRICS: Array<{
+  key: MetricKey;
+  label: string;
+  hint: string;
+  color: string;
+}> = [
+  {
+    key: "activeMembers",
+    label: "Active Members",
+    hint: "Members with views or completions",
+    color: "bg-sky-500",
+  },
+  {
+    key: "recentlyViewed",
+    label: "Recently Viewed",
+    hint: "Views in range",
+    color: "bg-blue-500",
+  },
+  {
+    key: "newKnowbys",
+    label: "New Knowbys",
+    hint: "Created in range",
+    color: "bg-violet-500",
+  },
+  {
+    key: "unusedKnowbys",
+    label: "Unused Knowbys",
+    hint: "No views in range",
+    color: "bg-orange-500",
+  },
 ];
 
 type Props = { selectedDateRange: DateRange | undefined; className?: string };
@@ -42,27 +86,47 @@ export default function KnowbyStats({ selectedDateRange, className }: Props) {
   const { completions, views, knowbys, status } = useKnowbyData();
   // —— resolve effective range (fallback = last 7 days at data max)
   const dataBounds = useMemo(() => {
-    let min = Number.POSITIVE_INFINITY, max = 0;
-    for (const r of completions) if (r.ts) { if (r.ts < min) min = r.ts; if (r.ts > max) max = r.ts; }
-    for (const r of views)        if (r.ts) { if (r.ts < min) min = r.ts; if (r.ts > max) max = r.ts; }
+    let min = Number.POSITIVE_INFINITY,
+      max = 0;
+    for (const r of completions)
+      if (r.ts) {
+        if (r.ts < min) min = r.ts;
+        if (r.ts > max) max = r.ts;
+      }
+    for (const r of views)
+      if (r.ts) {
+        if (r.ts < min) min = r.ts;
+        if (r.ts > max) max = r.ts;
+      }
     const nowish = Date.now();
     if (!isFinite(min)) min = nowish;
     if (!isFinite(max)) max = nowish;
     return { min, max };
   }, [completions, views]);
 
-  const start = startOfDay(selectedDateRange?.from ?? new Date(dataBounds.max - 6 * 86400000));
-  const end   = endOfDay(selectedDateRange?.to ?? selectedDateRange?.from ?? new Date(dataBounds.max));
-  const inRange = (ts?: number) => typeof ts === "number" && isWithinInterval(new Date(ts), { start, end });
+  const start = startOfDay(
+    selectedDateRange?.from ?? new Date(dataBounds.max - 6 * 86400000)
+  );
+  const end = endOfDay(
+    selectedDateRange?.to ?? selectedDateRange?.from ?? new Date(dataBounds.max)
+  );
+  const inRange = (ts?: number) =>
+    typeof ts === "number" && isWithinInterval(new Date(ts), { start, end });
 
   // —— precompute shared structures once
   const days = useMemo(
-    () => eachDayOfInterval({ start, end }).map(d => startOfDay(d).getTime()),
+    () => eachDayOfInterval({ start, end }).map((d) => startOfDay(d).getTime()),
     [start, end]
   );
 
-  const viewsIn = useMemo(() => views.filter(r => inRange(r.ts)), [views, start, end]);
-  const compsIn = useMemo(() => completions.filter(r => inRange(r.ts)), [completions, start, end]);
+  const viewsIn = useMemo(
+    () => views.filter((r) => inRange(r.ts)),
+    [views, start, end]
+  );
+  const compsIn = useMemo(
+    () => completions.filter((r) => inRange(r.ts)),
+    [completions, start, end]
+  );
 
   const shared = useMemo(() => {
     // 1) Catalog from provider (preferred). If empty, infer from events.
@@ -71,12 +135,15 @@ export default function KnowbyStats({ selectedDateRange, className }: Props) {
       : Array.from(
           new Map(
             [...completions, ...views]
-              .filter(r => r.knowby_id)
-              .map(r => [r.knowby_id!, { knowby_id: r.knowby_id!, knowby_name: r.knowby_name }])
+              .filter((r) => r.knowby_id)
+              .map((r) => [
+                r.knowby_id!,
+                { knowby_id: r.knowby_id!, knowby_name: r.knowby_name },
+              ])
           ).values()
         );
 
-    const catalogIds = new Set(catalog.map(k => k.knowby_id));
+    const catalogIds = new Set(catalog.map((k) => k.knowby_id));
 
     // 2) Seen-in-range (from views)
     const seenNow = new Set<string>();
@@ -98,7 +165,7 @@ export default function KnowbyStats({ selectedDateRange, className }: Props) {
         const d = startOfDay(new Date(r.ts)).getTime();
         if (m.has(d)) m.get(d)!.add(r.member_id);
       }
-      return days.map(d => ({ x: d, y: m.get(d)!.size }));
+      return days.map((d) => ({ x: d, y: m.get(d)!.size }));
     })();
 
     // Views per day
@@ -110,14 +177,14 @@ export default function KnowbyStats({ selectedDateRange, className }: Props) {
         const d = startOfDay(new Date(r.ts)).getTime();
         if (m.has(d)) m.set(d, (m.get(d) || 0) + 1);
       }
-      return days.map(d => ({ x: d, y: m.get(d)! }));
+      return days.map((d) => ({ x: d, y: m.get(d)! }));
     })();
 
     // New Knowbys per day (CREATION-based)
     const newKnowbysPerDay = (() => {
       const m = new Map<number, number>();
       for (const d of days) m.set(d, 0);
-      for (const k of (knowbys ?? [])) {
+      for (const k of knowbys ?? []) {
         const ts = (k as any).createdTs as number | undefined;
         if (typeof ts !== "number") continue;
         const d = startOfDay(new Date(ts)).getTime();
@@ -125,18 +192,21 @@ export default function KnowbyStats({ selectedDateRange, className }: Props) {
           m.set(d, (m.get(d) || 0) + 1);
         }
       }
-      return days.map(d => ({ x: d, y: m.get(d)! }));
+      return days.map((d) => ({ x: d, y: m.get(d)! }));
     })();
 
     // Unused knowbys per day (count of catalog not yet viewed by that day)
     const unusedPerDay = (() => {
       const usedUntil = new Set<string>();
       const sortedViews = [...views]
-        .filter(v => v.ts && v.knowby_id)
-        .sort((a, b) => (a.ts! - b.ts!));
+        .filter((v) => v.ts && v.knowby_id)
+        .sort((a, b) => a.ts! - b.ts!);
       let i = 0;
-      return days.map(d => {
-        while (i < sortedViews.length && startOfDay(new Date(sortedViews[i].ts!)).getTime() <= d) {
+      return days.map((d) => {
+        while (
+          i < sortedViews.length &&
+          startOfDay(new Date(sortedViews[i].ts!)).getTime() <= d
+        ) {
           usedUntil.add(sortedViews[i].knowby_id!);
           i++;
         }
@@ -146,12 +216,14 @@ export default function KnowbyStats({ selectedDateRange, className }: Props) {
     })();
 
     // 5) Totals
-    const createdInRange = (knowbys ?? []).filter(k => inRange((k as any).createdTs));
+    const createdInRange = (knowbys ?? []).filter((k) =>
+      inRange((k as any).createdTs)
+    );
     const totals = {
       activeMembers: activeMemberSet.size,
       recentlyViewed: viewsIn.length,
       newKnowbys: createdInRange.length,
-      unusedKnowbys: [...catalogIds].filter(id => !seenNow.has(id)).length,
+      unusedKnowbys: [...catalogIds].filter((id) => !seenNow.has(id)).length,
     } as Record<MetricKey, number>;
 
     // 6) Tables
@@ -165,7 +237,12 @@ export default function KnowbyStats({ selectedDateRange, className }: Props) {
       for (const r of viewsIn) {
         const id = r.member_id ?? r.member_name ?? "unknown";
         const name = r.member_name ?? "-";
-        const prev = activeMap.get(id) ?? { member: name, views: 0, completions: 0, last: 0 };
+        const prev = activeMap.get(id) ?? {
+          member: name,
+          views: 0,
+          completions: 0,
+          last: 0,
+        };
         prev.member = name || prev.member;
         prev.views += 1;
         prev.last = Math.max(prev.last, r.ts || 0);
@@ -174,7 +251,12 @@ export default function KnowbyStats({ selectedDateRange, className }: Props) {
       for (const r of compsIn) {
         const id = r.member_id ?? r.member_name ?? "unknown";
         const name = r.member_name ?? "-";
-        const prev = activeMap.get(id) ?? { member: name, views: 0, completions: 0, last: 0 };
+        const prev = activeMap.get(id) ?? {
+          member: name,
+          views: 0,
+          completions: 0,
+          last: 0,
+        };
         prev.member = name || prev.member;
         prev.completions += 1;
         prev.last = Math.max(prev.last, r.ts || 0);
@@ -182,19 +264,24 @@ export default function KnowbyStats({ selectedDateRange, className }: Props) {
       }
 
       const active = [...activeMap.values()]
-        .sort((a, b) => (b.completions - a.completions) || (b.views - a.views) || (b.last - a.last))
-        .map(r => ({
+        .sort(
+          (a, b) =>
+            b.completions - a.completions ||
+            b.views - a.views ||
+            b.last - a.last
+        )
+        .map((r) => ({
           member: r.member,
           views: r.views,
           completions: r.completions,
-          last: r.last ? format(r.last, "d MMM") : "-"
+          last: r.last ? format(r.last, "d MMM") : "-",
         }));
 
       // Recently viewed (latest 30)
       const recentV = viewsIn
         .slice(-30)
         .reverse()
-        .map(r => ({
+        .map((r) => ({
           date: r.ymd ?? (r.ts ? format(r.ts, "d MMM") : "-"),
           knowby: r.knowby_name ?? r.knowby_id ?? "-",
           member: r.member_name ?? r.member_id ?? "-",
@@ -202,31 +289,34 @@ export default function KnowbyStats({ selectedDateRange, className }: Props) {
 
       // New knowbys — creation in selected range (provider-driven)
       const newK = createdInRange
-        .sort((a, b) => ((a as any).createdTs! - (b as any).createdTs!))
+        .sort((a, b) => (a as any).createdTs! - (b as any).createdTs!)
         .slice(0, 200)
-        .map(k => ({
+        .map((k) => ({
           knowby: (k as any).knowby_name ?? (k as any).knowby_id,
           knowby_id: (k as any).knowby_id,
-          created: (k as any).createdTs ? format((k as any).createdTs, "d MMM") : "-",
+          created: (k as any).createdTs
+            ? format((k as any).createdTs, "d MMM")
+            : "-",
         }));
 
       // Unused knowbys — no views in-range
       const unused = [...catalogIds]
-        .filter(id => !seenNow.has(id))
-        .map(id => {
-          const knowby = catalog.find(k => k.knowby_id === id);
+        .filter((id) => !seenNow.has(id))
+        .map((id) => {
+          const knowby = catalog.find((k) => k.knowby_id === id);
           // find the most recent view or completion timestamp for that knowby
           const lastView = [...views, ...completions]
-            .filter(r => r.knowby_id === id && r.ts)
+            .filter((r) => r.knowby_id === id && r.ts)
             .reduce((max, r) => Math.max(max, r.ts!), 0);
           return {
             knowby: knowby?.knowby_name ?? id,
             last_used: lastView ? format(lastView, "d MMM yy") : "–",
           };
         })
-        .sort((a, b) => (b.last_used === "–" ? -1 : (a.last_used === "–" ? 1 : 0))) // optional sorting
+        .sort((a, b) =>
+          b.last_used === "–" ? -1 : a.last_used === "–" ? 1 : 0
+        ) // optional sorting
         .slice(0, 200);
-
 
       return {
         activeMembers: active,
@@ -254,10 +344,12 @@ export default function KnowbyStats({ selectedDateRange, className }: Props) {
   // Pagination (card only)
   const PAGE_SIZE = 4;
   const [page, setPage] = useState(0);
-  useEffect(() => { setPage(0); }, [activeMetric]);
+  useEffect(() => {
+    setPage(0);
+  }, [activeMetric]);
 
   const headerSeries = shared.sparklines[activeMetric] ?? [];
-  const activeMeta = METRICS.find(m => m.key === activeMetric)!;
+  const activeMeta = METRICS.find((m) => m.key === activeMetric)!;
 
   const allRows = shared.tables[activeMetric] ?? [];
   const total = allRows.length;
@@ -278,8 +370,10 @@ export default function KnowbyStats({ selectedDateRange, className }: Props) {
 
           {/* Right-side controls (dropdown + sparkline) */}
           <div className="flex items-center gap-2 ml-auto">
-            <div className="h-8 w-40 rounded-md bg-muted animate-pulse" /> {/* dropdown */}
-            <div className="h-8 w-[120px] rounded-md bg-muted animate-pulse" /> {/* sparkline */}
+            <div className="h-8 w-40 rounded-md bg-muted animate-pulse" />{" "}
+            {/* dropdown */}
+            <div className="h-8 w-[120px] rounded-md bg-muted animate-pulse" />{" "}
+            {/* sparkline */}
           </div>
         </div>
 
@@ -291,11 +385,13 @@ export default function KnowbyStats({ selectedDateRange, className }: Props) {
 
   return (
     <TooltipProvider>
-      <Card className={cn(
-        "min-h-[350px] relative isolate overflow-hidden rounded-3xl p-5 md:p-6 border-0 shadow-xl/2 bg-card",
-        "dark:border dark:border-slate-700",
-        className
-      )}>
+      <Card
+        className={cn(
+          "min-h-[350px] relative isolate overflow-hidden rounded-3xl p-5 md:p-6 border-0 shadow-xl/2 bg-card",
+          "dark:border dark:border-slate-700",
+          className
+        )}
+      >
         <CardContent className="p-0 h-full flex flex-col gap-2">
           {/* Header — unchanged layout */}
           <div className="flex items-center gap-3">
@@ -304,7 +400,9 @@ export default function KnowbyStats({ selectedDateRange, className }: Props) {
             </div>
 
             <div className="flex flex-col min-w-0">
-              <h3 className="text-base md:text-lg dark:text-white font-semibold">Knowby Stats</h3>
+              <h3 className="text-base md:text-lg dark:text-white font-semibold">
+                Knowby Stats
+              </h3>
               <span className="text-xs text-muted-foreground">
                 {format(start, "d MMM yyyy")} – {format(end, "d MMM yyyy")}
               </span>
@@ -328,9 +426,18 @@ export default function KnowbyStats({ selectedDateRange, className }: Props) {
                   </SelectTrigger>
                   <SelectContent align="end" className="text-sm">
                     {METRICS.map((m) => (
-                      <SelectItem key={m.key} value={m.key} className="text-xs hover:cursor-pointer">
+                      <SelectItem
+                        key={m.key}
+                        value={m.key}
+                        className="text-xs hover:cursor-pointer"
+                      >
                         <div className="flex items-center gap-2">
-                          <span className={cn("inline-block h-2 w-2 rounded-full", m.color)} />
+                          <span
+                            className={cn(
+                              "inline-block h-2 w-2 rounded-full",
+                              m.color
+                            )}
+                          />
                           <span className="font-medium">{m.label}</span>
                           <span className="ml-auto text-[10px] text-muted-foreground tabular-nums">
                             {(shared.totals[m.key] ?? 0).toLocaleString()}
@@ -357,7 +464,12 @@ export default function KnowbyStats({ selectedDateRange, className }: Props) {
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <DialogTrigger asChild>
-                      <Button size="icon" variant="ghost" className="h-8 w-8 rounded-md  hover:cursor-pointer" aria-label="Expand">
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8 rounded-md  hover:cursor-pointer"
+                        aria-label="Expand"
+                      >
                         <Maximize2 className="size-4" />
                       </Button>
                     </DialogTrigger>
@@ -368,12 +480,18 @@ export default function KnowbyStats({ selectedDateRange, className }: Props) {
                 <DialogContent className="max-w-4xl">
                   <DialogHeader>
                     <DialogTitle className="flex items-center gap-2">
-                      <span className={cn("inline-block h-2.5 w-2.5 rounded-full", activeMeta.color)} />
+                      <span
+                        className={cn(
+                          "inline-block h-2.5 w-2.5 rounded-full",
+                          activeMeta.color
+                        )}
+                      />
                       {activeMeta.label}
                     </DialogTitle>
                     <DialogDescription className="flex items-center justify-between">
                       <span className="text-xs">
-                        {format(start, "d MMM yyyy")} – {format(end, "d MMM yyyy")} • {activeMeta.hint}
+                        {format(start, "d MMM yyyy")} –{" "}
+                        {format(end, "d MMM yyyy")} • {activeMeta.hint}
                       </span>
                     </DialogDescription>
                   </DialogHeader>
@@ -390,7 +508,10 @@ export default function KnowbyStats({ selectedDateRange, className }: Props) {
                     <div className="text-[11px] text-muted-foreground mr-auto">
                       {total.toLocaleString()} row{total === 1 ? "" : "s"}
                     </div>
-                    <Button variant="secondary" onClick={() => setDialogOpen(false)}>
+                    <Button
+                      variant="secondary"
+                      onClick={() => setDialogOpen(false)}
+                    >
                       Close
                     </Button>
                   </DialogFooter>
@@ -408,7 +529,9 @@ export default function KnowbyStats({ selectedDateRange, className }: Props) {
           >
             <div className="mb-2 flex items-center justify-between">
               <div className="text-sm font-medium">{activeMeta.label}</div>
-              <div className="text-[11px] text-muted-foreground">{activeMeta.hint}</div>
+              <div className="text-[11px] text-muted-foreground">
+                {activeMeta.hint}
+              </div>
             </div>
 
             {/* Accent + paged table (no scroll in card) */}
@@ -431,7 +554,9 @@ export default function KnowbyStats({ selectedDateRange, className }: Props) {
                     disabled={page === 0}
                   >
                     <ChevronLeft className="h-4 w-4" />
-                    <span className="ml-1 text-xs hover:cursor-pointer">Prev</span>
+                    <span className="ml-1 text-xs hover:cursor-pointer">
+                      Prev
+                    </span>
                   </Button>
                   <Button
                     variant="ghost"
@@ -440,7 +565,9 @@ export default function KnowbyStats({ selectedDateRange, className }: Props) {
                     onClick={() => setPage((p) => (endIdx < total ? p + 1 : p))}
                     disabled={endIdx >= total}
                   >
-                    <span className="mr-1 text-xs hover:cursor-pointer">Next</span>
+                    <span className="mr-1 text-xs hover:cursor-pointer">
+                      Next
+                    </span>
                     <ChevronRight className="h-4 w-4" />
                   </Button>
                 </div>
@@ -454,26 +581,42 @@ export default function KnowbyStats({ selectedDateRange, className }: Props) {
 }
 
 /* ——— sparkline: accepts height to match dropdown ——— */
-function SparklineMini({ data, height = 22 }: { data: Array<{ x:number; y:number }>, height?: number }) {
+function SparklineMini({
+  data,
+  height = 22,
+}: {
+  data: Array<{ x: number; y: number }>;
+  height?: number;
+}) {
   const series = useMemo(() => [{ name: "t", data }], [data]);
-  const options = useMemo<ApexOptions>(() => ({
-    chart: {
-      type: "line",
-      height,
-      sparkline: { enabled: true },
-      animations: { enabled: false },
-      toolbar: { show: false },
-      zoom: { enabled: false },
-      parentHeightOffset: 0,
-    },
-    stroke: { width: 2, curve: "smooth" },
-    xaxis: { type: "datetime", labels: { show: false }, axisTicks: { show: false }, axisBorder: { show: false } },
-    yaxis: { show: false },
-    grid: { show: false },
-    tooltip: { enabled: false },
-  }), [height]);
+  const options = useMemo<ApexOptions>(
+    () => ({
+      chart: {
+        type: "line",
+        height,
+        sparkline: { enabled: true },
+        animations: { enabled: false },
+        toolbar: { show: false },
+        zoom: { enabled: false },
+        parentHeightOffset: 0,
+      },
+      stroke: { width: 2, curve: "smooth" },
+      xaxis: {
+        type: "datetime",
+        labels: { show: false },
+        axisTicks: { show: false },
+        axisBorder: { show: false },
+      },
+      yaxis: { show: false },
+      grid: { show: false },
+      tooltip: { enabled: false },
+    }),
+    [height]
+  );
 
-  return <Chart type="line" height={height} options={options} series={series} />;
+  return (
+    <Chart type="line" height={height} options={options} series={series} />
+  );
 }
 
 /* ——— compact table ——— */
@@ -487,7 +630,17 @@ function MiniTable({ rows }: { rows: any[] }) {
   }
 
   const keys = Object.keys(rows[0]);
-  const pref = ["member", "views", "completions", "last", "date", "knowby", "knowby_id", "created", "first"];
+  const pref = [
+    "member",
+    "views",
+    "completions",
+    "last",
+    "date",
+    "knowby",
+    "knowby_id",
+    "created",
+    "first",
+  ];
   const cols = [
     ...pref.filter((k) => keys.includes(k)),
     ...keys.filter((k) => !pref.includes(k) && k !== "id" && k !== "member_id"),

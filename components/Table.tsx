@@ -6,7 +6,6 @@ import {
   TableBody,
   TableCaption,
   TableCell,
-  TableFooter,
   TableHead,
   TableHeader,
   TableRow,
@@ -21,7 +20,8 @@ export function TableDemo() {
       header: true,
       complete: (results) => {
         const raw = results.data;
-        const counts: Record<string, { member_name: string; count: number }> = {};
+        const counts: Record<string, { member_name: string; count: number }> =
+          {};
 
         raw.forEach((entry: any) => {
           const id = entry.member_id;
