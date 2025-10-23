@@ -1,6 +1,10 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 "use client";
 
+/* =============================================================================
+   IMPORTS
+   ============================================================================= */
+
 import React, { useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { DateRange } from "react-day-picker";
@@ -42,16 +46,22 @@ import { Button } from "../ui/button";
 
 const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
-// ---------- types ----------
+/* =============================================================================
+   TYPES
+   ============================================================================= */
+
 type Props = { selectedDateRange: DateRange | undefined };
 type Metric = "views" | "completions" | "completionRate" | "both";
 type ChartType = "area" | "bar";
+
 type RawRow = {
   date?: string | null;
   knowby_name?: string | null;
   member_name?: string | null;
 };
+
 type UsageRow = { name: string; views: number; completions: number };
+
 type SelectionEventRow = {
   knowbyName: string;
   employeeName: string;
@@ -78,27 +88,34 @@ type AnalyticsModel = {
   allEmployees: string[];
 };
 
+/* =============================================================================
+   CONSTANTS
+   ============================================================================= */
+
 const ACTIVITY_PAGE_SIZE = 10;
+
 const pill = (
   active: boolean,
   tone: "views" | "completions" | "both" | "neutral" = "neutral"
 ) =>
-  `inline-flex items-center gap-1 rounded-xl px-2.5 py-1 text-xs ring-1 transition whitespace-nowrap ${
-    (
-      {
-        views:
-          "bg-sky-100 text-sky-700 ring-sky-200 dark:bg-sky-500/20 dark:text-sky-300 dark:ring-white/10",
-        completions:
-          "bg-emerald-100 text-emerald-700 ring-emerald-200 dark:bg-emerald-500/20 dark:text-emerald-300 dark:ring-white/10",
-        both: "bg-purple-100 text-purple-700 ring-purple-200 dark:bg-purple-500/20 dark:text-purple-300 dark:ring-white/10",
-        neutral:
-          "bg-muted/60 text-foreground/80 ring-black/5 dark:ring-white/10",
-      } as const
-    )[tone]
+  `inline-flex items-center gap-1 rounded-xl px-2.5 py-1 text-xs ring-1 transition whitespace-nowrap ${(
+    {
+      views:
+        "bg-sky-100 text-sky-700 ring-sky-200 dark:bg-sky-500/20 dark:text-sky-300 dark:ring-white/10",
+      completions:
+        "bg-emerald-100 text-emerald-700 ring-emerald-200 dark:bg-emerald-500/20 dark:text-emerald-300 dark:ring-white/10",
+      both: "bg-purple-100 text-purple-700 ring-purple-200 dark:bg-purple-500/20 dark:text-purple-300 dark:ring-white/10",
+      neutral:
+        "bg-muted/60 text-foreground/80 ring-black/5 dark:ring-white/10",
+    } as const
+  )[tone]
   }
   ${active ? "font-semibold" : "opacity-60 hover:opacity-100"}`;
 
-// ---------- helpers ----------
+/* =============================================================================
+   HELPERS
+   ============================================================================= */
+
 const parseCache = new Map<string, Date>();
 const parseCsvDate = (input?: string | null) => {
   if (!input) return null;
@@ -121,14 +138,17 @@ const makeUsage = (
 ) => {
   const map = new Map<string, UsageRow>();
   names.forEach((name) => map.set(name, { name, views: 0, completions: 0 }));
+
   const hit = (row: RawRow | undefined, key: "views" | "completions") => {
     if (!row) return;
     const name = row[field];
     if (!name || !map.has(name)) return;
     map.get(name)![key === "views" ? "views" : "completions"] += 1;
   };
+
   views.forEach((r) => hit(r, "views"));
   comps.forEach((r) => hit(r, "completions"));
+
   return [...map.values()].sort((a, b) => {
     const totalA = a.views + a.completions;
     const totalB = b.views + b.completions;
@@ -155,12 +175,15 @@ const resolveGranularity = (start: Date, end: Date) => {
     1,
     differenceInCalendarDays(endOfDay(end), startOfDay(start))
   );
+
   const sameMonth =
     start.getFullYear() === end.getFullYear() &&
     start.getMonth() === end.getMonth();
+
   const coversWholeMonth =
     startOfMonth(start).getTime() === startOfDay(start).getTime() &&
     endOfMonth(end).getTime() === endOfDay(end).getTime();
+
   if (sameMonth && coversWholeMonth) return "day" as const;
   if (span <= 14) return "day" as const;
   if (span <= 120) return "week" as const;
@@ -176,8 +199,9 @@ const buildBins = (
     gran === "day"
       ? eachDayOfInterval({ start, end })
       : gran === "week"
-      ? eachWeekOfInterval({ start, end }, { weekStartsOn: 1 })
-      : eachMonthOfInterval({ start, end });
+        ? eachWeekOfInterval({ start, end }, { weekStartsOn: 1 })
+        : eachMonthOfInterval({ start, end });
+
   return base.map((point) => {
     if (gran === "day") {
       const s = startOfDay(point),
@@ -211,6 +235,7 @@ const buildSeries = (
   comps: RawRow[]
 ) => {
   const series = new Map<string, Array<[number, number]>>();
+
   const count = (rows: RawRow[], name: string, bin: Bin) =>
     rows.filter((r) => {
       const d = parseCsvDate(r.date);
@@ -225,13 +250,14 @@ const buildSeries = (
     names.forEach((name) => {
       const viewsCount = count(views, name, bin);
       const compsCount = count(comps, name, bin);
+
       const push = (key: string, value: number) => {
         if (!series.has(key)) series.set(key, []);
         series.get(key)!.push([bin.ts, value]);
       };
+
       if (metric === "views") push(`${name} Views`, viewsCount);
-      else if (metric === "completions")
-        push(`${name} Completions`, compsCount);
+      else if (metric === "completions") push(`${name} Completions`, compsCount);
       else if (metric === "both") {
         push(`${name} Views`, viewsCount);
         push(`${name} Completions`, compsCount);
@@ -248,20 +274,18 @@ const buildSeries = (
     metric === "both"
       ? [`${name} Views`, `${name} Completions`]
       : metric === "views"
-      ? [`${name} Views`]
-      : metric === "completions"
-      ? [`${name} Completions`]
-      : [`${name} Completion Rate`]
+        ? [`${name} Views`]
+        : metric === "completions"
+          ? [`${name} Completions`]
+          : [`${name} Completion Rate`]
   );
+
   const tsSeries = [...series.entries()].map(([name, data]) => ({
     name,
     data,
   }));
 
-  const totals = {
-    views: views.length,
-    comps: comps.length,
-  };
+  const totals = { views: views.length, comps: comps.length };
   const avgRate = totals.views
     ? Math.round((totals.comps / totals.views) * 100)
     : 0;
@@ -290,6 +314,7 @@ const buildAnalytics = (
   const allRows = [...views, ...completions];
   const allKnowbys = uniqueSorted(allRows.map((r) => r.knowby_name));
   const allEmployees = uniqueSorted(allRows.map((r) => r.member_name));
+
   const defaultDate = new Date();
   const earliest = allRows.reduce<Date | null>((acc, row) => {
     const d = parseCsvDate(row.date);
@@ -320,12 +345,14 @@ const buildAnalytics = (
 
   const viewsInRange = views.filter((row) => inRange(row));
   const compsInRange = completions.filter((row) => inRange(row));
+
   const filteredViews = viewsInRange.filter(matchesSelection);
   const filteredComps = compsInRange.filter(matchesSelection);
 
   const gran = resolveGranularity(start, end);
   const bins = buildBins(gran, start, end);
   const chartNames = selKnowbys.length ? selKnowbys : ["All Knowbys"];
+
   const { keys, tsSeries, totals, avgRate, trend } = buildSeries(
     bins,
     metric,
@@ -371,14 +398,15 @@ const buildOptions = (
 ): ApexOptions => {
   const base = topChartOptions(isDark);
   const labelFormat = gran === "month" ? "MMM yyyy" : "dd MMM";
+
   const colors =
     metric === "views"
       ? ["#008FFB"]
       : metric === "completions"
-      ? ["#00E396"]
-      : metric === "both"
-      ? ["#38bdf8", "#10b981"]
-      : ["#8b5cf6"];
+        ? ["#00E396"]
+        : metric === "both"
+          ? ["#38bdf8", "#10b981"]
+          : ["#8b5cf6"];
 
   return {
     ...base,
@@ -394,11 +422,7 @@ const buildOptions = (
     xaxis: {
       ...(base.xaxis ?? {}),
       type: "datetime",
-      labels: {
-        ...(base.xaxis?.labels ?? {}),
-        rotate: -15,
-        format: labelFormat,
-      },
+      labels: { ...(base.xaxis?.labels ?? {}), rotate: -15, format: labelFormat },
     },
     yaxis: {
       ...(base.yaxis ?? {}),
@@ -410,10 +434,7 @@ const buildOptions = (
           metric === "completionRate" ? `${value}%` : `${value}`,
       },
     },
-    grid: {
-      ...(base.grid ?? {}),
-      padding: { ...base.grid?.padding, right: 6, left: 6 },
-    },
+    grid: { ...(base.grid ?? {}), padding: { ...base.grid?.padding, right: 6, left: 6 } },
     tooltip: {
       ...(base.tooltip ?? {}),
       shared: true,
@@ -425,10 +446,7 @@ const buildOptions = (
           if (gran === "week") {
             const bin = bins.find((b) => b.ts === ts);
             return bin
-              ? `${format(bin.start, "dd MMM")} – ${format(
-                  bin.end,
-                  "dd MMM yyyy"
-                )}`
+              ? `${format(bin.start, "dd MMM")} – ${format(bin.end, "dd MMM yyyy")}`
               : format(date, "dd MMM yyyy");
           }
           return format(date, "MMM yyyy");
@@ -443,20 +461,8 @@ const buildOptions = (
 };
 
 const summaryCards = (
-  k: {
-    total: number;
-    active: number;
-    inactive: number;
-    pctActive: number;
-    pctInactive: number;
-  },
-  e: {
-    total: number;
-    active: number;
-    inactive: number;
-    pctActive: number;
-    pctInactive: number;
-  }
+  k: { total: number; active: number; inactive: number; pctActive: number; pctInactive: number },
+  e: { total: number; active: number; inactive: number; pctActive: number; pctInactive: number }
 ) => {
   return [
     {
@@ -499,39 +505,15 @@ const metricButtons = (
   <div className="flex flex-wrap items-center justify-between gap-2">
     <div className="flex flex-wrap items-center gap-2">
       {[
-        {
-          key: "views" as const,
-          label: "Views",
-          icon: Eye,
-          tone: "views" as const,
-        },
-        {
-          key: "completions" as const,
-          label: "Completions",
-          icon: CheckCircle,
-          tone: "completions" as const,
-        },
-        {
-          key: "both" as const,
-          label: "Views + Completions",
-          icon: Eye,
-          secondary: CheckCircle,
-          tone: "both" as const,
-        },
-        {
-          key: "completionRate" as const,
-          label: "Rate",
-          icon: TrendingUp,
-          tone: "neutral" as const,
-        },
+        { key: "views" as const, label: "Views", icon: Eye, tone: "views" as const },
+        { key: "completions" as const, label: "Completions", icon: CheckCircle, tone: "completions" as const },
+        { key: "both" as const, label: "Views + Completions", icon: Eye, secondary: CheckCircle, tone: "both" as const },
+        { key: "completionRate" as const, label: "Rate", icon: TrendingUp, tone: "neutral" as const },
       ].map(({ key, label, icon: Icon, secondary: Secondary, tone }) => (
         <button
           key={key}
           onClick={() => setMetric(key)}
-          className={cn(
-            pill(metric === key, tone),
-            "flex items-center gap-1 cursor-pointer px-2 py-1"
-          )}
+          className={cn(pill(metric === key, tone), "flex items-center gap-1 cursor-pointer px-2 py-1")}
         >
           {key === "both" ? (
             <>
@@ -551,6 +533,10 @@ const metricButtons = (
     </div>
   </div>
 );
+
+/* =============================================================================
+   KNOWBY / EMPLOYEE LIST COMPONENTS
+   ============================================================================= */
 
 type UsageListProps = {
   items: UsageRow[];
@@ -572,23 +558,19 @@ const UsageList = ({
   const toneClasses =
     tone === "emerald"
       ? {
-          base: "border-slate-200/60 bg-white/80 hover:border-emerald-400/60 hover:bg-emerald-50/70 dark:border-slate-800 dark:bg-slate-900/60 dark:hover:border-emerald-400/50 dark:hover:bg-emerald-500/10",
-          active:
-            "border-emerald-500/70 bg-emerald-50 shadow-[0_0_0_1px_rgba(16,185,129,0.2)] dark:bg-emerald-500/15",
-          text: "text-emerald-700 dark:text-emerald-200",
-          badge:
-            "border-emerald-200 bg-emerald-100 text-emerald-700 dark:border-emerald-500/60 dark:bg-emerald-500/20 dark:text-emerald-100",
-          badgeActive: "bg-emerald-500 text-white dark:bg-emerald-400/80",
-        }
+        base: "border-slate-200/60 bg-white/80 hover:border-emerald-400/60 hover:bg-emerald-50/70 dark:border-slate-800 dark:bg-slate-900/60 dark:hover:border-emerald-400/50 dark:hover:bg-emerald-500/10",
+        active: "border-emerald-500/70 bg-emerald-50 shadow-[0_0_0_1px_rgba(16,185,129,0.2)] dark:bg-emerald-500/15",
+        text: "text-emerald-700 dark:text-emerald-200",
+        badge: "border-emerald-200 bg-emerald-100 text-emerald-700 dark:border-emerald-500/60 dark:bg-emerald-500/20 dark:text-emerald-100",
+        badgeActive: "bg-emerald-500 text-white dark:bg-emerald-400/80",
+      }
       : {
-          base: "border-slate-200/60 bg-white/70 hover:border-violet-400/50 hover:bg-violet-50/70 dark:border-slate-800 dark:bg-slate-900/50 dark:hover:border-violet-400/50 dark:hover:bg-violet-500/10",
-          active:
-            "border-violet-500/60 bg-violet-50 shadow-[0_0_0_1px_rgba(139,92,246,0.2)] dark:bg-violet-500/15",
-          text: "text-violet-700 dark:text-violet-200",
-          badge:
-            "border-slate-200 bg-slate-100 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200",
-          badgeActive: "border-violet-500 bg-violet-500 text-white",
-        };
+        base: "border-slate-200/60 bg-white/70 hover:border-violet-400/50 hover:bg-violet-50/70 dark:border-slate-800 dark:bg-slate-900/50 dark:hover:border-violet-400/50 dark:hover:bg-violet-500/10",
+        active: "border-violet-500/60 bg-violet-50 shadow-[0_0_0_1px_rgba(139,92,246,0.2)] dark:bg-violet-500/15",
+        text: "text-violet-700 dark:text-violet-200",
+        badge: "border-slate-200 bg-slate-100 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200",
+        badgeActive: "border-violet-500 bg-violet-500 text-white",
+      };
 
   return (
     <div className="rounded-lg border border-slate-200/60 bg-white/80 p-3 text-xs dark:border-slate-800 dark:bg-slate-900/60">
@@ -605,6 +587,7 @@ const UsageList = ({
           {items.length}
         </span>
       </div>
+
       <div className="mt-2 max-h-[220px] space-y-1.5 overflow-y-auto pr-1">
         {items.length ? (
           <ul className="space-y-1.5">
@@ -623,12 +606,7 @@ const UsageList = ({
                     )}
                   >
                     <div className="min-w-0">
-                      <p
-                        className={cn(
-                          "truncate font-medium",
-                          isSelected && toneClasses.text
-                        )}
-                      >
+                      <p className={cn("truncate font-medium", isSelected && toneClasses.text)}>
                         {item.name}
                       </p>
                       <p className="mt-0.5 flex items-center gap-2 text-[12px] text-muted-foreground">
@@ -647,11 +625,7 @@ const UsageList = ({
                         isSelected ? toneClasses.badgeActive : ""
                       )}
                     >
-                      {isSelected
-                        ? "Selected"
-                        : tone === "emerald"
-                        ? "Active"
-                        : "Inactive"}
+                      {isSelected ? "Selected" : tone === "emerald" ? "Active" : "Inactive"}
                     </span>
                   </button>
                 </li>
@@ -673,12 +647,7 @@ type ActivityTableProps = {
   pageSize: number;
 };
 
-const ActivityTable = ({
-  rows,
-  page,
-  setPage,
-  pageSize,
-}: ActivityTableProps) => {
+const ActivityTable = ({ rows, page, setPage, pageSize }: ActivityTableProps) => {
   if (!rows.length) {
     return (
       <p className="text-[11px] text-muted-foreground/80">
@@ -690,18 +659,16 @@ const ActivityTable = ({
   const start = page * pageSize;
   const end = Math.min(start + pageSize, rows.length);
   const paged = rows.slice(start, end);
+
   return (
     <div className="h-full rounded-2xl ring-1 ring-black/10 dark:ring-white/10 pt-0 px-0 bg-white/60 dark:bg-black/10 overflow-hidden">
-      <div className="h-1 w-full bg-lime-500"></div>
+      <div className="h-1 w-full bg-lime-500" />
       <div className="overflow-x-auto">
         <table className="w-full text-[12px]">
           <thead className="sticky top-0 z-10 bg-white/90 dark:bg-black/30 border-b border-slate-200/70 dark:border-white/10">
             <tr className="[&>th]:py-2 [&>th]:px-3 text-left">
               {["Knowby", "Employee", "Event", "When"].map((header) => (
-                <th
-                  key={header}
-                  className="font-bold text-slate-700 dark:text-slate-100"
-                >
+                <th key={header} className="font-bold text-slate-700 dark:text-slate-100">
                   {header}
                 </th>
               ))}
@@ -710,27 +677,17 @@ const ActivityTable = ({
           <tbody>
             {paged.map((row, idx) => (
               <tr
-                key={`${row.type}-${row.date.getTime()}-${row.knowbyName}-${
-                  row.employeeName
-                }-${start + idx}`}
+                key={`${row.type}-${row.date.getTime()}-${row.knowbyName}-${row.employeeName}-${start + idx}`}
                 className={cn(
                   "[&>td]:py-1.5 [&>td]:px-3",
-                  idx % 2 === 0
-                    ? "bg-white/80 dark:bg-slate-800/70"
-                    : "bg-slate-50/80 dark:bg-slate-900/50",
+                  idx % 2 === 0 ? "bg-white/80 dark:bg-slate-800/70" : "bg-slate-50/80 dark:bg-slate-900/50",
                   "hover:bg-slate-100/80 dark:hover:bg-slate-800/80 transition-colors"
                 )}
               >
-                <td
-                  className="whitespace-nowrap max-w-[28ch] truncate text-slate-700 dark:text-slate-200"
-                  title={row.knowbyName}
-                >
+                <td className="whitespace-nowrap max-w-[28ch] truncate text-slate-700 dark:text-slate-200" title={row.knowbyName}>
                   {row.knowbyName}
                 </td>
-                <td
-                  className="whitespace-nowrap max-w-[28ch] truncate text-slate-600 dark:text-slate-300"
-                  title={row.employeeName}
-                >
+                <td className="whitespace-nowrap max-w-[28ch] truncate text-slate-600 dark:text-slate-300" title={row.employeeName}>
                   {row.employeeName}
                 </td>
                 <td className="text-slate-600 dark:text-slate-300">
@@ -744,12 +701,11 @@ const ActivityTable = ({
           </tbody>
         </table>
       </div>
+
       {/* Pager */}
       <div className="flex items-center justify-between px-3 py-2">
         <div className="text-[11px] text-muted-foreground">
-          {rows.length === 0
-            ? "0 results"
-            : `Showing ${start + 1}–${end} of ${rows.length}`}
+          {rows.length === 0 ? "0 results" : `Showing ${start + 1}–${end} of ${rows.length}`}
         </div>
         <div className="flex items-center gap-1.5">
           <Button
@@ -778,8 +734,14 @@ const ActivityTable = ({
   );
 };
 
-// ---------- main component ----------
+/* =============================================================================
+   MAIN COMPONENT
+   ============================================================================= */
+
 export default function AnalyticsExplorer({ selectedDateRange }: Props) {
+  /* --------------------------------------------------------------------------
+     STATE & CONTEXT
+     -------------------------------------------------------------------------- */
   const { views = [], completions = [], status } = useKnowbyData();
   const isDark = useDarkMode();
 
@@ -787,12 +749,13 @@ export default function AnalyticsExplorer({ selectedDateRange }: Props) {
   const [chartType, setChartType] = useState<ChartType>("area");
   const [selKnowbys, setSelKnowbys] = useState<string[]>([]);
   const [selEmployees, setSelEmployees] = useState<string[]>([]);
-  const [usageView, setUsageView] = useState<"knowbys" | "employees">(
-    "knowbys"
-  );
+  const [usageView, setUsageView] = useState<"knowbys" | "employees">("knowbys");
   const [usageQuery, setUsageQuery] = useState("");
   const [activityPage, setActivityPage] = useState(0);
 
+  /* --------------------------------------------------------------------------
+     DERIVED ANALYTICS & OPTIONS
+     -------------------------------------------------------------------------- */
   const data = useMemo(
     () =>
       buildAnalytics(
@@ -811,6 +774,9 @@ export default function AnalyticsExplorer({ selectedDateRange }: Props) {
     [isDark, chartType, data.gran, data.bins, metric]
   );
 
+  /* --------------------------------------------------------------------------
+     SELECTION HELPERS
+     -------------------------------------------------------------------------- */
   const toggleSelection = (type: "knowbys" | "employees", name: string) => {
     const setter = type === "knowbys" ? setSelKnowbys : setSelEmployees;
     setter((prev) => {
@@ -824,16 +790,20 @@ export default function AnalyticsExplorer({ selectedDateRange }: Props) {
     else setSelEmployees([]);
   };
 
+  /* --------------------------------------------------------------------------
+     DERIVED LISTS (USAGE & ACTIVITY)
+     -------------------------------------------------------------------------- */
   const usageSource = data.usage[usageView];
+
   const usageResults = useMemo(() => {
     const query = usageQuery.trim().toLowerCase();
     const filtered = query
       ? usageSource.filter((item) => item.name.toLowerCase().includes(query))
       : usageSource;
+
     const active = filtered.filter((item) => item.views + item.completions > 0);
-    const inactive = filtered.filter(
-      (item) => item.views + item.completions === 0
-    );
+    const inactive = filtered.filter((item) => item.views + item.completions === 0);
+
     const totals = filtered.reduce(
       (acc, item) => {
         acc.views += item.views;
@@ -842,6 +812,7 @@ export default function AnalyticsExplorer({ selectedDateRange }: Props) {
       },
       { views: 0, comps: 0 }
     );
+
     return { active, inactive, total: filtered.length, totals };
   }, [usageQuery, usageSource]);
 
@@ -855,18 +826,8 @@ export default function AnalyticsExplorer({ selectedDateRange }: Props) {
       const date = parseCsvDate(row.date);
       if (!date) return;
 
-      if (
-        selKnowbys.length &&
-        (!row.knowby_name || !selKnowbys.includes(row.knowby_name))
-      ) {
-        return;
-      }
-      if (
-        selEmployees.length &&
-        (!row.member_name || !selEmployees.includes(row.member_name))
-      ) {
-        return;
-      }
+      if (selKnowbys.length && (!row.knowby_name || !selKnowbys.includes(row.knowby_name))) return;
+      if (selEmployees.length && (!row.member_name || !selEmployees.includes(row.member_name))) return;
 
       rows.push({
         knowbyName: row.knowby_name ?? "Unknown knowby",
@@ -882,57 +843,51 @@ export default function AnalyticsExplorer({ selectedDateRange }: Props) {
     return rows.sort((a, b) => b.date.getTime() - a.date.getTime());
   }, [data.viewsInRange, data.compsInRange, selKnowbys, selEmployees]);
 
+  /* --------------------------------------------------------------------------
+     PAGINATION EFFECTS
+     -------------------------------------------------------------------------- */
   useEffect(() => {
     setActivityPage(0);
-  }, [
-    usageView,
-    selKnowbys.join("|"),
-    selEmployees.join("|"),
-    activityRows.length,
-  ]);
+  }, [usageView, selKnowbys.join("|"), selEmployees.join("|"), activityRows.length]);
 
   useEffect(() => {
     if (!hasUsageSelection) {
       setActivityPage(0);
       return;
     }
-    const maxPage = Math.max(
-      0,
-      Math.ceil(activityRows.length / ACTIVITY_PAGE_SIZE) - 1
-    );
+    const maxPage = Math.max(0, Math.ceil(activityRows.length / ACTIVITY_PAGE_SIZE) - 1);
     setActivityPage((prev) => (prev > maxPage ? maxPage : prev));
   }, [activityRows.length, hasUsageSelection]);
 
+  /* --------------------------------------------------------------------------
+     SUMMARY & FLAGS
+     -------------------------------------------------------------------------- */
   const knowbyStats = countActiveInactive(data.usage.knowbys);
   const employeeStats = countActiveInactive(data.usage.employees);
   const summary = summaryCards(knowbyStats, employeeStats);
-
   const hasKnowbySelection = selKnowbys.length > 0;
   const hasEmployeeSelection = selEmployees.length > 0;
 
   if (status === "loading") {
-    return (
-      <Card className="rounded-3xl p-5 md:p-6 border-0 shadow-xl/2 bg-card min-h-[340px]" />
-    );
+    return <Card className="rounded-3xl p-5 md:p-6 border-0 shadow-xl/2 bg-card min-h-[340px]" />;
   }
 
-  const subtitle = `${format(data.dateStart, "d MMM yyyy")} – ${format(
-    data.dateEnd,
-    "d MMM yyyy"
-  )}`;
+  const subtitle = `${format(data.dateStart, "d MMM yyyy")} – ${format(data.dateEnd, "d MMM yyyy")}`;
 
+  /* =============================================================================
+     JSX
+     ============================================================================= */
   return (
     <TooltipProvider>
       <Card className="md:p-5 p-6 rounded-3xl h-fit gap-3 border-0 dark:border dark:border-slate-700 shadow-xl/2 dark:shadow-lg dark:shadow-gray-900/50 w-full bg-card">
+        {/* -------------------------------- HEADER -------------------------------- */}
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-start gap-3 min-w-0">
             <div className="shrink-0 flex h-10 w-10 items-center justify-center rounded-full text-white bg-gradient-to-b from-lime-500 to-lime-700">
               <Search className="h-5 w-5" />
             </div>
             <div className="flex flex-col">
-              <h3 className="text-base md:text-lg dark:text-white font-semibold">
-                Analytics Explorer
-              </h3>
+              <h3 className="text-base md:text-lg dark:text-white font-semibold">Analytics Explorer</h3>
               <span className="text-xs text-muted-foreground">{subtitle}</span>
             </div>
           </div>
@@ -943,6 +898,7 @@ export default function AnalyticsExplorer({ selectedDateRange }: Props) {
         </div>
 
         <CardContent className="p-0">
+          {/* ----------------------------- SUMMARY CARDS ----------------------------- */}
           <section className="rounded-2xl ring-1 ring-black/10 dark:ring-white/10 bg-white/60 dark:bg-black/10 p-4 md:p-5 space-y-4">
             <div className="grid grid-cols-2 gap-6 md:grid-cols-4">
               {summary.map((item) => (
@@ -957,18 +913,15 @@ export default function AnalyticsExplorer({ selectedDateRange }: Props) {
                   )}
                 >
                   <div className="flex flex-col leading-tight">
-                    <p className="text-[11px] font-semibold uppercase tracking-wide opacity-70">
-                      {item.title}
-                    </p>
-                    <p className="text-sm md:text-base font-bold">
-                      {item.value}
-                    </p>
+                    <p className="text-[11px] font-semibold uppercase tracking-wide opacity-70">{item.title}</p>
+                    <p className="text-sm md:text-base font-bold">{item.value}</p>
                   </div>
                   <p className="text-[11px] opacity-70">{item.subtitle}</p>
                 </div>
               ))}
             </div>
 
+            {/* --------------------------------- CHART -------------------------------- */}
             <div className="space-y-3">
               {metricButtons(metric, setMetric, chartType, setChartType)}
               <div className="h-[220px] sm:h-[260px] md:h-[280px]">
@@ -977,23 +930,17 @@ export default function AnalyticsExplorer({ selectedDateRange }: Props) {
                     Select a Knowby or keep “All Knowbys” and choose a metric.
                   </div>
                 ) : (
-                  <Chart
-                    type={chartType}
-                    height="100%"
-                    options={options}
-                    series={data.series as any}
-                  />
+                  <Chart type={chartType} height="100%" options={options} series={data.series as any} />
                 )}
               </div>
             </div>
 
+            {/* ------------------------------ FILTER BAR ------------------------------ */}
             <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between border-t pt-3">
               <div className="flex flex-col gap-2 md:flex-row md:items-center md:gap-3">
                 <Tabs
                   value={usageView}
-                  onValueChange={(v) =>
-                    setUsageView(v as "knowbys" | "employees")
-                  }
+                  onValueChange={(v) => setUsageView(v as "knowbys" | "employees")}
                   className="w-full md:w-auto"
                 >
                   <TabsList
@@ -1029,27 +976,26 @@ export default function AnalyticsExplorer({ selectedDateRange }: Props) {
                     </TabsTrigger>
                   </TabsList>
                 </Tabs>
+
                 <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
                   <span>
-                    {usageResults.total} result
-                    {usageResults.total === 1 ? "" : "s"}
+                    {usageResults.total} result{usageResults.total === 1 ? "" : "s"}
                   </span>
                   <span>
-                    {format(data.dateStart, "d MMM")} –{" "}
-                    {format(data.dateEnd, "d MMM yyyy")}
+                    {format(data.dateStart, "d MMM")} – {format(data.dateEnd, "d MMM yyyy")}
                   </span>
                 </div>
               </div>
+
               <Input
                 value={usageQuery}
                 onChange={(event) => setUsageQuery(event.target.value)}
-                placeholder={`Search ${
-                  usageView === "knowbys" ? "Knowbys" : "Employees"
-                }…`}
+                placeholder={`Search ${usageView === "knowbys" ? "Knowbys" : "Employees"}…`}
                 className="h-8 w-full text-sm md:w-56 shadow-sm transition rounded-2xl ring-1 ring-black/10 dark:ring-white/10 p-3 bg-white/60 dark:bg-black/10"
               />
             </div>
 
+            {/* ------------------------------ USAGE LISTS ------------------------------ */}
             <div className="grid gap-3 md:grid-cols-2">
               <UsageList
                 items={usageResults.active}
@@ -1069,18 +1015,12 @@ export default function AnalyticsExplorer({ selectedDateRange }: Props) {
               />
             </div>
 
+            {/* --------------------------- SELECTION CHIPS + CLEAR --------------------------- */}
             <div className="flex flex-col gap-2">
-              {/* Selected chips */}
               <div className="flex flex-wrap items-center gap-2 text-[11px]">
                 <div className="flex flex-wrap items-center gap-1">
-                  <span className="uppercase tracking-wide text-muted-foreground/70">
-                    Knowbys
-                  </span>
-                  {selKnowbys.length === 0 && (
-                    <span className="text-muted-foreground/60">
-                      None selected
-                    </span>
-                  )}
+                  <span className="uppercase tracking-wide text-muted-foreground/70">Knowbys</span>
+                  {selKnowbys.length === 0 && <span className="text-muted-foreground/60">None selected</span>}
                   {selKnowbys.map((name) => (
                     <Badge
                       key={`knowby-${name}`}
@@ -1093,14 +1033,8 @@ export default function AnalyticsExplorer({ selectedDateRange }: Props) {
                 </div>
 
                 <div className="flex flex-wrap items-center gap-1">
-                  <span className="uppercase tracking-wide text-muted-foreground/70">
-                    Employees
-                  </span>
-                  {selEmployees.length === 0 && (
-                    <span className="text-muted-foreground/60">
-                      None selected
-                    </span>
-                  )}
+                  <span className="uppercase tracking-wide text-muted-foreground/70">Employees</span>
+                  {selEmployees.length === 0 && <span className="text-muted-foreground/60">None selected</span>}
                   {selEmployees.map((name) => (
                     <Badge
                       key={`employee-${name}`}
@@ -1113,7 +1047,6 @@ export default function AnalyticsExplorer({ selectedDateRange }: Props) {
                 </div>
               </div>
 
-              {/* Clear actions */}
               <div className="flex flex-wrap items-center gap-3">
                 {hasKnowbySelection && (
                   <button
@@ -1148,29 +1081,24 @@ export default function AnalyticsExplorer({ selectedDateRange }: Props) {
               </div>
             </div>
 
-            <div className="">
+            {/* ------------------------------- ACTIVITY LOG ------------------------------- */}
+            <div>
               <div className="mb-2 flex items-center justify-between">
                 <div className="text-sm font-medium">Activity Log</div>
-                <div className="text-[11px] text-muted-foreground">
-                  Log shows data from list above
-                </div>
+                <div className="text-[11px] text-muted-foreground">Log shows data from list above</div>
               </div>
 
               {hasUsageSelection ? (
-                <>
-                  <ActivityTable
-                    rows={activityRows}
-                    page={activityPage}
-                    setPage={setActivityPage}
-                    pageSize={ACTIVITY_PAGE_SIZE}
-                  />
-                </>
+                <ActivityTable
+                  rows={activityRows}
+                  page={activityPage}
+                  setPage={setActivityPage}
+                  pageSize={ACTIVITY_PAGE_SIZE}
+                />
               ) : (
                 <div className="space-y-1 text-[11px] text-muted-foreground/80">
                   <p>
-                    Select at least one{" "}
-                    {usageView === "knowbys" ? "knowby" : "employee"} to review
-                    activity events.
+                    Select at least one {usageView === "knowbys" ? "knowby" : "employee"} to review activity events.
                   </p>
                 </div>
               )}

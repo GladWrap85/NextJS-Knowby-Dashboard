@@ -1,6 +1,10 @@
 // src/components/Cards/TopMetricsRow.tsx
 "use client";
 
+/* ============================================================================
+   IMPORTS
+   ============================================================================ */
+
 import { Card } from "@/components/ui/card";
 import {
   ArrowDownRight,
@@ -13,15 +17,31 @@ import {
   User,
   Info,
 } from "lucide-react";
-import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
+import {
+  Tooltip,
+  TooltipProvider,
+  TooltipTrigger,
+  TooltipContent,
+} from "@/components/ui/tooltip";
 import { useKnowbyData } from "@/lib/KnowbyDataProvider";
 import { DateRange } from "react-day-picker";
-import { parse, isWithinInterval, differenceInCalendarDays, subDays } from "date-fns";
+import {
+  parse,
+  isWithinInterval,
+  differenceInCalendarDays,
+  subDays,
+} from "date-fns";
 import { useMemo } from "react";
 
-type Props = {
-  selectedDateRange: DateRange | undefined;
-};
+/* ============================================================================
+   TYPES
+   ============================================================================ */
+
+type Props = { selectedDateRange: DateRange | undefined };
+
+/* ============================================================================
+   HELPERS
+   ============================================================================ */
 
 function parseCsvDate(ds?: string): Date | null {
   if (!ds) return null;
@@ -37,31 +57,11 @@ function inRange(d: Date | null, from: Date, to: Date) {
   return isWithinInterval(d, { start, end });
 }
 
-/** Helper for percentage formatting */
 function pct(n: number) {
   return `${n.toFixed(2)}%`;
 }
 
-/** Count knowbys created between two dates */
-function countKnowbysInRange(
-  list: { createdTs?: number }[],
-  from: Date,
-  to: Date
-) {
-  const start = new Date(from);
-  start.setHours(0, 0, 0, 0);
-  const end = new Date(to);
-  end.setHours(23, 59, 59, 999);
-  const s = start.getTime();
-  const e = end.getTime();
-  let n = 0;
-  for (const k of list) {
-    if (k.createdTs != null && k.createdTs >= s && k.createdTs <= e) n++;
-  }
-  return n;
-}
-
-/** Count unique knowbys (by id) with createdTs <= upTo (undated included). */
+/** Count unique knowbys (by id) with createdTs <= cutoff (undated included). */
 function countKnowbysUpTo(
   list: { knowby_id?: string; createdTs?: number }[],
   upTo: Date
@@ -77,7 +77,7 @@ function countKnowbysUpTo(
     const id = (k as any)?.knowby_id as string | undefined;
     if (!id) continue;
     if (k.createdTs == null) {
-      undated.add(id); // always include undated in both totals
+      undated.add(id);
     } else if (k.createdTs <= cutoffMs) {
       ids.add(id);
     }
@@ -86,7 +86,7 @@ function countKnowbysUpTo(
   return ids.size;
 }
 
-/** Delta badge for comparison % changes */
+/** Small delta badge for % changes. */
 function DeltaBadge({ delta, isRate = false }: { delta: number | null; isRate?: boolean }) {
   if (delta == null || isNaN(delta)) delta = 0;
 
@@ -114,19 +114,30 @@ function DeltaBadge({ delta, isRate = false }: { delta: number | null; isRate?: 
   );
 }
 
-/** Main metrics row */
+/* ============================================================================
+   COMPONENT
+   ============================================================================ */
+
 export default function TopMetricsRow({ selectedDateRange }: Props) {
+  /* --------------------------------------------------------------------------
+     DATA HOOKS
+     -------------------------------------------------------------------------- */
   const { completions, views, knowbys, status } = useKnowbyData();
 
+  /* --------------------------------------------------------------------------
+     DATE WINDOW (CURRENT & PREVIOUS)
+     -------------------------------------------------------------------------- */
   const now = new Date();
   const from = selectedDateRange?.from ?? now;
   const to = selectedDateRange?.to ?? now;
 
-  // Previous period of same span (ending just before current)
   const spanDays = differenceInCalendarDays(to, from) + 1;
   const prevTo = subDays(from, 1);
   const prevFrom = subDays(prevTo, spanDays - 1);
 
+  /* --------------------------------------------------------------------------
+     DERIVED METRICS: CURRENT VS PREVIOUS WINDOW
+     -------------------------------------------------------------------------- */
   const {
     activeMembers,
     vCount,
@@ -137,9 +148,8 @@ export default function TopMetricsRow({ selectedDateRange }: Props) {
     prevCCount,
     prevCompRate,
   } = useMemo(() => {
-    // --- Current period ---
-    let v = 0,
-      c = 0;
+    // Current window
+    let v = 0, c = 0;
     const memberSet = new Set<string>();
 
     for (const row of views) {
@@ -162,12 +172,8 @@ export default function TopMetricsRow({ selectedDateRange }: Props) {
 
     const rate = v > 0 ? (c / v) * 100 : 0;
 
-    // Knowbys created in current range
-    const kCurrent = countKnowbysInRange(knowbys ?? [], from, to);
-
-    // --- Previous period ---
-    let pv = 0,
-      pc = 0;
+    // Previous window
+    let pv = 0, pc = 0;
     const pmemberSet = new Set<string>();
 
     for (const row of views) {
@@ -190,32 +196,30 @@ export default function TopMetricsRow({ selectedDateRange }: Props) {
 
     const prate = pv > 0 ? (pc / pv) * 100 : 0;
 
-    // Knowbys created in previous range
-    const kPrev = countKnowbysInRange(knowbys ?? [], prevFrom, prevTo);
-
     return {
       activeMembers: memberSet.size,
-      knowbysCreated: kCurrent,
       vCount: v,
       cCount: c,
       compRate: rate,
       prevActiveMembers: pmemberSet.size,
-      prevKnowbysCreated: kPrev,
       prevVCount: pv,
       prevCCount: pc,
       prevCompRate: prate,
     };
-  }, [views, completions, knowbys, from, to, prevFrom, prevTo]);
+  }, [views, completions, from, to, prevFrom, prevTo]);
 
-  // Totals up to period end (ever-growing catalog size per cutoff)
-  const { totalNow, totalPrev } = useMemo(() => {
-    return {
+  /* --------------------------------------------------------------------------
+     TOTALS & DELTAS
+     -------------------------------------------------------------------------- */
+  // Ever-growing catalog size (total Knowbys) up to cutoff
+  const { totalNow, totalPrev } = useMemo(
+    () => ({
       totalNow: countKnowbysUpTo(knowbys ?? [], to),
       totalPrev: countKnowbysUpTo(knowbys ?? [], prevTo),
-    };
-  }, [knowbys, to, prevTo]);
+    }),
+    [knowbys, to, prevTo]
+  );
 
-  // Deltas (% change vs previous)
   const deltaMembers =
     activeMembers === 0 && prevActiveMembers === 0
       ? 0
@@ -223,7 +227,6 @@ export default function TopMetricsRow({ selectedDateRange }: Props) {
         ? ((activeMembers - prevActiveMembers) / prevActiveMembers) * 100
         : 100;
 
-  // Use TOTALS for Knowbys delta
   const deltaKnowbys =
     totalNow === 0 && totalPrev === 0
       ? 0
@@ -248,8 +251,10 @@ export default function TopMetricsRow({ selectedDateRange }: Props) {
   const deltaRate =
     compRate === 0 && prevCompRate === 0 ? 0 : compRate - prevCompRate;
 
+  /* --------------------------------------------------------------------------
+     ALL-TIME CHECK (SUPPRESS DELTAS WHEN FULL SPAN SELECTED)
+     -------------------------------------------------------------------------- */
   const { isAllTime } = useMemo(() => {
-    // find dataset min/max across views + completions
     let minD: Date | null = null;
     let maxD: Date | null = null;
 
@@ -265,24 +270,30 @@ export default function TopMetricsRow({ selectedDateRange }: Props) {
     ingest(views ?? []);
     ingest(completions ?? []);
 
-    // if no data, never treat as all-time
     if (!minD || !maxD) return { isAllTime: false };
 
-    // normalize to day bounds for inclusive compare
-    const norm0 = (x: Date) => { const y = new Date(x); y.setHours(0, 0, 0, 0); return y; };
-    const normEnd = (x: Date) => { const y = new Date(x); y.setHours(23, 59, 59, 999); return y; };
+    const norm0 = (x: Date) => {
+      const y = new Date(x);
+      y.setHours(0, 0, 0, 0);
+      return y;
+    };
+    const normEnd = (x: Date) => {
+      const y = new Date(x);
+      y.setHours(23, 59, 59, 999);
+      return y;
+    };
 
     const f = norm0(from);
     const t = normEnd(to);
     const mind = norm0(minD);
     const maxd = normEnd(maxD);
 
-    // selected range fully covers dataset span?
-    const all = f <= mind && t >= maxd;
-
-    return { isAllTime: all };
+    return { isAllTime: f <= mind && t >= maxd };
   }, [views, completions, from, to]);
 
+  /* --------------------------------------------------------------------------
+     LOADING SKELETON
+     -------------------------------------------------------------------------- */
   if (status === "loading") {
     return (
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-6">
@@ -302,10 +313,13 @@ export default function TopMetricsRow({ selectedDateRange }: Props) {
     );
   }
 
+  /* ============================================================================
+     JSX
+     ============================================================================ */
   return (
     <TooltipProvider>
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-6">
-        {/* Active Members */}
+        {/* ----------------------------- Active Members ---------------------------- */}
         <Card className="relative flex flex-row items-center p-4 bg-card shadow-xl/2 dark:shadow-lg dark:shadow-gray-900/50 gap-3 border-0 border-b-teal-500/50 border-b-2 rounded-3xl">
           <Tooltip>
             <TooltipTrigger className="absolute top-4 right-4 text-muted-foreground">
@@ -329,7 +343,7 @@ export default function TopMetricsRow({ selectedDateRange }: Props) {
           </div>
         </Card>
 
-        {/* Knowbys */}
+        {/* --------------------------------- Knowbys -------------------------------- */}
         <Card className="relative flex flex-row items-center p-4 bg-card shadow-xl/2 dark:shadow-lg dark:shadow-gray-900/50 gap-3 border-0 border-b-indigo-500/50 border-b-2 rounded-3xl">
           <Tooltip>
             <TooltipTrigger className="absolute top-4 right-4 text-muted-foreground">
@@ -353,7 +367,7 @@ export default function TopMetricsRow({ selectedDateRange }: Props) {
           </div>
         </Card>
 
-        {/* Views */}
+        {/* ---------------------------------- Views --------------------------------- */}
         <Card className="relative flex flex-row items-center p-4 bg-card shadow-xl/2 dark:shadow-lg dark:shadow-gray-900/50 gap-3 border-0 border-b-blue-500/50 border-b-2 rounded-3xl">
           <Tooltip>
             <TooltipTrigger className="absolute top-4 right-4 text-muted-foreground">
@@ -377,7 +391,7 @@ export default function TopMetricsRow({ selectedDateRange }: Props) {
           </div>
         </Card>
 
-        {/* Completions */}
+        {/* ------------------------------- Completions ------------------------------ */}
         <Card className="relative flex flex-row items-center p-4 bg-card shadow-xl/2 dark:shadow-lg dark:shadow-gray-900/50 gap-3 border-0 border-b-green-500/50 border-b-2 rounded-3xl">
           <Tooltip>
             <TooltipTrigger className="absolute top-4 right-4 text-muted-foreground">
@@ -401,7 +415,7 @@ export default function TopMetricsRow({ selectedDateRange }: Props) {
           </div>
         </Card>
 
-        {/* Completion Rate */}
+        {/* ---------------------------- Completion Rate ---------------------------- */}
         <Card className="relative flex flex-row items-center p-4 bg-card shadow-xl/2 dark:shadow-lg dark:shadow-gray-900/50 gap-3 border-0 border-b-purple-500/50 border-b-2 rounded-3xl">
           <Tooltip>
             <TooltipTrigger className="absolute top-4 right-4 text-muted-foreground">
@@ -420,7 +434,7 @@ export default function TopMetricsRow({ selectedDateRange }: Props) {
               <span className="text-2xl font-semibold tabular-nums dark:text-white">
                 {pct(compRate || 0)}
               </span>
-              {!isAllTime && <DeltaBadge delta={deltaRate} />}
+              {!isAllTime && <DeltaBadge delta={deltaRate} isRate />}
             </div>
           </div>
         </Card>
