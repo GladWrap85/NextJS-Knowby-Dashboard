@@ -1,21 +1,22 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import { addDays, format } from "date-fns"
-import { Calendar as CalendarIcon } from "lucide-react"
-import { DateRange } from "react-day-picker"
+import * as React from "react";
+import { format } from "date-fns";
+import { Calendar as CalendarIcon } from "lucide-react";
+import { DateRange } from "react-day-picker";
 
-import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
-import { Calendar } from "@/components/ui/calendar"
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@/components/ui/popover"
+} from "@/components/ui/popover";
 
 // Define props for DatePickerWithRange
-interface DatePickerWithRangeProps { // Changed: Removed extends React.HTMLAttributes<HTMLDivElement>
+interface DatePickerWithRangeProps {
+  // Changed: Removed extends React.HTMLAttributes<HTMLDivElement>
   className?: string; // Add className explicitly if it's used and needed from parent
   date: DateRange | undefined;
   onSelect: (range: DateRange | undefined) => void;
@@ -25,7 +26,8 @@ export function DatePickerWithRange({
   className,
   date,
   onSelect,
-}: DatePickerWithRangeProps) { // Use the new interface for props
+}: DatePickerWithRangeProps) {
+  // Use the new interface for props
   // Remove the internal useState for date, as it will be controlled by the parent.
   // const [date, setDate] = React.useState<DateRange | undefined>({
   //   from: new Date(2022, 0, 20),
@@ -72,5 +74,5 @@ export function DatePickerWithRange({
         </PopoverContent>
       </Popover>
     </div>
-  )
+  );
 }

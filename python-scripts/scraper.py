@@ -30,7 +30,7 @@ def main():
 
         # Fetch published knowbys
         url_published = (
-            f"https://knowby-pro-backend-prod-qt5p6426oq-ts.a.run.app/api/knowby/published/"
+            f"https://pro.knowby.io/api/knowby/published/"
             f"{X_ORGANISATION_ID}?skip=0&take=24&sort=last_updated_at_utc&ascending=false&query="
         )
         response_published = requests.post(url_published, headers=headers)
@@ -57,7 +57,7 @@ def main():
 
         # Fetch views per knowby (parallel)
         all_views = []
-        base_view_url = "https://knowby-pro-backend-prod-qt5p6426oq-ts.a.run.app/api/knowbyview/latest/"
+        base_view_url = "https://pro.knowby.io/api/knowbyview/latest/"
         params = "?skip=0&take=25"
 
         def fetch_views(row):
@@ -107,8 +107,8 @@ def main():
         # API only returns 25 records at a time, so we need to make multiple requests
         while True:
             completion_url = (
-                f"https://knowby-pro-backend-prod-571132428963.australia-southeast1.run.app"
-                f"/api/reports/organisation/completions/{X_ORGANISATION_ID}/{start_ts}/{end_ts}/{skip}/{take}/Pacific%2FAuckland"
+                f"https://pro.knowby.io/api/reports/organisation/completions/"
+                f"{X_ORGANISATION_ID}/{start_ts}/{end_ts}/{skip}/{take}/Pacific%2FAuckland"
             )
             try:
                 # Make GET request to the completions API endpoint

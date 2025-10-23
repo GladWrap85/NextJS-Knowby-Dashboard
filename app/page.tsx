@@ -2,8 +2,6 @@
 
 import TodaysUsageCard from "@/components/Cards/TodaysUsageCard";
 import TopKnowbyCard from "@/components/Cards/TopKnowbyCard";
-import ModularGraphCard from "@/components/Cards/InsightsCard";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import KnowbyStats from "@/components/Cards/KnowbyStats";
 import ViewsCalendarHeatmap from "@/components/Cards/HeatmapCard";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -22,10 +20,11 @@ import {
   PopoverContent
 } from "@/components/ui/popover";
 import { DatePickerWithRange } from "@/components/DateRangePicker";
-import { Calendar as CalendarIcon, LayoutDashboard, User } from "lucide-react";
+import { Calendar as CalendarIcon } from "lucide-react";
 import { useKnowbyData } from "@/lib/KnowbyDataProvider";
 import { parse } from "date-fns";
 import TopMetricsRow from "@/components/Cards/TopMetricsRow";
+import AnalyticsExplorer from "@/components/Cards/InsightsCard";
 
 type Period = "daily" | "weekly" | "monthly" | "yearly" | "all-time" | "range";
 
@@ -154,23 +153,23 @@ export default function Home() {
               {/* Top row of cards */}
               <TopMetricsRow selectedDateRange={dateRange} />
               
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-[20px]">
+              <div className="grid grid-cols-1 xl:grid-cols-3 gap-[20px]">
                 {/* <TotalUsageCard /> */}
-                <div className="col-span-1 md:col-span-1 lg:col-span-2">
+                <div className="col-span-1 xl:col-span-2">
                   <TodaysUsageCard selectedDateRange={dateRange} />
                 </div>
                 <TopKnowbyCard selectedDateRange={dateRange} />
               </div>
               {/* Knowby Stats + Heatmap */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-[20px]">
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-[20px]">
                 <KnowbyStats selectedDateRange={dateRange} />
 
                 <ViewsCalendarHeatmap selectedDateRange={dateRange} />
               </div>
 
               {/* Insights */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-[20px]">
-                <ModularGraphCard selectedDateRange={dateRange} />
+              <div className="grid grid-cols-1 lg:grid-cols-1 gap-[20px]">
+                <AnalyticsExplorer selectedDateRange={dateRange} />
               </div>
             </div>
           </div>

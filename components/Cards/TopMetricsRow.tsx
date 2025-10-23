@@ -1,23 +1,22 @@
+// src/components/Cards/TopMetricsRow.tsx
 "use client";
 
 import { Card } from "@/components/ui/card";
 import {
   ArrowDownRight,
   ArrowUpRight,
+  Minus,
   BookOpen,
   CheckCheck,
   Eye,
   Percent,
   User,
+  Info,
 } from "lucide-react";
+import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { useKnowbyData } from "@/lib/KnowbyDataProvider";
 import { DateRange } from "react-day-picker";
-import {
-  parse,
-  isWithinInterval,
-  differenceInCalendarDays,
-  subDays,
-} from "date-fns";
+import { parse, isWithinInterval, differenceInCalendarDays, subDays } from "date-fns";
 import { useMemo } from "react";
 
 type Props = {
@@ -26,47 +25,87 @@ type Props = {
 
 function parseCsvDate(ds?: string): Date | null {
   if (!ds) return null;
-  // CSV dates are dd/MM/yyyy
   return parse(ds, "dd/MM/yyyy", new Date());
 }
 
 function inRange(d: Date | null, from: Date, to: Date) {
   if (!d) return false;
-  const start = new Date(from.setHours(0, 0, 0, 0));
-  const end = new Date(to.setHours(23, 59, 59, 999));
+  const start = new Date(from);
+  start.setHours(0, 0, 0, 0);
+  const end = new Date(to);
+  end.setHours(23, 59, 59, 999);
   return isWithinInterval(d, { start, end });
 }
 
+/** Helper for percentage formatting */
 function pct(n: number) {
   return `${n.toFixed(2)}%`;
 }
 
-function DeltaBadge({
-  delta,
-  isRate = false,
-}: {
-  delta: number | null;
-  isRate?: boolean;
-}) {
-  if (delta == null) {
-    return (
-      <span className="flex items-center gap-1 text-xs text-muted-foreground">
-        —
-      </span>
-    );
+/** Count knowbys created between two dates */
+function countKnowbysInRange(
+  list: { createdTs?: number }[],
+  from: Date,
+  to: Date
+) {
+  const start = new Date(from);
+  start.setHours(0, 0, 0, 0);
+  const end = new Date(to);
+  end.setHours(23, 59, 59, 999);
+  const s = start.getTime();
+  const e = end.getTime();
+  let n = 0;
+  for (const k of list) {
+    if (k.createdTs != null && k.createdTs >= s && k.createdTs <= e) n++;
   }
+  return n;
+}
+
+/** Count unique knowbys (by id) with createdTs <= upTo (undated included). */
+function countKnowbysUpTo(
+  list: { knowby_id?: string; createdTs?: number }[],
+  upTo: Date
+) {
+  const cutoff = new Date(upTo);
+  cutoff.setHours(23, 59, 59, 999);
+  const cutoffMs = cutoff.getTime();
+
+  const ids = new Set<string>();
+  const undated = new Set<string>();
+
+  for (const k of list) {
+    const id = (k as any)?.knowby_id as string | undefined;
+    if (!id) continue;
+    if (k.createdTs == null) {
+      undated.add(id); // always include undated in both totals
+    } else if (k.createdTs <= cutoffMs) {
+      ids.add(id);
+    }
+  }
+  for (const id of undated) ids.add(id);
+  return ids.size;
+}
+
+/** Delta badge for comparison % changes */
+function DeltaBadge({ delta, isRate = false }: { delta: number | null; isRate?: boolean }) {
+  if (delta == null || isNaN(delta)) delta = 0;
+
   const up = delta > 0;
-  const Icon = up ? ArrowUpRight : ArrowDownRight;
-  const txt =
-    (isRate ? Math.abs(delta).toFixed(2) : Math.abs(delta).toFixed(2)) + "%";
+  const down = delta < 0;
+  const neutral = delta === 0;
+
+  const Icon = up ? ArrowUpRight : down ? ArrowDownRight : Minus;
+  const txt = `${Math.abs(delta).toFixed(2)}%`;
+
+  const colorClass = neutral
+    ? "text-muted-foreground bg-muted"
+    : up
+      ? "text-green-600 bg-green-500/30 dark:text-green-500 dark:bg-emerald-950"
+      : "text-red-600 bg-rose-500/30 dark:text-red-500 dark:bg-rose-950";
+
   return (
     <span
-      className={
-        "flex items-center gap-1 text-xs px-1 rounded p-0.5 " +
-        (up
-          ? "text-green-600 bg-green-500/30 dark:text-green-500 dark:bg-emerald-950"
-          : "text-red-600 bg-rose-500/30 dark:text-red-500 dark:bg-rose-950")
-      }
+      className={`flex items-center gap-1 text-xs px-1 rounded p-0.5 ${colorClass}`}
       title={isRate ? `Δ completion rate: ${txt}` : `Δ vs prev: ${txt}`}
     >
       <Icon className="h-3 w-3" />
@@ -75,134 +114,176 @@ function DeltaBadge({
   );
 }
 
+/** Main metrics row */
 export default function TopMetricsRow({ selectedDateRange }: Props) {
-  const { completions, views, status } = useKnowbyData();
+  const { completions, views, knowbys, status } = useKnowbyData();
 
-  // Guard: if we don't have a range yet, show zeros
   const now = new Date();
   const from = selectedDateRange?.from ?? now;
   const to = selectedDateRange?.to ?? now;
 
-  // Previous period of the same length (ends the day before "from")
+  // Previous period of same span (ending just before current)
   const spanDays = differenceInCalendarDays(to, from) + 1;
   const prevTo = subDays(from, 1);
   const prevFrom = subDays(prevTo, spanDays - 1);
 
-  // --- Aggregate current period ---
   const {
     activeMembers,
-    knowbys,
     vCount,
     cCount,
     compRate,
     prevActiveMembers,
-    prevKnowbys,
     prevVCount,
     prevCCount,
     prevCompRate,
   } = useMemo(() => {
-    // current
+    // --- Current period ---
     let v = 0,
       c = 0;
     const memberSet = new Set<string>();
-    const knowbySet = new Set<string>();
 
     for (const row of views) {
       const d = parseCsvDate((row as any)?.date);
       if (inRange(d, from, to)) {
-        v += 1;
+        v++;
         const mid = (row as any)?.member_id as string | undefined;
         if (mid) memberSet.add(mid);
-        const kid = (row as any)?.knowby_id as string | undefined;
-        if (kid) knowbySet.add(kid);
       }
     }
+
     for (const row of completions) {
       const d = parseCsvDate((row as any)?.date);
       if (inRange(d, from, to)) {
-        c += 1;
+        c++;
         const mid = (row as any)?.member_id as string | undefined;
-        if (mid) memberSet.add(mid); // union with views members
-        const kid = (row as any)?.knowby_id as string | undefined;
-        if (kid) knowbySet.add(kid); // union with views knowbys
+        if (mid) memberSet.add(mid);
       }
     }
+
     const rate = v > 0 ? (c / v) * 100 : 0;
 
-    // previous
+    // Knowbys created in current range
+    const kCurrent = countKnowbysInRange(knowbys ?? [], from, to);
+
+    // --- Previous period ---
     let pv = 0,
       pc = 0;
     const pmemberSet = new Set<string>();
-    const pknowbySet = new Set<string>();
 
     for (const row of views) {
       const d = parseCsvDate((row as any)?.date);
       if (inRange(d, prevFrom, prevTo)) {
-        pv += 1;
+        pv++;
         const mid = (row as any)?.member_id as string | undefined;
         if (mid) pmemberSet.add(mid);
-        const kid = (row as any)?.knowby_id as string | undefined;
-        if (kid) pknowbySet.add(kid);
       }
     }
+
     for (const row of completions) {
       const d = parseCsvDate((row as any)?.date);
       if (inRange(d, prevFrom, prevTo)) {
-        pc += 1;
+        pc++;
         const mid = (row as any)?.member_id as string | undefined;
         if (mid) pmemberSet.add(mid);
-        const kid = (row as any)?.knowby_id as string | undefined;
-        if (kid) pknowbySet.add(kid);
       }
     }
+
     const prate = pv > 0 ? (pc / pv) * 100 : 0;
+
+    // Knowbys created in previous range
+    const kPrev = countKnowbysInRange(knowbys ?? [], prevFrom, prevTo);
 
     return {
       activeMembers: memberSet.size,
-      knowbys: knowbySet.size,
+      knowbysCreated: kCurrent,
       vCount: v,
       cCount: c,
       compRate: rate,
       prevActiveMembers: pmemberSet.size,
-      prevKnowbys: pknowbySet.size,
+      prevKnowbysCreated: kPrev,
       prevVCount: pv,
       prevCCount: pc,
       prevCompRate: prate,
     };
-  }, [views, completions, from, to, prevFrom, prevTo]);
+  }, [views, completions, knowbys, from, to, prevFrom, prevTo]);
 
-  // Deltas: percent change for counts; percentage-point change for rate (but we still render as % for badge consistency)
+  // Totals up to period end (ever-growing catalog size per cutoff)
+  const { totalNow, totalPrev } = useMemo(() => {
+    return {
+      totalNow: countKnowbysUpTo(knowbys ?? [], to),
+      totalPrev: countKnowbysUpTo(knowbys ?? [], prevTo),
+    };
+  }, [knowbys, to, prevTo]);
+
+  // Deltas (% change vs previous)
   const deltaMembers =
     activeMembers === 0 && prevActiveMembers === 0
-      ? null
+      ? 0
       : prevActiveMembers > 0
         ? ((activeMembers - prevActiveMembers) / prevActiveMembers) * 100
-        : 100; // from 0 → up
-  const deltaKnowbys =
-    knowbys === 0 && prevKnowbys === 0
-      ? null
-      : prevKnowbys > 0
-        ? ((knowbys - prevKnowbys) / prevKnowbys) * 100
         : 100;
+
+  // Use TOTALS for Knowbys delta
+  const deltaKnowbys =
+    totalNow === 0 && totalPrev === 0
+      ? 0
+      : totalPrev > 0
+        ? ((totalNow - totalPrev) / totalPrev) * 100
+        : 100;
+
   const deltaViews =
     vCount === 0 && prevVCount === 0
-      ? null
+      ? 0
       : prevVCount > 0
         ? ((vCount - prevVCount) / prevVCount) * 100
         : 100;
+
   const deltaCompletions =
     cCount === 0 && prevCCount === 0
-      ? null
+      ? 0
       : prevCCount > 0
         ? ((cCount - prevCCount) / prevCCount) * 100
         : 100;
+
   const deltaRate =
-    compRate === 0 && prevCompRate === 0 ? null : compRate - prevCompRate; // percentage points
+    compRate === 0 && prevCompRate === 0 ? 0 : compRate - prevCompRate;
 
-  const isLoading = status === "loading";
+  const { isAllTime } = useMemo(() => {
+    // find dataset min/max across views + completions
+    let minD: Date | null = null;
+    let maxD: Date | null = null;
 
-  // Ghosted while loading
-  if (isLoading) {
+    const ingest = (rows: any[]) => {
+      for (const r of rows) {
+        const d = parseCsvDate(r?.date);
+        if (!d) continue;
+        if (!minD || d < minD) minD = d;
+        if (!maxD || d > maxD) maxD = d;
+      }
+    };
+
+    ingest(views ?? []);
+    ingest(completions ?? []);
+
+    // if no data, never treat as all-time
+    if (!minD || !maxD) return { isAllTime: false };
+
+    // normalize to day bounds for inclusive compare
+    const norm0 = (x: Date) => { const y = new Date(x); y.setHours(0, 0, 0, 0); return y; };
+    const normEnd = (x: Date) => { const y = new Date(x); y.setHours(23, 59, 59, 999); return y; };
+
+    const f = norm0(from);
+    const t = normEnd(to);
+    const mind = norm0(minD);
+    const maxd = normEnd(maxD);
+
+    // selected range fully covers dataset span?
+    const all = f <= mind && t >= maxd;
+
+    return { isAllTime: all };
+  }, [views, completions, from, to]);
+
+  if (status === "loading") {
     return (
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-6">
         {Array.from({ length: 5 }).map((_, i) => (
@@ -210,9 +291,7 @@ export default function TopMetricsRow({ selectedDateRange }: Props) {
             key={i}
             className="flex flex-row items-center p-4 bg-card shadow-xl/2 dark:shadow-lg dark:shadow-gray-900/50 gap-3 border-0 rounded-3xl"
           >
-            {/* icon circle */}
             <div className="w-10 h-10 rounded-full bg-muted animate-pulse" />
-            {/* label + value */}
             <div className="flex flex-col justify-center gap-2 flex-1">
               <div className="h-3 w-20 bg-muted rounded animate-pulse" />
               <div className="h-6 w-16 bg-muted rounded animate-pulse" />
@@ -224,86 +303,128 @@ export default function TopMetricsRow({ selectedDateRange }: Props) {
   }
 
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-5 gap-6">
-      {/* Active Members */}
-      <Card className="flex flex-row items-center p-4 bg-card shadow-xl/2 dark:shadow-lg dark:shadow-gray-900/50 gap-3 border-0 border-b-teal-500/50 border-b-2 rounded-3xl">
-        <div className="flex items-center justify-center w-10 h-10 rounded-full bg-teal-600/20 text-teal-500">
-          <User className="h-5 w-5" />
-        </div>
-        <div className="flex flex-col justify-center gap-2">
-          <span className="text-xs text-muted-foreground">Active Members</span>
-          <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-semibold tabular-nums dark:text-white">
-              {activeMembers.toLocaleString()}
-            </span>
-            <DeltaBadge delta={deltaMembers} />
+    <TooltipProvider>
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-6">
+        {/* Active Members */}
+        <Card className="relative flex flex-row items-center p-4 bg-card shadow-xl/2 dark:shadow-lg dark:shadow-gray-900/50 gap-3 border-0 border-b-teal-500/50 border-b-2 rounded-3xl">
+          <Tooltip>
+            <TooltipTrigger className="absolute top-4 right-4 text-muted-foreground">
+              <Info className="h-4 w-4" />
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Number of unique members who viewed or completed any Knowby within the selected range.</p>
+            </TooltipContent>
+          </Tooltip>
+          <div className="flex items-center justify-center w-10 h-10 rounded-full bg-teal-600/20 text-teal-500">
+            <User className="h-5 w-5" />
           </div>
-        </div>
-      </Card>
+          <div className="flex flex-col justify-center gap-2">
+            <span className="text-xs text-muted-foreground">Active Members</span>
+            <div className="flex items-baseline gap-2">
+              <span className="text-2xl font-semibold tabular-nums dark:text-white">
+                {activeMembers.toLocaleString()}
+              </span>
+              {!isAllTime && <DeltaBadge delta={deltaMembers} />}
+            </div>
+          </div>
+        </Card>
 
-      {/* Knowbys */}
-      <Card className="flex flex-row items-center p-4 bg-card shadow-xl/2 dark:shadow-lg dark:shadow-gray-900/50 gap-3 border-0 border-b-indigo-500/50 border-b-2 rounded-3xl">
-        <div className="flex items-center justify-center w-10 h-10 rounded-full bg-indigo-600/20 text-indigo-500">
-          <BookOpen className="h-5 w-5" />
-        </div>
-        <div className="flex flex-col justify-center gap-2">
-          <span className="text-xs text-muted-foreground">Knowbys</span>
-          <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-semibold tabular-nums dark:text-white">
-              {knowbys.toLocaleString()}
-            </span>
-            <DeltaBadge delta={deltaKnowbys} />
+        {/* Knowbys */}
+        <Card className="relative flex flex-row items-center p-4 bg-card shadow-xl/2 dark:shadow-lg dark:shadow-gray-900/50 gap-3 border-0 border-b-indigo-500/50 border-b-2 rounded-3xl">
+          <Tooltip>
+            <TooltipTrigger className="absolute top-4 right-4 text-muted-foreground">
+              <Info className="h-4 w-4" />
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Total number of Knowbys available up to the end of the selected period.</p>
+            </TooltipContent>
+          </Tooltip>
+          <div className="flex items-center justify-center w-10 h-10 rounded-full bg-indigo-600/20 text-indigo-500">
+            <BookOpen className="h-5 w-5" />
           </div>
-        </div>
-      </Card>
+          <div className="flex flex-col justify-center gap-2">
+            <span className="text-xs text-muted-foreground">Knowbys</span>
+            <div className="flex items-baseline gap-2">
+              <span className="text-2xl font-semibold tabular-nums dark:text-white">
+                {totalNow.toLocaleString()}
+              </span>
+              {!isAllTime && <DeltaBadge delta={deltaKnowbys} />}
+            </div>
+          </div>
+        </Card>
 
-      {/* Views */}
-      <Card className="flex flex-row items-center p-4 bg-card shadow-xl/2 dark:shadow-lg dark:shadow-gray-900/50 gap-3 border-0 border-b-blue-500/50 border-b-2 rounded-3xl">
-        <div className="flex items-center justify-center w-10 h-10 rounded-full bg-blue-600/20 text-blue-500">
-          <Eye className="h-5 w-5" />
-        </div>
-        <div className="flex flex-col justify-center gap-2">
-          <span className="text-xs text-muted-foreground">Views</span>
-          <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-semibold tabular-nums dark:text-white">
-              {vCount.toLocaleString()}
-            </span>
-            <DeltaBadge delta={deltaViews} />
+        {/* Views */}
+        <Card className="relative flex flex-row items-center p-4 bg-card shadow-xl/2 dark:shadow-lg dark:shadow-gray-900/50 gap-3 border-0 border-b-blue-500/50 border-b-2 rounded-3xl">
+          <Tooltip>
+            <TooltipTrigger className="absolute top-4 right-4 text-muted-foreground">
+              <Info className="h-4 w-4" />
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Total number of times Knowbys were viewed during the selected period.</p>
+            </TooltipContent>
+          </Tooltip>
+          <div className="flex items-center justify-center w-10 h-10 rounded-full bg-blue-600/20 text-blue-500">
+            <Eye className="h-5 w-5" />
           </div>
-        </div>
-      </Card>
+          <div className="flex flex-col justify-center gap-2">
+            <span className="text-xs text-muted-foreground">Views</span>
+            <div className="flex items-baseline gap-2">
+              <span className="text-2xl font-semibold tabular-nums dark:text-white">
+                {vCount.toLocaleString()}
+              </span>
+              {!isAllTime && <DeltaBadge delta={deltaViews} />}
+            </div>
+          </div>
+        </Card>
 
-      {/* Completions */}
-      <Card className="flex flex-row items-center p-4 bg-card shadow-xl/2 dark:shadow-lg dark:shadow-gray-900/50 gap-3 border-0 border-b-green-500/50 border-b-2 rounded-3xl">
-        <div className="flex items-center justify-center w-10 h-10 rounded-full bg-green-600/20 text-green-500">
-          <CheckCheck className="h-5 w-5" />
-        </div>
-        <div className="flex flex-col justify-center gap-2">
-          <span className="text-xs text-muted-foreground">Completions</span>
-          <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-semibold tabular-nums dark:text-white">
-              {cCount.toLocaleString()}
-            </span>
-            <DeltaBadge delta={deltaCompletions} />
+        {/* Completions */}
+        <Card className="relative flex flex-row items-center p-4 bg-card shadow-xl/2 dark:shadow-lg dark:shadow-gray-900/50 gap-3 border-0 border-b-green-500/50 border-b-2 rounded-3xl">
+          <Tooltip>
+            <TooltipTrigger className="absolute top-4 right-4 text-muted-foreground">
+              <Info className="h-4 w-4" />
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Number of Knowby completions recorded within the selected date range.</p>
+            </TooltipContent>
+          </Tooltip>
+          <div className="flex items-center justify-center w-10 h-10 rounded-full bg-green-600/20 text-green-500">
+            <CheckCheck className="h-5 w-5" />
           </div>
-        </div>
-      </Card>
+          <div className="flex flex-col justify-center gap-2">
+            <span className="text-xs text-muted-foreground">Completions</span>
+            <div className="flex items-baseline gap-2">
+              <span className="text-2xl font-semibold tabular-nums dark:text-white">
+                {cCount.toLocaleString()}
+              </span>
+              {!isAllTime && <DeltaBadge delta={deltaCompletions} />}
+            </div>
+          </div>
+        </Card>
 
-      {/* Completion Rate */}
-      <Card className="flex flex-row items-center p-4 bg-card shadow-xl/2 dark:shadow-lg dark:shadow-gray-900/50 gap-3 border-0 border-b-purple-500/50 border-b-2 rounded-3xl">
-        <div className="flex items-center justify-center w-10 h-10 rounded-full bg-purple-600/20 text-purple-500">
-          <Percent className="h-5 w-5" />
-        </div>
-        <div className="flex flex-col justify-center gap-2">
-          <span className="text-xs text-muted-foreground">Completion Rate</span>
-          <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-semibold tabular-nums dark:text-white">
-              {pct(compRate || 0)}
-            </span>
-            <DeltaBadge delta={deltaRate ?? null} isRate />
+        {/* Completion Rate */}
+        <Card className="relative flex flex-row items-center p-4 bg-card shadow-xl/2 dark:shadow-lg dark:shadow-gray-900/50 gap-3 border-0 border-b-purple-500/50 border-b-2 rounded-3xl">
+          <Tooltip>
+            <TooltipTrigger className="absolute top-4 right-4 text-muted-foreground">
+              <Info className="h-4 w-4" />
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Percentage of views that resulted in completions within the selected period.</p>
+            </TooltipContent>
+          </Tooltip>
+          <div className="flex items-center justify-center w-10 h-10 rounded-full bg-purple-600/20 text-purple-500">
+            <Percent className="h-5 w-5" />
           </div>
-        </div>
-      </Card>
-    </div>
+          <div className="flex flex-col justify-center gap-2">
+            <span className="text-xs text-muted-foreground">Completion Rate</span>
+            <div className="flex items-baseline gap-2">
+              <span className="text-2xl font-semibold tabular-nums dark:text-white">
+                {pct(compRate || 0)}
+              </span>
+              {!isAllTime && <DeltaBadge delta={deltaRate} />}
+            </div>
+          </div>
+        </Card>
+      </div>
+    </TooltipProvider>
   );
 }

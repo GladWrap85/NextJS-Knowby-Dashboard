@@ -8,16 +8,27 @@ import {
   startOfDay,
   endOfDay,
   isSameDay,
+  format,
 } from "date-fns";
 import { DateRange } from "react-day-picker";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
-import { Eye, CheckCircle, TrendingUp, BookOpen } from "lucide-react";
+import { Eye, CheckCircle, TrendingUp, BookOpen, Maximize2 } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  Dialog,
+  DialogTrigger,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 import { useKnowbyData } from "@/lib/KnowbyDataProvider";
 
 interface TopKnowbyCardProps {
@@ -48,8 +59,10 @@ export default function TopKnowbyCard({ selectedDateRange }: TopKnowbyCardProps)
   }, [startRaw, endRaw]);
 
   const [rows, setRows] = useState<AggRow[]>([]);
+  const [allRows, setAllRows] = useState<AggRow[]>([]);
   const [totals, setTotals] = useState({ views: 0, comps: 0 });
   const [footerRate, setFooterRate] = useState<number | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
 
   // ----- Helpers: tolerant getters + flexible date parse -----
   const getName = (r: any) =>
@@ -106,7 +119,7 @@ export default function TopKnowbyCard({ selectedDateRange }: TopKnowbyCardProps)
       return { knowby, views: v.views, comps: v.comps, rate: Math.min(pct, 100) };
     });
 
-    // rank by completions, top 5
+    // rank by completions
     arr.sort((a, b) => b.comps - a.comps);
     const top5 = arr.slice(0, 5);
 
@@ -119,6 +132,7 @@ export default function TopKnowbyCard({ selectedDateRange }: TopKnowbyCardProps)
       total.views === 0 ? 0 : Math.min((total.comps / total.views) * 100, 100);
 
     if (!cancelled) {
+      setAllRows(arr);
       setRows(top5);
       setTotals(total);
       setFooterRate(fRate);
@@ -131,7 +145,7 @@ export default function TopKnowbyCard({ selectedDateRange }: TopKnowbyCardProps)
   // Loading skeleton (first load only)
   if (status === "loading") {
     return (
-      <Card className="flex flex-col p-4 rounded-xl gap-3">
+      <Card className="relative isolate overflow-hidden rounded-3xl p-5 md:p-6 border-0 shadow-xl/2 bg-card">
         <div className="flex items-center gap-4">
           <div className="shrink-0 w-16 h-16 rounded-full bg-muted animate-pulse" />
           <div className="flex-1 space-y-2">
@@ -157,22 +171,143 @@ export default function TopKnowbyCard({ selectedDateRange }: TopKnowbyCardProps)
           <div className="flex flex-col gap-2 w-full min-w-0">
             <div className="flex items-start">
               <h3 className="text-lg font-semibold shrink-0 dark:text-white">Top Knowbys</h3>
-              <div className="ml-auto flex gap-1 flex-shrink-0">{/* no per-card tabs */}</div>
+              <div className="ml-auto flex gap-1 flex-shrink-0">
+                {/* Expand dialog trigger (like Knowby Stats) */}
+                <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <DialogTrigger asChild>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-8 w-8 rounded-md hover:cursor-pointer"
+                          aria-label="Expand"
+                        >
+                          <Maximize2 className="size-4" />
+                        </Button>
+                      </DialogTrigger>
+                    </TooltipTrigger>
+                    <TooltipContent className="text-xs">Expand</TooltipContent>
+                  </Tooltip>
+                  <DialogContent className="min-w-3xl">
+                    <DialogHeader>
+                      <DialogTitle className="flex items-center gap-2">
+                        <span className="inline-block h-2.5 w-2.5 rounded-full bg-indigo-500" />
+                        Top Knowbys
+                      </DialogTitle>
+                      <DialogDescription className="text-xs">
+                        {format(start, "d MMM yyyy")} – {format(end, "d MMM yyyy")} • ranked by completions
+                      </DialogDescription>
+                    </DialogHeader>
+
+                    {/* Full list (scrollable) */}
+                    <div className="mt-2 rounded-lg ring-1 ring-black/10 dark:ring-white/10 overflow-hidden">
+                      <div className="h-1 w-full bg-indigo-500/60 dark:bg-indigo-500/50" />
+                      <div className="max-h-[60vh] overflow-auto bg-white/60 dark:bg-black/10">
+                        <table className="w-full text-[11.5px]">
+                          <thead
+                            className="sticky top-0 z-10 bg-white/90 backdrop-blur-sm dark:bg-black/30 border-b border-slate-200/70 dark:border-white/10">
+                            <tr className="text-left">
+                              <th className="font-bold text-slate-700 dark:text-slate-100 py-2 pl-6 pr-2">
+                                Rank
+                              </th>
+                              <th className="font-bold text-slate-700 dark:text-slate-100 py-2 pl-2 pr-2">
+                                Knowby
+                              </th>
+                              <th className="font-bold text-slate-700 dark:text-slate-100 py-2 pl-2 pr-2 text-right">
+                                Views
+                              </th>
+                              <th className="font-bold text-slate-700 dark:text-slate-100 py-2 pl-2 pr-6 text-right">
+                                Completion rate
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {allRows.length === 0 ? (
+                              <tr>
+                                <td colSpan={4} className="py-6 text-center text-muted-foreground">
+                                  No activity in the selected window.
+                                </td>
+                              </tr>
+                            ) : (
+                              allRows.map((r, idx) => {
+                                const rowBg =
+                                  idx % 2 === 0
+                                    ? "bg-white/80 dark:bg-slate-800/70"
+                                    : "bg-slate-50/80 dark:bg-slate-900/50";
+                                return (
+                                  <tr
+                                    key={r.knowby + idx}
+                                    className={`${rowBg} hover:bg-slate-100/80 dark:hover:bg-slate-800/80 transition-colors`}
+                                  >
+                                    <td className="py-1 pl-6 pr-2">
+                                      <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-muted dark:bg-background text-[10px] font-semibold">
+                                        {idx + 1}
+                                      </span>
+                                    </td>
+                                    <td className="py-1 pl-2 pr-2">
+                                      <span
+                                        className="inline-block truncate max-w-[44ch] text-slate-700 dark:text-slate-200"
+                                        title={r.knowby}
+                                      >
+                                        {r.knowby}
+                                      </span>
+                                    </td>
+                                    <td className="py-1 pl-2 pr-2 text-right tabular-nums text-slate-700 dark:text-slate-200">
+                                      {r.views.toLocaleString()}
+                                    </td>
+                                    <td className="py-1 pl-2 pr-6 text-right tabular-nums text-slate-700 dark:text-slate-200">
+                                      {`${Math.round(r.rate)}%`}
+                                    </td>
+                                  </tr>
+                                );
+                              })
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
+                    <DialogFooter className="justify-between sm:justify-end">
+                      <div className="text-[11px] text-muted-foreground mr-auto">
+                        {allRows.length.toLocaleString()} row{allRows.length === 1 ? "" : "s"}
+                      </div>
+                      <Button variant="secondary" onClick={() => setDialogOpen(false)}>
+                        Close
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              </div>
             </div>
             <div className="text-xs text-muted-foreground">{caption}</div>
           </div>
         </div>
 
-        <hr className="border-border" />
+        {/* ======= TABLE (styled like Knowby Stats) ======= */}
+        <CardContent className="h-full rounded-2xl ring-1 ring-black/10 dark:ring-white/10 pt-0 px-0 overflow-hidden dark:bg-black/10">
+          {/* Accent bar to match the Stats card feel */}
+          <div className="h-1 w-full bg-indigo-500/60 dark:bg-indigo-500/50" />
 
-        {/* ======= TABLE ======= */}
-        <CardContent className="p-0 h-full">
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs">
-              <thead>
-                <tr className="text-muted-foreground">
-                  <th className="text-left text-xs py-2 pl-6">Knowby</th>
-                  <th className="text-right text-xs py-2 pr-6">Completion rate</th>
+          {/* no horizontal scroll */}
+          <div className="overflow-hidden">
+            <table className="w-full text-[12px] table-fixed">
+              {/* name flexes; rate is a fixed, responsive width */}
+              <colgroup>
+                <col />
+                <col className="w-[4.75rem] 2xl:w-[8.5rem]" />
+              </colgroup>
+
+              <thead className="bg-white/80 dark:bg-black/30">
+                <tr className="border-b border-slate-200/70 dark:border-white/10 text-left">
+                  <th className="font-bold text-slate-700 dark:text-slate-100 py-2 pl-6 pr-2">
+                    Knowby
+                  </th>
+                  <th className="font-bold text-slate-700 dark:text-slate-100 py-2 pl-2 pr-6 text-right whitespace-nowrap">
+                    {/* short label on laptops; full label only on very wide screens */}
+                    <span className="2xl:hidden">Rate</span>
+                    <span className="hidden 2xl:inline truncate">Completion rate</span>
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -183,63 +318,81 @@ export default function TopKnowbyCard({ selectedDateRange }: TopKnowbyCardProps)
                     </td>
                   </tr>
                 ) : (
-                  rows.map((r, idx) => (
-                    <tr
-                      key={r.knowby + idx}
-                      className={idx % 2 ? "bg-background" : "bg-transparent"}
-                    >
-                      <td className="py-2 pl-6 pt-0 pb-0">
-                        <div className="flex items-center gap-2">
-                          <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-muted dark:bg-background text-xs font-semibold">
-                            {idx + 1}
-                          </span>
-                          <span className="inline-block truncate max-w-[24ch]" title={r.knowby}>
-                            {r.knowby}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="py-2 pr-6 text-right tabular-nums">
-                        {`${Math.round(r.rate)}%`}
-                      </td>
-                    </tr>
-                  ))
+                  rows.map((r, idx) => {
+                    const rowBg =
+                      idx % 2 === 0
+                        ? "bg-white/80 dark:bg-slate-800/70"
+                        : "bg-slate-50/80 dark:bg-slate-900/50";
+                    return (
+                      <tr
+                        key={r.knowby + idx}
+                        className={`${rowBg} hover:bg-slate-100/80 dark:hover:bg-slate-800/80 transition-colors`}
+                      >
+                        <td className="py-1 pl-6 pr-2">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-muted dark:bg-background text-[10px] font-semibold">
+                              {idx + 1}
+                            </span>
+                            <span
+                              className="truncate text-slate-700 dark:text-slate-200 max-w-[26ch] 2xl:max-w-[44ch]"
+                              title={r.knowby}
+                            >
+                              {r.knowby}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="py-2 pl-2 pr-6 text-right tabular-nums whitespace-nowrap">
+                          {`${Math.round(r.rate)}%`}
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>
           </div>
         </CardContent>
 
-        {/* Footer summary */}
+        {/* Footer summary (same tone as Stats) */}
         <div className="pl-6 pr-6">
-          <CardFooter className="flex items-center justify-between text-muted-foreground text-sm px-0">
+          <CardFooter className="flex items-center justify-between text-muted-foreground text-xs px-0">
             <Tooltip>
               <TooltipTrigger asChild>
-                <div className="flex items-center gap-1.5">
+                <span className="inline-flex items-center gap-1">
                   <Eye className="h-4 w-4" />
-                  <span>{totals.views}</span>
-                </div>
+                  <strong className="text-foreground">{totals.views}</strong> views
+                </span>
               </TooltipTrigger>
-              <TooltipContent> Total Views (selected range) across top 5 </TooltipContent>
+              <TooltipContent className="text-xs">
+                Total views (selected range) across top 5
+              </TooltipContent>
             </Tooltip>
 
             <Tooltip>
               <TooltipTrigger asChild>
-                <div className="flex items-center gap-1.5">
-                  <CheckCircle className="h-4 w-4" />
-                  <span>{totals.comps}</span>
-                </div>
+                <span className="inline-flex items-center gap-1">
+                  <CheckCircle className="h-3.5 w-3.5" />
+                  <strong className="text-foreground">{totals.comps}</strong> completions
+                </span>
               </TooltipTrigger>
-              <TooltipContent> Total Completions (selected range) across top 5 </TooltipContent>
+              <TooltipContent className="text-xs">
+                Total completions (selected range) across top 5
+              </TooltipContent>
             </Tooltip>
 
             <Tooltip>
               <TooltipTrigger asChild>
-                <div className="flex items-center gap-1.5">
+                <span className="inline-flex items-center gap-1">
                   <TrendingUp className="h-4 w-4" />
-                  <span>{footerRate == null ? "--%" : `${footerRate.toFixed(2)}%`}</span>
-                </div>
+                  <strong className="text-foreground">
+                    {footerRate == null ? "--%" : `${footerRate.toFixed(2)}%`}
+                  </strong>{" "}
+                  avg rate
+                </span>
               </TooltipTrigger>
-              <TooltipContent> Avg completion rate (selected range) across top 5 </TooltipContent>
+              <TooltipContent className="text-xs">
+                Avg completion rate (selected range) across top 5
+              </TooltipContent>
             </Tooltip>
           </CardFooter>
         </div>
