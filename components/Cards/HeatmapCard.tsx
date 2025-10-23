@@ -48,7 +48,7 @@ type TimeBin = { startMin: number; endMin: number; label: string };
 
 const WEEKLY_BINS = 8; // 8 × 3h buckets across the day
 
-/** Heat color ramps to match dashboard semantics */
+/* Heat color ramps to match dashboard semantics */
 const RAMPS: Record<Metric, string[]> = {
   views: [
     "bg-slate-100 dark:bg-white/5",
@@ -152,7 +152,7 @@ function resolveMode(from: Date, to: Date): Mode {
   return "all";
 }
 
-/** Metric → heat cell class */
+/* Metric → heat cell class */
 export function cellColor(value: number, max: number, metric: Metric) {
   const ramp = RAMPS[metric];
   if (value <= 0 || max <= 0) return ramp[0];

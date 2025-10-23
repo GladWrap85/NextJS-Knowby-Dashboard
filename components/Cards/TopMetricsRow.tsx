@@ -61,7 +61,7 @@ function pct(n: number) {
   return `${n.toFixed(2)}%`;
 }
 
-/** Count unique knowbys (by id) with createdTs <= cutoff (undated included). */
+/* Count unique knowbys (by id) with createdTs <= cutoff (undated included). */
 function countKnowbysUpTo(
   list: { knowby_id?: string; createdTs?: number }[],
   upTo: Date
@@ -86,7 +86,7 @@ function countKnowbysUpTo(
   return ids.size;
 }
 
-/** Small delta badge for % changes. */
+/* Small delta badge for % changes. */
 function DeltaBadge({ delta, isRate = false }: { delta: number | null; isRate?: boolean }) {
   if (delta == null || isNaN(delta)) delta = 0;
 
