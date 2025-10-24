@@ -90,7 +90,7 @@ export type DashboardSummary = {
   };
 
   // Top lists and time buckets used in the Trend table
-  topKnowbysByViews: Array<{
+  topKnowbysByCompletions: Array<{
     name: string;
     id?: string;
     views: number;
@@ -454,14 +454,14 @@ export function computeDashboardSummary(
   const deltaRate = suppressCompare ? null : deltaRateBase;
 
   // Top lists
-  const topKnowbysByViews = Array.from(knowbyAgg.entries())
+  const topKnowbysByCompletions = Array.from(knowbyAgg.entries())
     .map(([id, v]) => ({
       id,
       name: v.name ?? id,
       views: v.views,
       completions: v.completions,
     }))
-    .sort((a, b) => b.views - a.views)
+    .sort((a, b) => b.completions - a.completions)
     .slice(0, 5);
 
   const topMembersByActivity = Array.from(memberAgg.entries())
@@ -545,7 +545,7 @@ export function computeDashboardSummary(
       completionsPct: deltaCompletions,
       rateDelta: deltaRate,
     },
-    topKnowbysByViews,
+    topKnowbysByCompletions,
     topMembersByActivity,
     bucketMode: effectiveBucketMode,
     windowKind,
@@ -968,14 +968,14 @@ export function exportDashboardPdf(
 
   // ===== Top Knowbys =====
   y += 8;
-  const tk = summary.topKnowbysByViews;
+  const tk = summary.topKnowbysByCompletions;
   const tkRows = tk.map((r) => [
     r.name,
     String(r.views),
     String(r.completions),
   ]);
   renderSimpleTableSection(
-    "Top Knowbys (by Views)",
+    "Top Knowbys (by Completions)",
     ["Knowby", "Views", "Completions"],
     tkRows,
     [1, 2],
