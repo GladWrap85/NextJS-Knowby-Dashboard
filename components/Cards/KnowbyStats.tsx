@@ -223,7 +223,7 @@ export default function KnowbyStats({ selectedDateRange, className }: Props) {
       }
 
       const active = [...activeMap.values()]
-        .sort((a, b) => b.completions - a.completions || b.views - a.views || b.last - a.last)
+        .sort((a, b) => b.views - a.views || b.completions - a.completions || b.last - a.last)
         .map((r) => ({
           member: r.member,
           views: r.views,
