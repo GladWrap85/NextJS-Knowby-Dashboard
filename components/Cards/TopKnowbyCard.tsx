@@ -172,7 +172,7 @@ export default function TopKnowbyCard({ selectedDateRange }: TopKnowbyCardProps)
      ============================================================================ */
   return (
     <TooltipProvider>
-      <Card className="flex flex-col p-6 rounded-3xl gap-3 border-0 dark:border dark:border-slate-700 shadow-xl/2 dark:shadow-lg dark:shadow-gray-900/50 bg-card min-h-[365px]">
+      <Card className="flex flex-col px-6 py-4 rounded-3xl gap-3 border-0 dark:border dark:border-slate-700 shadow-xl/2 dark:shadow-lg dark:shadow-gray-900/50 bg-card">
         {/* -------------------------------- HEADER -------------------------------- */}
         <div className="flex items-start gap-4">
           <div className="shrink-0 flex items-center justify-center w-16 h-16 rounded-full text-white bg-gradient-to-b from-indigo-500 to-indigo-700">
@@ -296,7 +296,7 @@ export default function TopKnowbyCard({ selectedDateRange }: TopKnowbyCardProps)
         <CardContent className="h-full rounded-2xl ring-1 ring-black/10 dark:ring-white/10 pt-0 px-0 overflow-hidden dark:bg-black/10">
           <div className="h-1 w-full bg-indigo-500/60 dark:bg-indigo-500/50" />
           <div className="overflow-hidden">
-            <table className="w-full text-[12px] table-fixed">
+            <table className="w-full text-[11.5px] table-fixed">
               <colgroup>
                 <col />
                 <col className="w-[4.75rem] 2xl:w-[8.5rem]" />

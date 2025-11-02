@@ -328,7 +328,7 @@ export default function KnowbyStats({ selectedDateRange, className }: Props) {
     <TooltipProvider>
       <Card
         className={cn(
-          "min-h-[350px] relative isolate overflow-hidden rounded-3xl p-5 md:p-6 border-0 shadow-xl/2 bg-card",
+          "relative isolate overflow-hidden rounded-3xl px-6 py-4 border-0 shadow-xl/2 bg-card",
           "dark:border dark:border-slate-700",
           className
         )}
@@ -433,12 +433,6 @@ export default function KnowbyStats({ selectedDateRange, className }: Props) {
           </div>
 
           {/* -------------------------------- CONTENT -------------------------------- */}
-          <div className={cn("flex-1 min-h-0 rounded-2xl ring-1 ring-black/10 dark:ring-white/10", "dark:bg-black/10 p-3")}>
-            <div className="mb-2 flex items-center justify-between">
-              <div className="text-sm font-medium">{activeMeta.label}</div>
-              <div className="text-[11px] text-muted-foreground">{activeMeta.hint}</div>
-            </div>
-
             <div className="h-[200px] rounded-2xl ring-1 ring-black/10 dark:ring-white/10 pt-0 px-0 bg-white/60 dark:bg-black/10 overflow-hidden">
               <div className={cn("h-1 w-full", activeMeta.color)} />
               <MiniTable rows={pageRows} />
@@ -469,7 +463,6 @@ export default function KnowbyStats({ selectedDateRange, className }: Props) {
                   </Button>
                 </div>
               </div>
-            </div>
           </div>
         </CardContent>
       </Card>
@@ -537,7 +530,7 @@ function MiniTable({ rows }: { rows: any[] }) {
   ];
 
   return (
-    <table className="w-full text-[12px]">
+    <table className="w-full text-[11.5px]">
       <thead className="sticky top-0 z-10 bg-white/90 dark:bg-black/30 border-b border-slate-200/70 dark:border-white/10">
         <tr className="[&>th]:py-2 [&>th]:px-3 text-left">
           {cols.map((h) => (

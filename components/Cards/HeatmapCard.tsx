@@ -384,7 +384,7 @@ export default function UsageHeatmap({ selectedDateRange }: Props) {
   /* ---------------------------------- JSX ----------------------------------- */
   return (
     <TooltipProvider>
-      <Card className="min-h-[350px] relative isolate overflow-hidden rounded-3xl p-5 md:p-6 border-0 shadow-xl/2 bg-card dark:border dark:border-slate-700 gap-2">
+      <Card className="relative isolate overflow-hidden rounded-3xl px-6 py-4 border-0 shadow-xl/2 bg-card dark:border dark:border-slate-700 gap-2">
         {/* HEADER */}
         <div className="flex items-center gap-3">
           <div className="shrink-0 flex h-10 w-10 items-center justify-center rounded-full text-white bg-gradient-to-b from-teal-500 to-teal-700">
@@ -502,10 +502,7 @@ export default function UsageHeatmap({ selectedDateRange }: Props) {
                 key={monthStart.toISOString()}
                 className="rounded-2xl ring-1 ring-black/10 dark:ring-white/10 p-3 bg-white/60 dark:bg-black/10"
               >
-                <div className="mb-2 flex items-center justify-between">
-                  <div className="text-sm font-medium">{format(monthStart, "MMMM yyyy")}</div>
-                  <div className="text-xs text-muted-foreground">Sun – Sat</div>
-                </div>
+                
                 <div className="grid grid-cols-7 gap-1">
                   {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
                     <div key={d} className="text-[11px] text-center text-muted-foreground mb-1">
