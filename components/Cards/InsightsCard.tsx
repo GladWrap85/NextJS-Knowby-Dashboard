@@ -764,7 +764,7 @@ export default function AnalyticsExplorer({ selectedDateRange }: Props) {
   const { views = [], completions = [], status } = useKnowbyData();
   const isDark = useDarkMode();
 
-  const [metric, setMetric] = useState<Metric>("views");
+  const [metric, setMetric] = useState<Metric>("completionRate");
   const [chartType, setChartType] = useState<ChartType>("area");
   const [selKnowbys, setSelKnowbys] = useState<string[]>([]);
   const [selEmployees, setSelEmployees] = useState<string[]>([]);
