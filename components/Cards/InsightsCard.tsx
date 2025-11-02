@@ -26,11 +26,13 @@ import {
 import {
   Eye,
   CheckCircle,
-  TrendingUp,
+  TrendingUp, 
   Search,
   InfoIcon,
   ChevronLeft,
   ChevronRight,
+  AreaChart,
+  BarChart3,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -499,8 +501,8 @@ const summaryCards = (
 const metricButtons = (
   metric: Metric,
   setMetric: (metric: Metric) => void,
-  _chartType: ChartType,
-  _setChartType: (type: ChartType) => void
+  chartType: ChartType,
+  setChartType: (type: ChartType) => void 
 ) => (
   <div className="flex flex-wrap items-center justify-between gap-2">
     <div className="flex flex-wrap items-center gap-2">
@@ -530,6 +532,23 @@ const metricButtons = (
           )}
         </button>
       ))}
+    </div>
+    <div className="flex items-center gap-2">
+      {[{ key: "area" as const, label: "Area", icon: AreaChart }, { key: "bar" as const, label: "Bar", icon: BarChart3 }].map(
+        ({ key, label, icon: Icon }) => (
+          <button
+            key={key}
+            onClick={() => setChartType(key)}
+            className={cn(
+              pill(chartType === key, "neutral"),
+              "flex items-center gap-1 cursor-pointer px-2 py-1"
+            )}
+          >
+            <Icon className="h-3.5 w-3.5" />
+            <span>{label}</span>
+          </button>
+        )
+      )}
     </div>
   </div>
 );
